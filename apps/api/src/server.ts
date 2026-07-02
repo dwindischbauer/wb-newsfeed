@@ -1,0 +1,21 @@
+import Fastify from 'fastify';
+
+const server = Fastify({
+  logger: true
+});
+
+server.get('/api/sysinfo', async (request, reply) => {
+  return { status: 'ok', service: 'wb-news-api', version: '1.0.0' };
+});
+
+const start = async () => {
+  try {
+    await server.listen({ port: 3005, host: '0.0.0.0' });
+    console.log(`Server listening on port 3005`);
+  } catch (err) {
+    server.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();
