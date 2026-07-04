@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import articleRoutes from './routes/articles';
+import jobRoutes from './routes/jobs';
 import './queue'; // Initialize worker
 
 const server = Fastify({
@@ -7,6 +8,7 @@ const server = Fastify({
 });
 
 server.register(articleRoutes);
+server.register(jobRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return { status: 'ok', service: 'wb-news-api', version: '1.0.0' };

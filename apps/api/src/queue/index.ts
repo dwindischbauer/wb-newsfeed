@@ -14,10 +14,10 @@ export const worker = new Worker('generation_jobs', async job => {
   
   await db.update(jobs).set({ status: 'processing' }).where(eq(jobs.id, jobId));
   
-  // Placeholder for Ollama generation logic
+  // call ollama via fetch (to be implemented)
   await new Promise(resolve => setTimeout(resolve, 2000));
   
-  await db.update(jobs).set({ status: 'completed', result: 'Dummy Teaser generated' }).where(eq(jobs.id, jobId));
+  await db.update(jobs).set({ status: 'completed', result: 'Teaser generated' }).where(eq(jobs.id, jobId));
 }, { connection });
 
 worker.on('completed', job => {
