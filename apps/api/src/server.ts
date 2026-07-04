@@ -1,8 +1,11 @@
 import Fastify from 'fastify';
+import articleRoutes from './routes/articles';
 
 const server = Fastify({
   logger: true
 });
+
+server.register(articleRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return { status: 'ok', service: 'wb-news-api', version: '1.0.0' };
