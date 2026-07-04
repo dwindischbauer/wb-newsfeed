@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import articleRoutes from './routes/articles';
+import './queue'; // Initialize worker
 
 const server = Fastify({
   logger: true
