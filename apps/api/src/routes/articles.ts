@@ -1,0 +1,33 @@
+import type { FastifyInstance } from 'fastify';
+import { db } from '../db';
+import { articles } from '../db/schema';
+import { eq, desc } from 'drizzle-orm';
+
+export default async function (server: FastifyInstance) {
+  server.get('/api/articles', async (request, reply) => {
+    const allArticles = await db.select().from(articles).orderBy(desc(articles.createdAt));
+    return allArticles;
+  });
+
+  server.get('/api/articles/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const article = await db.select().from(articles).where(eq(articles.id, parseInt(id)));
+    if (article.length === 0) {
+      reply.status(404).send({ error: 'Article not found' });
+      return;
+    }
+    return article[0];
+  });
+
+  server.post('/api/articles', async (request, reply) => {
+    const body = request.body as any;
+    const newArticle = await db.insert(articles).values({
+      title: body.title,
+      content: body.content,
+      category: body.category,
+      author: body.author,
+      status: body.status || 'draft'
+    }).returning();
+    return newArticle[0];
+  });
+}
