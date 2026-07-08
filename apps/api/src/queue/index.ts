@@ -14,10 +14,26 @@ export const worker = new Worker('generation_jobs', async job => {
   
   await db.update(jobs).set({ status: 'processing' }).where(eq(jobs.id, jobId));
   
-  // call ollama via fetch (to be implemented)
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  await db.update(jobs).set({ status: 'completed', result: 'Teaser generated' }).where(eq(jobs.id, jobId));
+  try {
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'qwen2.5:3b-instruct',
+        prompt: 'Generate a short news teaser for this article',
+        stream: false
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    await db.update(jobs).set({ status: 'completed', result: data.response }).where(eq(jobs.id, jobId));
+  } catch (error: any) {
+    await db.update(jobs).set({ status: 'failed', error: error.message }).where(eq(jobs.id, jobId));
+  }
 }, { connection });
 
 worker.on('completed', job => {
