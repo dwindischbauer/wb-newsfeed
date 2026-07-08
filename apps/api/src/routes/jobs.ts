@@ -9,6 +9,16 @@ export default async function (server: FastifyInstance) {
     return allJobs;
   });
 
+  server.get('/api/jobs/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const jobRes = await db.select().from(jobs).where(eq(jobs.id, parseInt(id)));
+    if (jobRes.length === 0) {
+      reply.status(404).send({ error: 'Job not found' });
+      return;
+    }
+    return jobRes[0];
+  });
+
   server.post('/api/jobs', async (request, reply) => {
     const body = request.body as any;
     const newJob = await db.insert(jobs).values({
