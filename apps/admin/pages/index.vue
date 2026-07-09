@@ -21,6 +21,17 @@
         <h3>Artikel verwalten</h3>
         <button class="primary-btn" @click="openModal">+ Artikel einpflegen</button>
       </div>
+
+      <div class="category-filters">
+        <button 
+          v-for="cat in categories" 
+          :key="cat"
+          :class="['chip', { active: activeCategory === cat }]"
+          @click="activeCategory = cat"
+        >
+          {{ cat }}
+        </button>
+      </div>
       
       <table class="data-table">
         <thead>
@@ -33,7 +44,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="article in articles" :key="article.id">
+          <tr v-for="article in filteredArticles" :key="article.id">
             <td>{{ article.title }}</td>
             <td>{{ article.category }}</td>
             <td>{{ article.author }}</td>
@@ -44,7 +55,7 @@
               <button class="action-btn">Vorschau</button>
             </td>
           </tr>
-          <tr v-if="articles.length === 0">
+          <tr v-if="filteredArticles.length === 0">
             <td colspan="5" class="empty">Keine Artikel gefunden.</td>
           </tr>
         </tbody>
@@ -54,9 +65,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 
 const articles = ref([]);
+const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
+const activeCategory = ref('Alle');
+
+const filteredArticles = computed(() => {
+  if (activeCategory.value === 'Alle') return articles.value;
+  return articles.value.filter(a => a.category === activeCategory.value);
+});
 
 const fetchArticles = async () => {
   try {
@@ -121,6 +139,24 @@ onMounted(() => {
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
+}
+.category-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.chip {
+  padding: 0.25rem 1rem;
+  border-radius: 99px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.chip.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
 }
 .data-table {
   width: 100%;
