@@ -1,7 +1,8 @@
 <template>
-  <div class="dashboard">
-    <h2>Dashboard</h2>
-    <div class="stats">
+  <div class="dashboard-layout">
+    <div class="dashboard-main">
+      <h2>Dashboard</h2>
+      <div class="stats">
       <div class="stat-card">
         <h3>Verwaltete Artikel</h3>
         <p>0</p>
@@ -52,7 +53,7 @@
               <span :class="['status-badge', article.status]">{{ article.status === 'published' ? 'Veröffentlicht' : 'Entwurf' }}</span>
             </td>
             <td>
-              <button class="action-btn">Vorschau</button>
+              <button class="action-btn" @click="selectArticle(article)">Vorschau</button>
             </td>
           </tr>
           <tr v-if="filteredArticles.length === 0">
@@ -60,6 +61,26 @@
           </tr>
         </tbody>
       </table>
+    </div>
+    </div> <!-- End dashboard-main -->
+
+    <div class="preview-panel" v-if="selectedArticle">
+      <div class="preview-header">
+        <h3>Live-Vorschau</h3>
+        <span class="sync-badge">Echtzeit-Sync</span>
+      </div>
+      <div class="preview-content">
+        <span class="preview-category">{{ selectedArticle.category }}</span>
+        <h2 class="preview-title">{{ selectedArticle.title }}</h2>
+        <div class="preview-teaser" v-if="selectedArticle.teaser">
+          <strong>KI-Zusammenfassung:</strong> {{ selectedArticle.teaser }}
+        </div>
+        <div class="preview-meta">{{ selectedArticle.author }}</div>
+        <div class="preview-body">{{ selectedArticle.content }}</div>
+      </div>
+      <div class="preview-actions">
+        <button class="action-btn" @click="selectedArticle = null">Schließen</button>
+      </div>
     </div>
 
     <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
@@ -103,11 +124,16 @@ import { ref, onMounted, computed } from 'vue';
 const articles = ref([]);
 const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
 const activeCategory = ref('Alle');
+const selectedArticle = ref(null);
 
 const filteredArticles = computed(() => {
   if (activeCategory.value === 'Alle') return articles.value;
   return articles.value.filter(a => a.category === activeCategory.value);
 });
+
+const selectArticle = (article) => {
+  selectedArticle.value = article;
+};
 
 const fetchArticles = async () => {
   try {
@@ -164,8 +190,65 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.dashboard {
+.dashboard-layout {
+  display: flex;
+  height: calc(100vh - 72px);
+}
+.dashboard-main {
+  flex: 1;
   padding: 2rem;
+  overflow-y: auto;
+}
+.preview-panel {
+  width: 400px;
+  background: white;
+  border-left: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+}
+.preview-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.preview-header h3 { margin: 0; }
+.sync-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+.preview-content {
+  padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+.preview-category {
+  display: inline-block;
+  background: #f3f4f6;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+}
+.preview-title { margin: 0 0 1rem 0; font-size: 1.2rem; }
+.preview-teaser {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 4px;
+  border-left: 4px solid #3b82f6;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.preview-meta { color: #666; font-size: 0.8rem; margin-bottom: 1.5rem; }
+.preview-body { line-height: 1.6; white-space: pre-wrap; }
+.preview-actions {
+  padding: 1.5rem;
+  border-top: 1px solid #eee;
 }
 .stats {
   display: flex;
