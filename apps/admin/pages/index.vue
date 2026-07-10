@@ -82,6 +82,7 @@
         <button class="primary-btn" @click="toggleStatus(selectedArticle)">
           {{ selectedArticle.status === 'published' ? 'In Entwurf umwandeln' : 'Veröffentlichen' }}
         </button>
+        <button class="action-btn" @click="openMobilePreview">Mobile Ansicht</button>
         <button class="action-btn" @click="selectedArticle = null">Schließen</button>
       </div>
     </div>
@@ -152,6 +153,10 @@ const toggleStatus = async (article) => {
   } catch (e) {
     console.error(e);
   }
+};
+
+const openMobilePreview = () => {
+  window.open('http://localhost:3002', '_blank', 'width=375,height=812');
 };
 
 const fetchArticles = async () => {
