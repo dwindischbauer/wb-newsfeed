@@ -2,6 +2,10 @@
   <div class="app-container">
     <header class="app-header">
       <h1>WB News Admin CMS</h1>
+      <nav>
+        <NuxtLink to="/">Dashboard</NuxtLink>
+        <NuxtLink to="/jobs">Job-Queue</NuxtLink>
+      </nav>
     </header>
     <main>
       <NuxtPage />
@@ -20,5 +24,24 @@
   background-color: #fff;
   padding: 1rem 2rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+nav {
+  display: flex;
+  gap: 1.5rem;
+}
+nav a {
+  text-decoration: none;
+  color: #666;
+  font-weight: 500;
+}
+nav a.router-link-active {
+  color: #3b82f6;
 }
 </style>
