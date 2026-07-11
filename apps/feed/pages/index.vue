@@ -47,9 +47,11 @@ const publishedArticles = computed(() => {
   return articles.value.filter(a => a.status === 'published');
 });
 
+const config = useRuntimeConfig();
+
 const fetchArticles = async () => {
   try {
-    const res = await fetch('http://localhost:3005/api/articles');
+    const res = await fetch(`${config.public.apiUrl}/api/articles`);
     const data = await res.json();
     articles.value = data;
   } catch (e) {
