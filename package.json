@@ -1,0 +1,27 @@
+{
+  "name": "wb-newsfeed-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WB Newsfeed - Automated AI Teaser Generation Monorepo",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:worker": "npm --prefix apps/api run dev:worker",
+    "dev:admin": "npm --prefix apps/admin run dev",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "eslint . --ext .ts,.js,.vue",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
