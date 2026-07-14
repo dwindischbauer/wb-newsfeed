@@ -75,6 +75,10 @@
         <div class="preview-teaser" v-if="selectedArticle.teaser">
           <strong>KI-Zusammenfassung:</strong> {{ selectedArticle.teaser }}
         </div>
+        <div class="preview-takeaways" v-if="selectedArticle.keyTakeaways">
+          <strong>Kernpunkte:</strong>
+          <p>{{ selectedArticle.keyTakeaways }}</p>
+        </div>
         <div class="preview-meta">{{ selectedArticle.author }}</div>
         <div class="preview-body">{{ selectedArticle.content }}</div>
       </div>
@@ -327,6 +331,18 @@ onMounted(() => {
   border-left: 4px solid #3b82f6;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+}
+.preview-takeaways {
+  background: #f0fdf4;
+  padding: 1rem;
+  border-radius: 4px;
+  border-left: 4px solid #22c55e;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.preview-takeaways p {
+  margin: 0.5rem 0 0 0;
+  white-space: pre-wrap;
 }
 .preview-meta { color: #666; font-size: 0.8rem; margin-bottom: 1.5rem; }
 .preview-body { line-height: 1.6; white-space: pre-wrap; }
