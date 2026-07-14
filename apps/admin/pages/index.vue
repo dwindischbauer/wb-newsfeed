@@ -5,15 +5,15 @@
       <div class="stats">
       <div class="stat-card">
         <h3>Verwaltete Artikel</h3>
-        <p>0</p>
+        <p>{{ totalArticlesCount }}</p>
       </div>
       <div class="stat-card">
         <h3>KI-Jobs</h3>
-        <p>0</p>
+        <p>{{ pendingJobsCount }}</p>
       </div>
       <div class="stat-card">
         <h3>Veröffentlicht im Feed</h3>
-        <p>0</p>
+        <p>{{ publishedArticlesCount }}</p>
       </div>
     </div>
     
@@ -130,6 +130,10 @@ const articles = ref([]);
 const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
 const activeCategory = ref('Alle');
 const selectedArticle = ref(null);
+const pendingJobsCount = ref(0);
+
+const totalArticlesCount = computed(() => articles.value.length);
+const publishedArticlesCount = computed(() => articles.value.filter(a => a.status === 'published').length);
 
 const filteredArticles = computed(() => {
   if (activeCategory.value === 'Alle') return articles.value;
@@ -170,6 +174,16 @@ const deleteArticle = async (id) => {
     });
     selectedArticle.value = null;
     fetchArticles();
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const fetchJobsStat = async () => {
+  try {
+    const res = await fetch(`${config.public.apiUrl}/api/jobs`);
+    const data = await res.json();
+    pendingJobsCount.value = data.filter(j => j.status === 'pending' || j.status === 'processing').length;
   } catch (e) {
     console.error(e);
   }
@@ -245,6 +259,7 @@ const pollJobStatus = async (jobId) => {
 
 onMounted(() => {
   fetchArticles();
+  fetchJobsStat();
 
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'article_opened') {
