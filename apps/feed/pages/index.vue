@@ -107,9 +107,20 @@ onMounted(() => {
 .reader-content {
   padding: 1.5rem;
   padding-bottom: 4rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
-.reader-content h2 { margin-top: 0; }
-.reader-meta { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+.reader-content h2 { 
+  margin-top: 0; 
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+.reader-meta { 
+  color: #9ca3af; 
+  font-size: 0.9rem; 
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 .takeaways {
   background: #1f2937;
   padding: 1.5rem;
