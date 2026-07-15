@@ -422,6 +422,12 @@ onMounted(() => {
   text-align: left;
   border-bottom: 1px solid #eee;
 }
+.data-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+.data-table tbody tr:hover {
+  background-color: #f8fafc;
+}
 .status-badge {
   padding: 0.25rem 0.75rem;
   border-radius: 99px;
