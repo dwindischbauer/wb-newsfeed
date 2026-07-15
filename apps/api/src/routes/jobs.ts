@@ -20,7 +20,13 @@ export default async function (server: FastifyInstance) {
   });
 
   server.post('/api/jobs', async (request, reply) => {
-    const body = request.body as any;
+    const body = request.body as { articleId?: number, type?: string };
+    
+    if (!body.articleId || !body.type) {
+      reply.status(400);
+      return { success: false, error: 'Missing articleId or type' };
+    }
+
     const newJob = await db.insert(jobs).values({
       articleId: body.articleId,
       type: body.type,
