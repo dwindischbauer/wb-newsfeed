@@ -16,6 +16,9 @@
         </tr>
       </thead>
       <tbody>
+        <tr v-if="jobs.length === 0">
+          <td colspan="5" class="empty-state">Keine Jobs in der Queue.</td>
+        </tr>
         <tr v-for="job in jobs" :key="job.id">
           <td>{{ job.id }}</td>
           <td>{{ job.type }}</td>
