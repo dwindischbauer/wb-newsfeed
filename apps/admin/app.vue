@@ -39,8 +39,9 @@ nav {
 }
 nav a {
   text-decoration: none;
-  color: #666;
+  color: #4b5563;
   font-weight: 500;
+  transition: color 0.2s ease;
 }
 nav a.router-link-active {
   color: #3b82f6;
