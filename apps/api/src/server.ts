@@ -1,7 +1,9 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
+import { env } from './config/env.config.js';
 import { logger } from './services/logger.service.js';
+import { setupErrorHandler } from './plugins/errorHandler.js';
 import { healthRoutes } from './routes/health.routes.js';
 
 export async function buildServer() {
@@ -15,6 +17,8 @@ export async function buildServer() {
 
   await fastify.register(sensible);
 
+  setupErrorHandler(fastify);
+
   // Register routes
   await fastify.register(healthRoutes);
 
@@ -24,11 +28,8 @@ export async function buildServer() {
 async function start() {
   try {
     const server = await buildServer();
-    const port = Number(process.env.PORT || 3000);
-    const host = process.env.HOST || '0.0.0.0';
-
-    await server.listen({ port, host });
-    logger.info(`Server listening at http://${host}:${port}`);
+    await server.listen({ port: env.PORT, host: env.HOST });
+    logger.info(`Server listening at http://${env.HOST}:${env.PORT}`);
   } catch (err) {
     logger.error(err, 'Error starting server');
     process.exit(1);
