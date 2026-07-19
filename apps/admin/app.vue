@@ -21,6 +21,12 @@
   min-height: 100vh;
   color: #333;
 }
+main {
+  background-color: #f3f4f6;
+  min-height: calc(100vh - 72px);
+  margin: 0;
+  padding: 0;
+}
 .app-header {
   background-color: #fff;
   padding: 1rem 2rem;
