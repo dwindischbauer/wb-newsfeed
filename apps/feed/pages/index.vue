@@ -181,6 +181,13 @@ onMounted(() => {
   margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
 }
+.article-title {
+  margin: 0 0 1rem 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
 .teaser {
   margin: 0 0 1rem 0;
   font-size: 1rem;
