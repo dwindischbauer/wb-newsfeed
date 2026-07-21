@@ -1,29 +1,25 @@
 import { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import { db } from '../db/client.js';
 import { articles, generationJobs } from '../db/schema.js';
 import { logger } from '../services/logger.service.js';
-
-const createArticleSchema = z.object({
-  title: z.string().min(3),
-  content: z.string().min(10),
-  author: z.string().optional(),
-  source: z.string().optional().default('manual'),
-  url: z.string().url().optional(),
-});
+import { StandardCMSAdapter } from '../adapters/ingestion.adapter.js';
 
 export async function articleRoutes(fastify: FastifyInstance) {
+  const cmsAdapter = new StandardCMSAdapter();
+
   fastify.post('/api/articles', async (request, reply) => {
-    const body = createArticleSchema.parse(request.body);
+    const normalized = cmsAdapter.normalize(request.body);
 
     const [insertedArticle] = await db
       .insert(articles)
       .values({
-        title: body.title,
-        content: body.content,
-        author: body.author,
-        source: body.source,
-        url: body.url,
+        externalId: normalized.externalId,
+        title: normalized.title,
+        content: normalized.content,
+        author: normalized.author,
+        source: normalized.source,
+        url: normalized.url,
+        publishedAt: normalized.publishedAt ? new Date(normalized.publishedAt) : new Date(),
       })
       .returning();
 
@@ -35,10 +31,10 @@ export async function articleRoutes(fastify: FastifyInstance) {
       })
       .returning();
 
-    logger.info({ articleId: insertedArticle.id, jobId: job.id }, 'Article ingested and job created');
+    logger.info({ articleId: insertedArticle.id, jobId: job.id }, 'Article ingested via adapter');
 
     return reply.status(201).send({
-      message: 'Article accepted for teaser generation',
+      message: 'Article ingested successfully',
       article: insertedArticle,
       job,
     });
