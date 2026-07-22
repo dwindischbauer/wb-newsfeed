@@ -87,7 +87,7 @@ onMounted(() => {
 }
 .empty-feed svg {
   margin-bottom: 1rem;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 .reader-overlay {
   position: fixed;
