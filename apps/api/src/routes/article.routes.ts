@@ -3,6 +3,7 @@ import { db } from '../db/client.js';
 import { articles, generationJobs } from '../db/schema.js';
 import { logger } from '../services/logger.service.js';
 import { StandardCMSAdapter } from '../adapters/ingestion.adapter.js';
+import { teaserQueue } from '../queue/teaserQueue.js';
 
 export async function articleRoutes(fastify: FastifyInstance) {
   const cmsAdapter = new StandardCMSAdapter();
@@ -31,7 +32,14 @@ export async function articleRoutes(fastify: FastifyInstance) {
       })
       .returning();
 
-    logger.info({ articleId: insertedArticle.id, jobId: job.id }, 'Article ingested via adapter');
+    await teaserQueue.add('generate-teaser', {
+      jobId: job.id,
+      articleId: insertedArticle.id,
+      title: insertedArticle.title,
+      content: insertedArticle.content,
+    });
+
+    logger.info({ articleId: insertedArticle.id, jobId: job.id }, 'Article ingested and pushed to queue');
 
     return reply.status(201).send({
       message: 'Article ingested successfully',
