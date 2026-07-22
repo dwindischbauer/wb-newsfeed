@@ -24,6 +24,11 @@ export default async function (server: FastifyInstance) {
     const body = request.body as any;
     
     if (body.status) {
+      const existing = await db.select().from(articles).where(eq(articles.id, parseInt(id)));
+      if (existing.length === 0) {
+        reply.status(404);
+        return { success: false, error: 'Article not found' };
+      }
       await db.update(articles).set({ status: body.status }).where(eq(articles.id, parseInt(id)));
     }
     
