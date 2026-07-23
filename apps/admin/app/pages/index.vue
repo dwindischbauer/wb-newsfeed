@@ -61,6 +61,39 @@
         </tbody>
       </table>
     </div>
+
+    <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Artikel einpflegen</h3>
+          <button class="close-btn" @click="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Titel (Auto-Titel falls leer)</label>
+            <input type="text" v-model="newArticle.title" />
+          </div>
+          <div class="form-group">
+            <label>Kategorie</label>
+            <select v-model="newArticle.category">
+              <option v-for="cat in categories.slice(1)" :key="cat" :value="cat">{{ cat }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Autor / Quelle</label>
+            <input type="text" v-model="newArticle.author" />
+          </div>
+          <div class="form-group">
+            <label>Fließtext (Aus Zwischenablage einfügen)</label>
+            <textarea v-model="newArticle.content" rows="6"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="action-btn" @click="closeModal">Abbrechen</button>
+          <button class="primary-btn" @click="saveArticle">Speichern & KI Job starten</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -86,8 +119,43 @@ const fetchArticles = async () => {
   }
 };
 
+const isModalOpen = ref(false);
+const newArticle = ref({ title: '', category: 'Wirtschaft', author: 'ORF.at Redaktion', content: '' });
+
 const openModal = () => {
-  alert('Modal wird noch implementiert');
+  isModalOpen.value = true;
+};
+
+const closeModal = () => {
+  isModalOpen.value = false;
+  newArticle.value = { title: '', category: 'Wirtschaft', author: 'ORF.at Redaktion', content: '' };
+};
+
+const saveArticle = async () => {
+  if (!newArticle.value.content) return;
+  if (!newArticle.value.title) {
+    newArticle.value.title = newArticle.value.content.substring(0, 30) + '...';
+  }
+  
+  try {
+    const res = await fetch('http://localhost:3005/api/articles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newArticle.value)
+    });
+    const article = await res.json();
+    
+    await fetch('http://localhost:3005/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articleId: article.id, type: 'teaser_generation' })
+    });
+    
+    closeModal();
+    fetchArticles();
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 onMounted(() => {
@@ -190,5 +258,69 @@ onMounted(() => {
   text-align: center;
   color: #666;
   padding: 2rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90vw;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 {
+  margin: 0;
+}
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+.modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.form-group label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.form-group input, .form-group select, .form-group textarea {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+}
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 </style>
