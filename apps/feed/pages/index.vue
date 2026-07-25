@@ -129,6 +129,20 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.scroll-indicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.3; }
+}
 .takeaways {
   background: #1f2937;
   padding: 1.5rem;
