@@ -1,16 +1,18 @@
 import { Worker, Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
 import { db } from './db/client.js';
-import { generationJobs, logs } from './db/schema.js';
+import { generationJobs, teasers, logs } from './db/schema.js';
 import { redisConnectionOptions } from './queue/redis.connection.js';
 import { TEASER_QUEUE_NAME, TeaserJobData } from './queue/teaserQueue.js';
 import { logger } from './services/logger.service.js';
+import { OllamaTeaserGenerator } from './services/teaserGenerator.service.js';
+
+const teaserGenerator = new OllamaTeaserGenerator();
 
 export async function processTeaserJob(job: Job<TeaserJobData>) {
-  const { jobId, articleId, title } = job.data;
-  logger.info({ jobId, articleId }, `Started processing teaser job for article: "${title}"`);
+  const { jobId, articleId, title, content } = job.data;
+  logger.info({ jobId, articleId }, `Processing job for article: "${title}"`);
 
-  // Update status to processing
   await db
     .update(generationJobs)
     .set({
@@ -20,14 +22,60 @@ export async function processTeaserJob(job: Job<TeaserJobData>) {
     })
     .where(eq(generationJobs.id, jobId));
 
-  await db.insert(logs).values({
-    jobId,
-    level: 'info',
-    message: `Job processing started (attempt ${job.attemptsMade + 1})`,
-    metadata: { attempt: job.attemptsMade + 1 },
-  });
+  try {
+    const result = await teaserGenerator.generateTeaser(title, content);
 
-  logger.info({ jobId }, 'Job structure established, worker awaiting LLM service integration');
+    const [insertedTeaser] = await db
+      .insert(teasers)
+      .values({
+        articleId,
+        jobId,
+        headline: result.headline,
+        summary: result.summary,
+        keyTakeaways: result.keyTakeaways,
+        sentiment: result.sentiment,
+        language: result.language,
+        modelUsed: result.modelUsed,
+      })
+      .returning();
+
+    await db
+      .update(generationJobs)
+      .set({
+        status: 'completed',
+        updatedAt: new Date(),
+      })
+      .where(eq(generationJobs.id, jobId));
+
+    await db.insert(logs).values({
+      jobId,
+      level: 'info',
+      message: 'Teaser generated successfully',
+      metadata: { teaserId: insertedTeaser.id, model: result.modelUsed },
+    });
+
+    logger.info({ jobId, teaserId: insertedTeaser.id }, 'Teaser generated and persisted successfully');
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logger.error({ jobId, err }, 'Failed to generate teaser');
+
+    await db
+      .update(generationJobs)
+      .set({
+        status: 'failed',
+        error: errorMessage,
+        updatedAt: new Date(),
+      })
+      .where(eq(generationJobs.id, jobId));
+
+    await db.insert(logs).values({
+      jobId,
+      level: 'error',
+      message: `Teaser generation failed: ${errorMessage}`,
+    });
+
+    throw err;
+  }
 }
 
 export function startWorker() {
@@ -36,27 +84,7 @@ export function startWorker() {
     concurrency: 2,
   });
 
-  worker.on('failed', async (job, err) => {
-    if (!job) return;
-    logger.error({ jobId: job.data.jobId, err }, 'Job processing failed');
-
-    await db
-      .update(generationJobs)
-      .set({
-        status: 'failed',
-        error: err.message,
-        updatedAt: new Date(),
-      })
-      .where(eq(generationJobs.id, job.data.jobId));
-
-    await db.insert(logs).values({
-      jobId: job.data.jobId,
-      level: 'error',
-      message: `Job failed: ${err.message}`,
-    });
-  });
-
-  logger.info('BullMQ Background worker initialized and waiting for jobs');
+  logger.info('BullMQ Background worker ready');
   return worker;
 }
 

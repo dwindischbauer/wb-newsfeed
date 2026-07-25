@@ -6,6 +6,7 @@ import { logger } from './services/logger.service.js';
 import { setupErrorHandler } from './plugins/errorHandler.js';
 import { healthRoutes } from './routes/health.routes.js';
 import { articleRoutes } from './routes/article.routes.js';
+import { feedRoutes } from './routes/feed.routes.js';
 
 export async function buildServer() {
   const fastify = Fastify({
@@ -23,6 +24,7 @@ export async function buildServer() {
   // Register routes
   await fastify.register(healthRoutes);
   await fastify.register(articleRoutes);
+  await fastify.register(feedRoutes);
 
   return fastify;
 }
