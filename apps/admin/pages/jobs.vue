@@ -12,12 +12,12 @@
           <th>Typ</th>
           <th>Artikel-ID</th>
           <th>Status</th>
+          <th>Dauer</th>
           <th>Datum</th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="jobs.length === 0">
-          <td colspan="5" class="empty-state">Keine Jobs in der Queue.</td>
           <td colspan="6" class="empty-state">Keine Jobs in der Queue.</td>
         </tr>
         <tr v-for="job in jobs" :key="job.id">
