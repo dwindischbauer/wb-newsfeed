@@ -18,18 +18,24 @@
       <tbody>
         <tr v-if="jobs.length === 0">
           <td colspan="5" class="empty-state">Keine Jobs in der Queue.</td>
+          <td colspan="6" class="empty-state">Keine Jobs in der Queue.</td>
         </tr>
         <tr v-for="job in jobs" :key="job.id">
           <td>{{ job.id }}</td>
           <td>{{ job.type }}</td>
           <td>{{ job.articleId }}</td>
           <td>
-            <span :class="['status-badge', job.status]">{{ job.status }}</span>
+            <span :class="['status-badge', 'status-' + job.status]">
+              {{ job.status }}
+            </span>
+          </td>
+          <td>
+            {{ job.processingTimeMs ? (job.processingTimeMs / 1000).toFixed(2) + 's' : '-' }}
           </td>
           <td>{{ new Date(job.createdAt).toLocaleString() }}</td>
         </tr>
         <tr v-if="jobs.length === 0">
-          <td colspan="5" class="empty">Keine Jobs in der Warteschlange.</td>
+          <td colspan="6" class="empty">Keine Jobs in der Warteschlange.</td>
         </tr>
       </tbody>
     </table>
