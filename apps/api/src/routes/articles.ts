@@ -2,11 +2,12 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { articles } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { stripHtml } from '../utils/format';
 
 export default async function (server: FastifyInstance) {
   server.get('/api/articles', async (request, reply) => {
     const allArticles = await db.select().from(articles).orderBy(desc(articles.createdAt));
-    return allArticles;
+    return allArticles.map(a => ({ ...a, content: stripHtml(a.content) }));
   });
 
   server.get('/api/articles/:id', async (request, reply) => {
@@ -51,11 +52,13 @@ export default async function (server: FastifyInstance) {
       return { success: false, error: 'Titel und Content (min 10 Zeichen) werden benötigt' };
     }
 
+    const cleanContent = stripHtml(body.content);
+
     const newArticle = await db.insert(articles).values({
       title: body.title,
-      content: body.content,
-      category: body.category,
-      author: body.author,
+      content: cleanContent,
+      author: body.author || 'Unbekannt',
+      category: body.category || 'Allgemein',
       status: body.status || 'draft'
     }).returning();
     return newArticle[0];
