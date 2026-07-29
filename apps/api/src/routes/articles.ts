@@ -19,6 +19,17 @@ export default async function (server: FastifyInstance) {
     return article[0];
   });
 
+  server.put('/api/articles/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    
+    if (body.status) {
+      await db.update(articles).set({ status: body.status }).where(eq(articles.id, parseInt(id)));
+    }
+    
+    return { success: true };
+  });
+
   server.post('/api/articles', async (request, reply) => {
     const body = request.body as any;
     const newArticle = await db.insert(articles).values({
