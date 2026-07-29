@@ -198,6 +198,11 @@ onMounted(() => {
   margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
 }
+.empty-feed h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
 .article-title {
   margin: 0 0 1rem 0;
   font-size: 2rem;
