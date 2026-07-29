@@ -190,17 +190,36 @@ const saveArticle = async () => {
     });
     const article = await res.json();
     
-    await fetch('http://localhost:3005/api/jobs', {
+    const jobRes = await fetch('http://localhost:3005/api/jobs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ articleId: article.id, type: 'teaser_generation' })
     });
+    const job = await jobRes.json();
     
     closeModal();
     fetchArticles();
+    pollJobStatus(job.id);
   } catch (e) {
     console.error(e);
   }
+};
+
+const pollJobStatus = async (jobId) => {
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`http://localhost:3005/api/jobs/${jobId}`);
+      if (res.ok) {
+        const job = await res.json();
+        if (job.status === 'completed' || job.status === 'failed') {
+          clearInterval(interval);
+          fetchArticles();
+        }
+      }
+    } catch (e) {
+      clearInterval(interval);
+    }
+  }, 2000);
 };
 
 onMounted(() => {
