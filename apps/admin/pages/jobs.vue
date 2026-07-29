@@ -32,7 +32,7 @@
           <td>
             {{ job.processingTimeMs ? (job.processingTimeMs / 1000).toFixed(2) + 's' : '-' }}
           </td>
-          <td>{{ new Date(job.createdAt).toLocaleString() }}</td>
+          <td>{{ new Date(job.createdAt).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' }) }}</td>
         </tr>
         <tr v-if="jobs.length === 0">
           <td colspan="6" class="empty">Keine Jobs in der Warteschlange.</td>
