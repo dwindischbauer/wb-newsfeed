@@ -431,10 +431,12 @@ onMounted(() => {
   background-color: #f8fafc;
 }
 .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 99px;
-  font-size: 0.8rem;
-  font-weight: bold;
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .status-badge.published { background: #bbf7d0; color: #166534; }
 .status-badge.draft { background: #e5e7eb; color: #374151; }
