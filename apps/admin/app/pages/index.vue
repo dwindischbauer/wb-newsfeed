@@ -79,6 +79,9 @@
         <div class="preview-body">{{ selectedArticle.content }}</div>
       </div>
       <div class="preview-actions">
+        <button class="primary-btn" @click="toggleStatus(selectedArticle)">
+          {{ selectedArticle.status === 'published' ? 'In Entwurf umwandeln' : 'Veröffentlichen' }}
+        </button>
         <button class="action-btn" @click="selectedArticle = null">Schließen</button>
       </div>
     </div>
@@ -133,6 +136,22 @@ const filteredArticles = computed(() => {
 
 const selectArticle = (article) => {
   selectedArticle.value = article;
+};
+
+const toggleStatus = async (article) => {
+  const newStatus = article.status === 'published' ? 'draft' : 'published';
+  try {
+    const res = await fetch(`http://localhost:3005/api/articles/${article.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (res.ok) {
+      article.status = newStatus;
+    }
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 const fetchArticles = async () => {
