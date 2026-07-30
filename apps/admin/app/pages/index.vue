@@ -229,6 +229,15 @@ const pollJobStatus = async (jobId) => {
 
 onMounted(() => {
   fetchArticles();
+
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'article_opened') {
+      const openedArticle = articles.value.find(a => a.id === event.data.articleId);
+      if (openedArticle) {
+        selectArticle(openedArticle);
+      }
+    }
+  });
 });
 </script>
 
