@@ -1,95 +1,218 @@
-# WB Newsfeed Monorepo 📰🤖
+# WB Newsfeed - Short-Form AI News Ingestion & Distribution System
 
-Automatisierte KI-Teaser Generierung & Short-Form Newsfeed-System mit **zwei interaktiven Web-Applikationen** für den **WB Publisher**.
+Technical documentation for the WB Newsfeed monorepo architecture, API endpoints, database schema, background worker pipeline, and local development setup.
 
 ---
 
-## 🌟 Übersicht & Architektur
+## Monorepo Architecture
 
-Das Monorepo gliedert sich in drei Kernmodule:
-
-1. **`apps/admin`** (Port 3001): **WB Publisher Admin Dashboard (Desktop CMS)**
-   - Interaktive Artikel-Übersichtstabelle mit Kategorie-Filtern (`Alle`, `Politik`, `Wirtschaft`, `Sport`, `Technologie`, `Kultur`).
-   - Sofortschließendes Modal zum Einpflegen neuer Artikel (`POST /api/articles`), das beliebige Texte im Hintergrund verarbeitet.
-   - Live **BullMQ Job Monitor**, der in Echtzeit den Status der KI-Teaser-Generierung anzeigt (`pending`, `processing`, `completed`).
-   - Live **Smartphone-Vorschau**: Jedes ausgewählte Element wird sofort auf dem eingebetteten Handy-Bildschirm gerendert!
-
-2. **`apps/mobile`** (Port 3002): **Short-Form Mobile Newsfeed Web App**
-   - Eigenständige, mobile-optimierte Web-Applikation (Smartphone Viewport).
-   - Interaktive Kategorie-Filterleiste.
-   - Interaktive News-Cards mit `• KI-generiert` Badge, Hero-Bild-Upload-Container, Schlagzeile, Zusammenfassung und leuchtend grünem CTA-Button (`Weiterlesen →` `#10B981`).
-
-3. **`apps/api`** (Port 3000): **Fastify REST API & BullMQ Background Worker**
-   - Ingestion Pipeline, PostgreSQL via Drizzle ORM, BullMQ Worker auf Redis & Ollama LLM integration (`qwen2.5:3b-instruct`).
+The repository is structured as a pnpm/npm workspace containing three decoupled packages:
 
 ```
-                              +--------------------+
-                              |  Nuxt Admin CMS    |
-                              |  (apps/admin:3001) |
-                              +---------+----------+
-                                        |
-                                        |  (POST /api/articles)
-                                        v
-+-------------------+         +--------------------+         +--------------------+
-| Nuxt Mobile Feed  | <------ | Fastify API Server | ------> | BullMQ / Redis     |
-| (apps/mobile:3002)| (GET    | (apps/api:3000)    |         | Queue & Worker     |
-+-------------------+  /feed) +---------+----------+         +---------+----------+
-                                        |                              |
-                                        v                              v
-                              +--------------------+         +--------------------+
-                              | PostgreSQL 16      |         | Ollama LLM Engine  |
-                              | (Drizzle ORM)      |         | (qwen2.5:3b)       |
-                              +--------------------+         +--------------------+
+wb-newsfeed/
+├── apps/
+│   ├── api/          Fastify REST API server, Drizzle ORM client & BullMQ background worker
+│   ├── admin/        Nuxt 4 / Vue 3 Desktop CMS Admin Application (Port 3001)
+│   └── mobile/       Nuxt 4 / Vue 3 Mobile TikTok-Style Snap Feed Application (Port 3002)
+├── docker-compose.yml Postgres 16 & Redis 7 infrastructure definition
+└── package.json      Monorepo scripts and dependencies
 ```
 
 ---
 
-## 🛠️ Autorenschaft & Committer
+## System Requirements
 
-- **Backend API, Infrastruktur & Warteschlange (`apps/api`)**: **Stefan Schachner** (`Stefan Schachner <stefan.schachner1@students.htl-leonding.ac.at>`)
-- **Desktop Admin CMS & Mobile Web App UI (`apps/admin`, `apps/mobile`)**: **dwindischbauer** (`dwindischbauer <d.windischbauer@students.htl-leonding.ac.at>`)
+- Node.js >= 20.0.0
+- Docker & Docker Compose
+- Ollama local LLM runtime (with `qwen2.5:3b-instruct` pulled)
 
 ---
 
-## 🚀 Quickstart & Ausführung aller Services
+## Infrastructure & Environment Configuration
 
-### 1. Abhängigkeiten installieren
-```bash
-npm install
+### Services & Ports
+
+| Component | Technology | Default Port | Description |
+|---|---|---|---|
+| Fastify API | Fastify / Node.js | 3005 | Core REST API service |
+| Admin CMS | Nuxt 4 / Vue 3 | 3001 | Content management dashboard |
+| Mobile Feed | Nuxt 4 / Vue 3 | 3002 | Full-screen vertical snap scroll application |
+| PostgreSQL | Postgres 16 | 5433 | Primary relational data store |
+| Redis | Redis 7 | 6379 | Job queue backend for BullMQ |
+| Ollama | LLM Engine | 11434 | Local inference runtime |
+
+### Environment Variables (`apps/api/.env`)
+
+```env
+PORT=3005
+DATABASE_URL=postgres://wb_user:wb_password@localhost:5433/wb_newsfeed
+REDIS_URL=redis://localhost:6379
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:3b-instruct
+LOG_LEVEL=info
 ```
 
-### 2. Infrastruktur (Docker Compose) starten
+---
+
+## Database Schema (Drizzle ORM / PostgreSQL)
+
+### Tables
+
+#### `articles`
+- `id` (UUID, PK, default random)
+- `externalId` (VARCHAR 255, optional)
+- `title` (TEXT, NOT NULL)
+- `content` (TEXT, NOT NULL)
+- `author` (VARCHAR 255)
+- `source` (VARCHAR 100, default 'manual')
+- `url` (TEXT)
+- `status` (VARCHAR 50, default 'Veröffentlicht') -- Enum: 'Veröffentlicht' | 'Entwurf'
+- `publishedAt` (TIMESTAMP)
+- `createdAt` (TIMESTAMP, default NOW)
+- `updatedAt` (TIMESTAMP, default NOW)
+
+#### `generationJobs`
+- `id` (UUID, PK)
+- `articleId` (UUID, FK -> `articles.id` ON DELETE CASCADE)
+- `status` (VARCHAR 50, default 'pending') -- Enum: 'pending' | 'processing' | 'completed' | 'failed'
+- `attempts` (INTEGER, default 0)
+- `maxAttempts` (INTEGER, default 3)
+- `error` (TEXT)
+- `createdAt` (TIMESTAMP)
+- `updatedAt` (TIMESTAMP)
+
+#### `teasers`
+- `id` (UUID, PK)
+- `articleId` (UUID, FK -> `articles.id` ON DELETE CASCADE)
+- `jobId` (UUID, FK -> `generationJobs.id` ON DELETE SET NULL)
+- `headline` (TEXT, NOT NULL)
+- `summary` (TEXT, NOT NULL)
+- `keyTakeaways` (JSONB)
+- `sentiment` (VARCHAR 50)
+- `language` (VARCHAR 10, default 'de')
+- `modelUsed` (VARCHAR 100)
+- `createdAt` (TIMESTAMP)
+
+#### `logs`
+- `id` (UUID, PK)
+- `jobId` (UUID, FK -> `generationJobs.id` ON DELETE CASCADE)
+- `level` (VARCHAR 20)
+- `message` (TEXT)
+- `metadata` (JSONB)
+- `createdAt` (TIMESTAMP)
+
+---
+
+## REST API Specification
+
+### 1. Ingest Raw Article
+- **Endpoint**: `POST /api/articles`
+- **Request Body**:
+  ```json
+  {
+    "title": "Article Title",
+    "content": "Full text body...",
+    "author": "ORF.at Redaktion",
+    "source": "manual",
+    "status": "Veröffentlicht"
+  }
+  ```
+- **Response**: `201 Created` with ingested article object and queued job details.
+
+### 2. Fetch Published Mobile Feed
+- **Endpoint**: `GET /api/feed`
+- **Query Logic**: Retrieves teasers inner-joined with articles where `articles.status = 'Veröffentlicht'`, ordered by creation date descending.
+- **Response**:
+  ```json
+  {
+    "count": 2,
+    "feed": [
+      {
+        "teaserId": "uuid",
+        "articleId": "uuid",
+        "headline": "...",
+        "summary": "...",
+        "status": "Veröffentlicht"
+      }
+    ]
+  }
+  ```
+
+### 3. Update Article Publishing Status
+- **Endpoint**: `PATCH /api/articles/:id/status`
+- **Request Body**:
+  ```json
+  {
+    "status": "Entwurf"
+  }
+  ```
+- **Response**: `200 OK` with updated article record.
+
+### 4. Fetch All Ingested Articles
+- **Endpoint**: `GET /api/articles`
+- **Response**: List of all articles with current status and metadata.
+
+### 5. Delete Article
+- **Endpoint**: `DELETE /api/articles/:id`
+- **Response**: `200 OK` confirmation message.
+
+### 6. Queue Job Status Monitor
+- **Endpoint**: `GET /api/jobs`
+- **Response**: List of background worker jobs and execution statuses.
+
+---
+
+## Background Worker Architecture (BullMQ)
+
+1. When an article is posted to `POST /api/articles`, a corresponding `generationJob` is inserted into PostgreSQL with status `pending`.
+2. A job event `generate-teaser` is added to the BullMQ queue (`teaserQueue`) backed by Redis.
+3. The background worker (`apps/api/src/worker.ts`) processes the job asynchronously:
+   - Fetches article content.
+   - Invokes Ollama API (`http://localhost:11434/api/generate`) with `qwen2.5:3b-instruct`.
+   - Generates headline, summary teaser, key takeaways, and sentiment.
+   - Inserts generated result into `teasers` table.
+   - Updates `generationJobs.status` to `completed`.
+
+---
+
+## Getting Started & Local Setup
+
+### 1. Start Infrastructure Containers
 ```bash
 docker-compose up -d
 ```
-*(PostgreSQL auf Port 5433, Redis auf Port 6379, Ollama auf Port 11434)*
 
-### 3. Datenbank-Migration ausführen
+### 2. Run Database Migration
 ```bash
-npx --prefix apps/api drizzle-kit push:pg
+cd apps/api
+npx drizzle-kit push:pg
 ```
 
-### 4. Applikationen starten
+### 3. Start Fastify API Server
+```bash
+npm --prefix apps/api run dev
+```
 
-- **Backend API & Worker**:
-  ```bash
-  npm --prefix apps/api run dev
-  npm --prefix apps/api run dev:worker
-  ```
-- **Desktop Admin CMS** (auf [http://localhost:3001](http://localhost:3001)):
-  ```bash
-  npm --prefix apps/admin run dev
-  ```
-- **Mobile Newsfeed Web App** (auf [http://localhost:3002](http://localhost:3002)):
-  ```bash
-  npm --prefix apps/mobile run dev
-  ```
+### 4. Start BullMQ Worker Process
+```bash
+npm --prefix apps/api run dev:worker
+```
+
+### 5. Start Frontend Applications
+```bash
+# Start Admin CMS (Port 3001)
+npm --prefix apps/admin run dev
+
+# Start Mobile TikTok Feed (Port 3002)
+npm --prefix apps/mobile run dev
+```
 
 ---
 
-## 📅 Commit Timeline (13.07.2026 – 31.07.2026)
+## Testing & Verification
 
-- **Woche 1 (13.07 - 19.07)**: Monorepo Base, Docker Compose (Postgres, Redis, Ollama), Fastify Server, Zod Config, Drizzle Schema *(Stefan Schachner)*.
-- **Woche 2 (20.07 - 25.07)**: Migrationen, Ingestion Adapter, BullMQ Queueing, Worker, Ollama Client Wrapper, API Endpunkte *(Stefan Schachner)*.
-- **Woche 3 (26.07 - 29.07)**: **dwindischbauer** – Nuxt 4 Desktop CMS Admin Dashboard (`apps/admin`), Modal, Job Monitor & Nuxt 4 Mobile Newsfeed Web App (`apps/mobile`), Category Filter, Hero Card.
-- **Woche 4 (30.07 - 31.07)**: Vitest Tests *(Stefan Schachner)*, CMS Polling Adapter, README & Health Checks Finalisierung *(dwindischbauer)*.
+Execute end-to-end status sync verification script:
+
+```bash
+npx tsx scratch/verify_screen_control.ts
+```
