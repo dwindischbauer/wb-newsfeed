@@ -5,7 +5,7 @@
         <h3 class="title">BullMQ Generierungs-Jobs</h3>
         <p class="subtitle">Echtzeit-Überwachung der KI-Teaser Generierung</p>
       </div>
-      <button class="btn-refresh" @click="$emit('refresh')">🔄 Aktualisieren</button>
+      <button class="btn-refresh" @click="$emit('refresh')">Aktualisieren</button>
     </div>
 
     <table class="job-table">

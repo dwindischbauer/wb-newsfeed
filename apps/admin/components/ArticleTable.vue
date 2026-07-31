@@ -2,11 +2,11 @@
   <div class="article-section">
     <div class="section-header">
       <div>
-        <h2 class="title">Artikel-Übersicht & KI-Verwaltung</h2>
-        <p class="subtitle">Klicke auf einen Artikel, um ihn live im Smartphone-Screen rechts anzuzeigen</p>
+        <h2 class="title">Artikel-Übersicht</h2>
+        <p class="subtitle">Wähle einen Artikel aus, um Details & Vorschau anzuzeigen</p>
       </div>
       <button class="btn-primary" @click="$emit('open-create')">
-        + Neuer Artikel / Text einfügen
+        + Artikel einpflegen
       </button>
     </div>
 
@@ -29,9 +29,10 @@
         :class="['article-card', { selected: selectedId === item.id }]"
         @click="selectItem(item)"
       >
-        <div class="thumbnail-placeholder">
-          <span class="thumb-icon">📰</span>
+        <div class="article-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
         </div>
+
         <div class="article-info">
           <h3 class="article-title">{{ item.title }}</h3>
           <p class="article-summary-preview" v-if="item.summary">{{ item.summary }}</p>
@@ -48,11 +49,11 @@
           </button>
           
           <div class="btn-group">
-            <button class="action-btn btn-view" @click.stop="selectItem(item)" title="Im Handy anzeigen">
-              👁️ Vorschau
+            <button class="action-btn btn-view" @click.stop="selectItem(item)" title="Vorschau anzeigen">
+              Vorschau
             </button>
             <button class="action-btn btn-delete" @click.stop="$emit('delete-article', item.id)" title="Artikel löschen">
-              🗑️
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           </div>
         </div>
@@ -132,11 +133,9 @@ function selectItem(item) {
 
 .article-card.selected { border-color: #10b981; background: #f0fdf4; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3); }
 
-.thumbnail-placeholder {
-  width: 48px; height: 48px; border-radius: 10px; background: #e2e8f0; display: flex; align-items: center; justify-content: center;
+.article-icon-box {
+  width: 42px; height: 42px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-
-.thumb-icon { font-size: 22px; }
 
 .article-info { flex: 1; min-width: 0; }
 
@@ -159,7 +158,7 @@ function selectItem(item) {
 .btn-group { display: flex; gap: 4px; }
 
 .action-btn {
-  background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer;
+  background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
 }
 
 .action-btn:hover { background: #e2e8f0; }

@@ -1,34 +1,55 @@
 <template>
-  <div class="admin-app">
-    <!-- Outer Browser Container -->
-    <div class="browser-frame">
-      <div class="browser-header">
-        <div class="browser-dots">
-          <div class="dot dot-red"></div>
-          <div class="dot dot-yellow"></div>
-          <div class="dot dot-green"></div>
+  <div class="admin-app-fullpage">
+    <!-- Top Full-Width Admin Header -->
+    <CmsAdminHeader @change-tab="onTabChange" />
+
+    <!-- Floating Toast Notification -->
+    <transition name="toast">
+      <div v-if="toastMessage" class="toast-notification">
+        <div>
+          <strong class="toast-title">System-Benachrichtigung</strong>
+          <p class="toast-body">{{ toastMessage }}</p>
         </div>
-        <div class="browser-url">https://app.wbpublisher.io/dashboard</div>
       </div>
+    </transition>
 
-      <!-- CMS Top Header Navigation -->
-      <CmsAdminHeader @change-tab="onTabChange" />
-
-      <!-- Floating Toast Notification -->
-      <transition name="toast">
-        <div v-if="toastMessage" class="toast-notification">
-          <span class="toast-icon">⚡</span>
+    <!-- Main Full-Page Content Container -->
+    <main class="main-content">
+      <!-- Stats & Quick Metrics Bar -->
+      <div class="metrics-bar">
+        <div class="metric-card">
           <div>
-            <strong class="toast-title">In Warteschlange eingereiht</strong>
-            <p class="toast-body">{{ toastMessage }}</p>
+            <div class="metric-value">{{ articlesList.length }}</div>
+            <div class="metric-label">Verwaltete Artikel</div>
           </div>
         </div>
-      </transition>
 
-      <!-- Main Layout Grid: CMS Table Left + Mobile Screen Preview Right -->
-      <div class="dashboard-grid">
-        <!-- Left Side: Interactive CMS Article Table + Job Monitor -->
-        <div class="col-cms">
+        <div class="metric-card">
+          <div>
+            <div class="metric-value">{{ jobsList.length }}</div>
+            <div class="metric-label">KI-Generierungs-Jobs</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div>
+            <div class="metric-value">{{ publishedCount }}</div>
+            <div class="metric-label">Veröffentlicht im Newsfeed</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div>
+            <div class="metric-value">Aktiv (Port 3005)</div>
+            <div class="metric-label">Fastify API & BullMQ</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Layout Grid -->
+      <div class="dashboard-layout">
+        <!-- Left Panel: Article Management Table & Job Monitor -->
+        <div class="left-panel">
           <ArticleTable 
             :articles="articlesList" 
             :activeSelectedId="selectedArticle?.id"
@@ -44,15 +65,52 @@
           />
         </div>
 
-        <!-- Right Side: Embedded Live Mobile Phone Preview Container -->
-        <div class="col-preview">
-          <MobileFeedPreview 
-            :selectedArticle="selectedArticle" 
-            @next-article="selectNextArticle"
-          />
+        <!-- Right Panel: Live Article Detail Panel -->
+        <div class="right-panel">
+          <div class="panel-header">
+            <h3>Live Artikel-Vorschau</h3>
+            <span class="preview-badge">Echtzeit Sync</span>
+          </div>
+
+          <div v-if="selectedArticle" class="preview-detail-card">
+            <div class="card-meta">
+              <span class="badge-category">{{ selectedArticle.category || 'POLITIK' }}</span>
+              <span class="badge-status">{{ selectedArticle.status }}</span>
+            </div>
+
+            <h2 class="preview-title">{{ selectedArticle.title }}</h2>
+
+            <div class="author-row">
+              <span class="author-name">Von {{ selectedArticle.author || 'ORF.at Redaktion' }}</span>
+              <span class="time-stamp">vor 5 Minuten</span>
+            </div>
+
+            <div class="summary-box">
+              <strong>KI-Zusammenfassung (Teaser):</strong>
+              <p>{{ selectedArticle.summary || selectedArticle.content }}</p>
+            </div>
+
+            <div class="full-text-box">
+              <strong>Vollständiger Quelltext:</strong>
+              <p>{{ selectedArticle.content }}</p>
+            </div>
+
+            <div class="preview-actions">
+              <button 
+                class="btn-toggle-pub" 
+                @click="toggleStatus(selectedArticle.id)"
+              >
+                {{ selectedArticle.status === 'Veröffentlicht' ? 'In Entwurf umwandeln' : 'Sofort veröffentlichen' }}
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="empty-preview">
+            <p>Wähle einen Artikel aus der Tabelle links, um die Details anzuzeigen.</p>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
 
     <!-- Article Creation & Summarization Modal -->
     <ArticleModal 
@@ -64,11 +122,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import CmsAdminHeader from './components/CmsAdminHeader.vue';
 import ArticleTable from './components/ArticleTable.vue';
 import JobMonitorTable from './components/JobMonitorTable.vue';
-import MobileFeedPreview from './components/MobileFeedPreview.vue';
 import ArticleModal from './components/ArticleModal.vue';
 
 const showModal = ref(false);
@@ -116,8 +173,10 @@ const articlesList = ref([
 
 const jobsList = ref([]);
 
+const publishedCount = computed(() => articlesList.value.filter(a => a.status === 'Veröffentlicht').length);
+
 function onTabChange(tab) {
-  toastMessage.value = `Registerkarte gewechselt: ${tab}`;
+  toastMessage.value = `Navigation: ${tab}`;
   setTimeout(() => { toastMessage.value = ''; }, 2000);
 }
 
@@ -147,13 +206,6 @@ function deleteArticle(id) {
   }
 }
 
-function selectNextArticle() {
-  if (articlesList.value.length === 0) return;
-  const currentIndex = articlesList.value.findIndex(a => a.id === selectedArticle.value?.id);
-  const nextIndex = (currentIndex + 1) % articlesList.value.length;
-  selectedArticle.value = articlesList.value[nextIndex];
-}
-
 async function fetchJobs() {
   try {
     const res = await fetch('http://localhost:3005/api/jobs');
@@ -162,7 +214,7 @@ async function fetchJobs() {
       jobsList.value = data.jobs || [];
     }
   } catch (err) {
-    console.log('API offline mode');
+    console.log('API mode active');
   }
 }
 
@@ -177,17 +229,11 @@ function onArticleSubmitted(payload) {
     content: payload.content,
   };
 
-  // 1. Immediately insert at top of CMS table
   articlesList.value.unshift(newArticle);
-
-  // 2. Immediately set as selected preview on mobile screen!
   selectedArticle.value = newArticle;
 
-  // 3. Display Toast Notification
   toastMessage.value = `"${payload.title}" zusammengefasst & in Warteschlange eingereiht!`;
-  setTimeout(() => {
-    toastMessage.value = '';
-  }, 4000);
+  setTimeout(() => { toastMessage.value = ''; }, 4000);
 
   setTimeout(fetchJobs, 600);
 }
@@ -200,48 +246,96 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.admin-app {
+.admin-app-fullpage {
   min-height: 100vh;
-  padding: 24px;
-  background-color: #cbd5e1;
+  background-color: #f8fafc;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
 }
 
-.browser-frame {
+.main-content {
+  flex: 1;
+  padding: 24px 32px;
+  max-width: 1600px;
+  margin: 0 auto;
   width: 100%;
-  max-width: 1360px;
-  background: #f8fafc;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
 }
 
-.browser-header {
-  background-color: #1e293b;
-  padding: 10px 16px;
+.metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.browser-dots { display: flex; gap: 6px; }
-.dot { width: 10px; height: 10px; border-radius: 50%; }
-.dot-red { background-color: #ff5f56; }
-.dot-yellow { background-color: #ffbd2e; }
-.dot-green { background-color: #27c93f; }
+.metric-value { font-size: 20px; font-weight: 800; color: #0f172a; }
+.metric-label { font-size: 12px; color: #64748b; font-weight: 500; }
 
-.browser-url {
-  background: #334155; color: #94a3b8; font-size: 11px; padding: 4px 12px; border-radius: 6px; flex: 1; max-width: 340px;
-}
-
-.dashboard-grid {
+.dashboard-layout {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 24px;
-  padding: 24px;
   align-items: start;
 }
+
+.right-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 24px;
+}
+
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9;
+}
+
+.panel-header h3 { font-size: 16px; font-weight: 700; color: #0f172a; }
+
+.preview-badge {
+  background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px;
+}
+
+.preview-detail-card { display: flex; flex-direction: column; gap: 14px; }
+
+.card-meta { display: flex; justify-content: space-between; align-items: center; }
+
+.badge-category {
+  background: #10b981; color: #000000; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+}
+
+.badge-status {
+  background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;
+}
+
+.preview-title { font-size: 18px; font-weight: 800; color: #0f172a; line-height: 1.3; }
+
+.author-row { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
+
+.summary-box, .full-text-box {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; font-size: 13px; color: #334155; line-height: 1.45;
+}
+
+.summary-box strong, .full-text-box strong { display: block; color: #0f172a; margin-bottom: 4px; font-size: 12px; }
+
+.btn-toggle-pub {
+  width: 100%; background: #0f172a; color: #ffffff; border: none; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s ease;
+}
+
+.btn-toggle-pub:hover { background: #10b981; color: #000000; }
 
 .toast-notification {
   position: fixed; bottom: 24px; right: 24px; background: #09090b; color: #ffffff; padding: 14px 20px;
@@ -249,10 +343,6 @@ onMounted(() => {
   border: 1px solid #10b981; z-index: 300;
 }
 
-.toast-icon { font-size: 20px; }
 .toast-title { font-size: 13px; color: #10b981; display: block; }
 .toast-body { font-size: 12px; color: #a1a1aa; margin-top: 2px; }
-
-.toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
-.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
 </style>

@@ -1,20 +1,16 @@
 <template>
-  <div class="mobile-app-wrapper">
-    <div class="iphone-notch-bar">
-      <span class="time">09:41</span>
-      <div class="notch"></div>
-      <div class="icons">📶 📡 🔋</div>
+  <div class="tiktok-feed-app">
+    <!-- Floating Category Filter Bar at Top Overlay -->
+    <div class="floating-category-bar">
+      <CategoryFilterBar 
+        :selected="activeCategory" 
+        @select="activeCategory = $event" 
+      />
     </div>
 
-    <!-- Category Filter Bar -->
-    <CategoryFilterBar 
-      :selected="activeCategory" 
-      @select="activeCategory = $event" 
-    />
-
-    <!-- Main Feed -->
-    <main class="feed-content">
-      <div v-if="filteredItems.length > 0" class="cards-stack">
+    <!-- TikTok Style Vertical Full-Height Snap Feed -->
+    <main class="tiktok-feed-container">
+      <div v-if="filteredItems.length > 0" class="tiktok-feed-snap">
         <NewsCard 
           v-for="item in filteredItems" 
           :key="item.id" 
@@ -23,13 +19,13 @@
         />
       </div>
 
-      <div v-else class="empty-feed">
+      <div v-else class="empty-feed-slide">
         <p>Keine Nachrichten in der Kategorie "{{ activeCategory }}"</p>
         <button class="btn-reset" @click="activeCategory = 'Alle'">Alle Kategorien anzeigen</button>
       </div>
     </main>
 
-    <!-- Full Reader View Modal -->
+    <!-- Full Reader View Modal Overlay -->
     <div v-if="readerArticle" class="reader-modal" @click.self="readerArticle = null">
       <div class="reader-content">
         <div class="reader-bar">
@@ -43,10 +39,10 @@
         </div>
 
         <div class="takeaways">
-          <h3>💡 Kernpunkte</h3>
+          <h3>KI-Kernpunkte</h3>
           <ul>
-            <li>KI-generierte Zusammenfassung für den mobilen Newsfeed.</li>
-            <li>In der BullMQ Queue asynchron verarbeitet.</li>
+            <li>Automatisch zusammengefasst von Ollama LLM / Worker.</li>
+            <li>Live im WB Publisher Newsfeed verarbeitet.</li>
           </ul>
         </div>
 
@@ -132,7 +128,7 @@ async function fetchLiveFeed() {
       }
     }
   } catch (err) {
-    console.log('Backend API offline mode');
+    console.log('Backend API mode');
   }
 }
 
@@ -146,34 +142,58 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mobile-app-wrapper {
-  max-width: 420px; min-height: 100vh; margin: 0 auto; background: #09090b; box-shadow: 0 0 40px rgba(0,0,0,0.5);
-  display: flex; flex-direction: column; position: relative;
+.tiktok-feed-app {
+  height: 100vh;
+  width: 100vw;
+  max-width: 500px;
+  margin: 0 auto;
+  background: #09090b;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
 }
 
-.iphone-notch-bar {
-  display: flex; justify-content: space-between; align-items: center; padding: 8px 20px; font-size: 13px; font-weight: 600; color: #ffffff; background: #000000;
+.floating-category-bar {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: linear-gradient(180deg, rgba(9,9,11,0.85) 0%, rgba(9,9,11,0) 100%);
+  padding-top: 8px;
 }
 
-.notch { width: 90px; height: 18px; background: #18181b; border-radius: 12px; }
-.icons { font-size: 11px; }
+.tiktok-feed-container {
+  height: 100vh;
+  width: 100%;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
 
-.feed-content { flex: 1; padding: 12px 0; }
-.cards-stack { display: flex; flex-direction: column; gap: 16px; }
+.tiktok-feed-snap {
+  display: flex;
+  flex-direction: column;
+}
 
-.empty-feed { padding: 48px 24px; text-align: center; color: #71717a; font-size: 14px; }
-.btn-reset { margin-top: 12px; background: #27272a; color: #ffffff; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; }
+.empty-feed-slide {
+  height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #71717a; text-align: center; padding: 24px;
+}
+
+.btn-reset { margin-top: 12px; background: #27272a; color: #ffffff; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
 
 .reader-modal {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
-  display: flex; align-items: flex-end; z-index: 500;
+  display: flex; align-items: flex-end; justify-content: center; z-index: 500;
 }
 
 .reader-content {
-  background: #18181b; width: 100%; max-width: 420px; margin: 0 auto; border-radius: 28px 28px 0 0; padding: 24px; color: #ffffff; max-height: 90vh; overflow-y: auto;
+  background: #18181b; width: 100%; max-width: 500px; border-radius: 24px 24px 0 0; padding: 24px; color: #ffffff; max-height: 90vh; overflow-y: auto;
 }
 
 .reader-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.badge-category { background: #10b981; color: #000000; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 4px; }
+
 .close-btn { background: none; border: none; color: #a1a1aa; font-size: 20px; cursor: pointer; }
 
 .full-title { font-size: 22px; font-weight: 800; color: #f4f4f5; line-height: 1.25; margin-bottom: 8px; }
