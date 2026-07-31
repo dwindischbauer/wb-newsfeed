@@ -1,10 +1,6 @@
 <template>
   <div class="job-monitor">
-    <div class="monitor-header">
-      <div>
-        <h3 class="title">BullMQ Generierungs-Jobs</h3>
-        <p class="subtitle">Echtzeit-Überwachung der KI-Teaser Generierung</p>
-      </div>
+    <div class="monitor-actions-bar">
       <button class="btn-refresh" @click="$emit('refresh')">Aktualisieren</button>
     </div>
 
@@ -51,13 +47,10 @@ defineEmits(['refresh']);
 
 <style scoped>
 .job-monitor {
-  background: #ffffff; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0; margin-top: 24px;
+  background: #ffffff; border-radius: 12px; padding: 16px 20px; border: 1px solid #e2e8f0; margin-top: 24px;
 }
 
-.monitor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-
-.title { font-size: 18px; font-weight: 700; color: #0f172a; }
-.subtitle { font-size: 13px; color: #64748b; }
+.monitor-actions-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 
 .btn-refresh {
   background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;

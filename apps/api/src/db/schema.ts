@@ -8,6 +8,7 @@ export const articles = pgTable('articles', {
   author: varchar('author', { length: 255 }),
   source: varchar('source', { length: 100 }).notNull().default('manual'),
   url: text('url'),
+  status: varchar('status', { length: 50 }).notNull().default('Veröffentlicht'), // 'Veröffentlicht' or 'Entwurf'
   publishedAt: timestamp('published_at').defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

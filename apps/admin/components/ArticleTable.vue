@@ -3,7 +3,7 @@
     <div class="section-header">
       <div>
         <h2 class="title">Artikel-Übersicht</h2>
-        <p class="subtitle">Wähle einen Artikel aus, um Details & Vorschau anzuzeigen</p>
+        <p class="subtitle">Wähle einen Artikel aus oder klicke auf "Vorschau", um ihn sofort anzuzeigen</p>
       </div>
       <button class="btn-primary" @click="$emit('open-create')">
         + Artikel einpflegen
@@ -49,7 +49,7 @@
           </button>
           
           <div class="btn-group">
-            <button class="action-btn btn-view" @click.stop="selectItem(item)" title="Vorschau anzeigen">
+            <button class="action-btn btn-view" @click.stop="triggerPreview(item)" title="Live-Vorschau Popup öffnen">
               Vorschau
             </button>
             <button class="action-btn btn-delete" @click.stop="$emit('delete-article', item.id)" title="Artikel löschen">
@@ -80,7 +80,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['open-create', 'select-article', 'toggle-status', 'delete-article']);
+const emit = defineEmits(['open-create', 'select-article', 'preview-article', 'toggle-status', 'delete-article']);
 
 const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
 const selectedCat = ref('Alle');
@@ -94,6 +94,11 @@ const filteredArticles = computed(() => {
 
 function selectItem(item) {
   emit('select-article', item);
+}
+
+function triggerPreview(item) {
+  emit('select-article', item);
+  emit('preview-article', item);
 }
 </script>
 
@@ -163,7 +168,8 @@ function selectItem(item) {
 
 .action-btn:hover { background: #e2e8f0; }
 
-.btn-view { color: #0284c7; border-color: #bae6fd; }
+.btn-view { color: #0284c7; border-color: #bae6fd; background: #f0f9ff; }
+.btn-view:hover { background: #e0f2fe; }
 
 .btn-delete { color: #dc2626; border-color: #fecaca; }
 

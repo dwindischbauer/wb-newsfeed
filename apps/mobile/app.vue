@@ -10,9 +10,9 @@
 
     <!-- TikTok Style Vertical Full-Height Snap Feed -->
     <main class="tiktok-feed-container">
-      <div v-if="filteredItems.length > 0" class="tiktok-feed-snap">
+      <div v-if="publishedItems.length > 0" class="tiktok-feed-snap">
         <NewsCard 
-          v-for="item in filteredItems" 
+          v-for="item in publishedItems" 
           :key="item.id" 
           :item="item" 
           @read-more="openFullArticle" 
@@ -20,7 +20,9 @@
       </div>
 
       <div v-else class="empty-feed-slide">
-        <p>Keine Nachrichten in der Kategorie "{{ activeCategory }}"</p>
+        <h3>Keine veröffentlichten Nachrichten</h3>
+        <p v-if="activeCategory !== 'Alle'">Keine aktiven Nachrichten in Kategorie "{{ activeCategory }}".</p>
+        <p v-else>Alle Artikel sind derzeit auf "Entwurf" (inaktiv) gesetzt. Klicke im Admin Dashboard auf "Sofort veröffentlichen", um einen Artikel im Handy-Feed anzuzeigen.</p>
         <button class="btn-reset" @click="activeCategory = 'Alle'">Alle Kategorien anzeigen</button>
       </div>
     </main>
@@ -65,49 +67,13 @@ import NewsCard from './components/NewsCard.vue';
 
 const activeCategory = ref('Alle');
 const readerArticle = ref(null);
+const feedItems = ref([]);
 
-const feedItems = ref([
-  {
-    id: '1',
-    category: 'POLITIK',
-    headline: 'Hitzeschutz: Regierung will Maßnahmen erleichtern',
-    summary: 'Die österreichische Bundesregierung plant umfassende Erleichterungen für Hitzeschutzmaßnahmen in Städten und Gemeinden.',
-    content: 'Die österreichische Bundesregierung beschließt umfassende Erleichterungen für Hitzeschutzmaßnahmen in Städten und Gemeinden. Unter anderem sollen Beschattungsanlagen und Fassadenbegrünungen vereinfacht genehmigt werden.',
-    author: 'ORF.at Inland',
-    timeAgo: 'vor 12 Min'
-  },
-  {
-    id: '2',
-    category: 'TECHNOLOGIE',
-    headline: 'KI täuschte Menschen mit Fake-Profilen',
-    summary: 'Ein umstrittener Sicherheitstest mit künstlicher Intelligenz erzeugte getarnte Social-Media-Profile.',
-    content: 'Ein umstrittener Sicherheitstest mit künstlicher Intelligenz sorgt weltweit für Empörung. Die KI erstellte autonom getarnte Social-Media-Profile, um Testpersonen gezielt zu täuschen.',
-    author: 'ORF.at Digital',
-    timeAgo: 'vor 25 Min'
-  },
-  {
-    id: '3',
-    category: 'WIRTSCHAFT',
-    headline: 'Dürre sorgt für hohe Einbußen bei Getreideernte',
-    summary: 'Anhaltende Trockenheit führt in mehreren Bundesländern zu spürbaren Ernteausfällen bei Getreide.',
-    content: 'Anhaltende Trockenheit und Hitzewellen der vergangenen Wochen führen in mehreren Bundesländern zu spürbaren Ernteausfällen bei Getreide. Landwirtschaftskammern fordern rasche Hilfspakete.',
-    author: 'ORF.at Wirtschaft',
-    timeAgo: 'vor 40 Min'
-  },
-  {
-    id: '4',
-    category: 'KULTUR',
-    headline: '„Saint Francois“: Salzburg findet in den Himmel',
-    summary: 'Bei den Salzburger Festspielen feierte die Neuinszenierung von Saint Francois große Erfolge.',
-    content: 'Bei den Salzburger Festspielen feierte die Neuinszenierung von Saint Francois große Erfolge. Die Felsenreitschule bot die Kulisse für eine eindrucksvolle Aufführung.',
-    author: 'ORF.at Kultur',
-    timeAgo: 'vor 1 Std'
-  }
-]);
-
-const filteredItems = computed(() => {
-  if (activeCategory.value === 'Alle') return feedItems.value;
-  return feedItems.value.filter(i => i.category.toLowerCase() === activeCategory.value.toLowerCase());
+// STRICTLY Filter to ONLY display published items ('Veröffentlicht')
+const publishedItems = computed(() => {
+  const onlyPublished = feedItems.value.filter(item => item.status === 'Veröffentlicht');
+  if (activeCategory.value === 'Alle') return onlyPublished;
+  return onlyPublished.filter(i => i.category.toLowerCase() === activeCategory.value.toLowerCase());
 });
 
 async function fetchLiveFeed() {
@@ -115,20 +81,21 @@ async function fetchLiveFeed() {
     const res = await fetch('http://localhost:3005/api/feed');
     if (res.ok) {
       const data = await res.json();
-      if (data.feed && data.feed.length > 0) {
+      if (data.feed) {
         feedItems.value = data.feed.map(item => ({
           id: item.teaserId,
           category: 'POLITIK',
           headline: item.headline,
           summary: item.summary,
-          content: item.summary,
+          content: item.content || item.summary,
           author: item.author || 'ORF.at Redaktion',
+          status: item.status || 'Veröffentlicht',
           timeAgo: 'vor 5 Min'
         }));
       }
     }
   } catch (err) {
-    console.log('Backend API mode');
+    console.log('API live feed fetch');
   }
 }
 
@@ -138,6 +105,7 @@ function openFullArticle(item) {
 
 onMounted(() => {
   fetchLiveFeed();
+  setInterval(fetchLiveFeed, 1500);
 });
 </script>
 
@@ -177,10 +145,14 @@ onMounted(() => {
 }
 
 .empty-feed-slide {
-  height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #71717a; text-align: center; padding: 24px;
+  height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #a1a1aa; text-align: center; padding: 32px;
 }
 
-.btn-reset { margin-top: 12px; background: #27272a; color: #ffffff; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+.empty-feed-slide h3 { color: #f4f4f5; font-size: 18px; margin-bottom: 8px; }
+
+.empty-feed-slide p { font-size: 13px; color: #71717a; max-width: 320px; line-height: 1.5; }
+
+.btn-reset { margin-top: 16px; background: #10b981; color: #000000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: 700; cursor: pointer; }
 
 .reader-modal {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
