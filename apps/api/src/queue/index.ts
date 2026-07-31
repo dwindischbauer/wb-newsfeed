@@ -3,13 +3,14 @@ import IORedis from 'ioredis';
 import { db } from '../db';
 import { jobs, articles } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { logger } from '../utils/logger';
 
 const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 export const generationQueue = new Queue('generation_jobs', { connection });
 
 export const worker = new Worker('generation_jobs', async job => {
-  console.log(`Processing job ${job.id} of type ${job.name}`);
+  logger.info(`Processing job ${job.id} of type ${job.name}`, { jobId: job.id, type: job.name });
   const { jobId, articleId } = job.data;
   const startTime = Date.now();
   
@@ -70,9 +71,9 @@ ${article.content}`;
 }, { connection });
 
 worker.on('completed', job => {
-  console.log(`${job.id} has completed!`);
+  logger.info(`${job.id} has completed!`, { jobId: job.id });
 });
 
 worker.on('failed', (job, err) => {
-  console.error(`${job?.id} has failed with ${err.message}`);
+  logger.error(`${job?.id} has failed with ${err.message}`, { jobId: job?.id, error: err.message });
 });
