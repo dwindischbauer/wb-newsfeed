@@ -60,7 +60,7 @@ const feedItems = ref([
 
 async function fetchLiveFeed() {
   try {
-    const res = await fetch('http://localhost:3000/api/feed');
+    const res = await fetch('http://localhost:3005/api/feed');
     if (res.ok) {
       const data = await res.json();
       if (data.feed && data.feed.length > 0) {

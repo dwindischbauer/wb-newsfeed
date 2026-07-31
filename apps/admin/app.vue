@@ -84,7 +84,7 @@ function onArticleSelect(article) {
 
 async function fetchJobs() {
   try {
-    const res = await fetch('http://localhost:3000/api/jobs');
+    const res = await fetch('http://localhost:3005/api/jobs');
     if (res.ok) {
       const data = await res.json();
       jobsList.value = data.jobs || [];

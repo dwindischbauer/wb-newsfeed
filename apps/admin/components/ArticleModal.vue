@@ -91,7 +91,7 @@ function handleSubmit() {
   emit('submitted', payload);
 
   // Send request in background asynchronously
-  fetch('http://localhost:3000/api/articles', {
+  fetch('http://localhost:3005/api/articles', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
