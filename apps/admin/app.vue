@@ -8,11 +8,11 @@
           <div class="dot dot-yellow"></div>
           <div class="dot dot-green"></div>
         </div>
-        <div class="browser-url">app.wbpublisher.io/dashboard</div>
+        <div class="browser-url">https://app.wbpublisher.io/dashboard</div>
       </div>
 
-      <!-- CMS Top Header -->
-      <CmsAdminHeader />
+      <!-- CMS Top Header Navigation -->
+      <CmsAdminHeader @change-tab="onTabChange" />
 
       <!-- Floating Toast Notification -->
       <transition name="toast">
@@ -31,8 +31,11 @@
         <div class="col-cms">
           <ArticleTable 
             :articles="articlesList" 
+            :activeSelectedId="selectedArticle?.id"
             @open-create="showModal = true" 
             @select-article="onArticleSelect" 
+            @toggle-status="toggleStatus"
+            @delete-article="deleteArticle"
           />
 
           <JobMonitorTable 
@@ -43,12 +46,15 @@
 
         <!-- Right Side: Embedded Live Mobile Phone Preview Container -->
         <div class="col-preview">
-          <MobileFeedPreview :selectedArticle="selectedArticle" />
+          <MobileFeedPreview 
+            :selectedArticle="selectedArticle" 
+            @next-article="selectNextArticle"
+          />
         </div>
       </div>
     </div>
 
-    <!-- Article Creation Modal -->
+    <!-- Article Creation & Summarization Modal -->
     <ArticleModal 
       :isOpen="showModal" 
       @close="showModal = false" 
@@ -70,16 +76,82 @@ const toastMessage = ref('');
 const selectedArticle = ref(null);
 
 const articlesList = ref([
-  { id: '1', title: 'Hitzeschutz: Regierung will Maßnahmen erleichtern', category: 'Politik', status: 'Entwurf', author: 'ORF.at / Redaktion', content: 'Die österreichische Bundesregierung beschließt umfassende Erleichterungen für Hitzeschutzmaßnahmen in Städten und Gemeinden.' },
-  { id: '2', title: 'KI täuschte Menschen mit Fake-Profilen', category: 'Technologie', status: 'Veröffentlicht', author: 'ORF.at / Digital', content: 'Ein umstrittener Sicherheitstest mit künstlicher Intelligenz erzeugte getarnte Social-Media-Profile.' },
-  { id: '3', title: 'Dürre sorgt für hohe Einbußen bei Getreideernte', category: 'Wirtschaft', status: 'Veröffentlicht', author: 'ORF.at / Wirtschaft', content: 'Anhaltende Trockenheit führt in mehreren Bundesländern zu spürbaren Ernteausfällen bei Getreide.' },
-  { id: '4', title: '„Saint Francois“: Salzburg findet in den Himmel', category: 'Kultur', status: 'Entwurf', author: 'ORF.at / Kultur', content: 'Bei den Salzburger Festspielen feierte die Neuinszenierung von Saint Francois große Erfolge.' },
+  { 
+    id: '1', 
+    title: 'Hitzeschutz: Regierung will Maßnahmen erleichtern', 
+    category: 'Politik', 
+    status: 'Veröffentlicht', 
+    author: 'ORF.at / Redaktion', 
+    summary: 'Die österreichische Bundesregierung plant umfassende Erleichterungen für Hitzeschutzmaßnahmen in Städten und Gemeinden.',
+    content: 'Die österreichische Bundesregierung beschließt umfassende Erleichterungen für Hitzeschutzmaßnahmen in Städten und Gemeinden. Unter anderem sollen Beschattungsanlagen und Fassadenbegrünungen vereinfacht genehmigt werden.'
+  },
+  { 
+    id: '2', 
+    title: 'KI täuschte Menschen mit Fake-Profilen', 
+    category: 'Technologie', 
+    status: 'Veröffentlicht', 
+    author: 'ORF.at / Digital', 
+    summary: 'Ein umstrittener Sicherheitstest mit künstlicher Intelligenz erzeugte getarnte Social-Media-Profile.',
+    content: 'Ein umstrittener Sicherheitstest mit künstlicher Intelligenz sorgt weltweit für Empörung. Die KI erstellte autonom getarnte Social-Media-Profile.'
+  },
+  { 
+    id: '3', 
+    title: 'Dürre sorgt für hohe Einbußen bei Getreideernte', 
+    category: 'Wirtschaft', 
+    status: 'Veröffentlicht', 
+    author: 'ORF.at / Wirtschaft', 
+    summary: 'Anhaltende Trockenheit führt in mehreren Bundesländern zu spürbaren Ernteausfällen bei Getreide.',
+    content: 'Anhaltende Trockenheit und Hitzewellen der vergangenen Wochen führen in mehreren Bundesländern zu spürbaren Ernteausfällen bei Getreide.'
+  },
+  { 
+    id: '4', 
+    title: '„Saint Francois“: Salzburg findet in den Himmel', 
+    category: 'Kultur', 
+    status: 'Entwurf', 
+    author: 'ORF.at / Kultur', 
+    summary: 'Bei den Salzburger Festspielen feierte die Neuinszenierung von Saint Francois große Erfolge.',
+    content: 'Bei den Salzburger Festspielen feierte die Neuinszenierung von Saint Francois große Erfolge. Die Felsenreitschule bot die Kulisse für eine eindrucksvolle Aufführung.'
+  },
 ]);
 
 const jobsList = ref([]);
 
+function onTabChange(tab) {
+  toastMessage.value = `Registerkarte gewechselt: ${tab}`;
+  setTimeout(() => { toastMessage.value = ''; }, 2000);
+}
+
 function onArticleSelect(article) {
   selectedArticle.value = article;
+}
+
+function toggleStatus(id) {
+  const item = articlesList.value.find(a => a.id === id);
+  if (item) {
+    item.status = item.status === 'Veröffentlicht' ? 'Entwurf' : 'Veröffentlicht';
+    toastMessage.value = `Status von "${item.title}" geändert zu: ${item.status}`;
+    setTimeout(() => { toastMessage.value = ''; }, 2500);
+  }
+}
+
+function deleteArticle(id) {
+  const index = articlesList.value.findIndex(a => a.id === id);
+  if (index !== -1) {
+    const deletedTitle = articlesList.value[index].title;
+    articlesList.value.splice(index, 1);
+    if (selectedArticle.value?.id === id) {
+      selectedArticle.value = articlesList.value[0] || null;
+    }
+    toastMessage.value = `Artikel "${deletedTitle}" gelöscht.`;
+    setTimeout(() => { toastMessage.value = ''; }, 2500);
+  }
+}
+
+function selectNextArticle() {
+  if (articlesList.value.length === 0) return;
+  const currentIndex = articlesList.value.findIndex(a => a.id === selectedArticle.value?.id);
+  const nextIndex = (currentIndex + 1) % articlesList.value.length;
+  selectedArticle.value = articlesList.value[nextIndex];
 }
 
 async function fetchJobs() {
@@ -90,7 +162,7 @@ async function fetchJobs() {
       jobsList.value = data.jobs || [];
     }
   } catch (err) {
-    console.log('API offline mode active');
+    console.log('API offline mode');
   }
 }
 
@@ -101,6 +173,7 @@ function onArticleSubmitted(payload) {
     category: payload.category || 'Politik',
     status: 'Entwurf',
     author: payload.author || 'ORF.at Redaktion',
+    summary: payload.summary || (payload.content.substring(0, 150) + '...'),
     content: payload.content,
   };
 
@@ -111,7 +184,7 @@ function onArticleSubmitted(payload) {
   selectedArticle.value = newArticle;
 
   // 3. Display Toast Notification
-  toastMessage.value = `"${payload.title}" läuft im Hintergrund in der BullMQ-Warteschlange!`;
+  toastMessage.value = `"${payload.title}" zusammengefasst & in Warteschlange eingereiht!`;
   setTimeout(() => {
     toastMessage.value = '';
   }, 4000);
@@ -137,7 +210,7 @@ onMounted(() => {
 
 .browser-frame {
   width: 100%;
-  max-width: 1320px;
+  max-width: 1360px;
   background: #f8fafc;
   border-radius: 16px;
   overflow: hidden;
@@ -159,7 +232,7 @@ onMounted(() => {
 .dot-green { background-color: #27c93f; }
 
 .browser-url {
-  background: #334155; color: #94a3b8; font-size: 11px; padding: 4px 12px; border-radius: 6px; flex: 1; max-width: 320px;
+  background: #334155; color: #94a3b8; font-size: 11px; padding: 4px 12px; border-radius: 6px; flex: 1; max-width: 340px;
 }
 
 .dashboard-grid {
@@ -173,7 +246,7 @@ onMounted(() => {
 .toast-notification {
   position: fixed; bottom: 24px; right: 24px; background: #09090b; color: #ffffff; padding: 14px 20px;
   border-radius: 12px; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4);
-  border: 1px solid #10b981; z-index: 200;
+  border: 1px solid #10b981; z-index: 300;
 }
 
 .toast-icon { font-size: 20px; }
