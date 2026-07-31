@@ -1,76 +1,90 @@
 <template>
   <header class="cms-header">
-    <div class="brand">WB Publisher CMS</div>
-    <nav class="nav-links">
-      <button 
-        v-for="tab in tabs" 
-        :key="tab" 
-        :class="['nav-tab', { active: currentTab === tab }]"
-        @click="selectTab(tab)"
-      >
-        {{ tab }}
-      </button>
-    </nav>
+    <div class="header-container">
+      <div class="brand">
+        <h1 class="brand-title">WB Publisher CMS</h1>
+      </div>
+
+      <nav class="nav-tabs">
+        <button 
+          v-for="tab in tabs" 
+          :key="tab"
+          :class="['nav-tab', { active: activeTab === tab }]"
+          @click="$emit('change-tab', tab)"
+        >
+          {{ tab }}
+        </button>
+      </nav>
+    </div>
   </header>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+defineProps({
+  activeTab: {
+    type: String,
+    default: 'Dashboard'
+  }
+});
 
-const tabs = ['Dashboard', 'Artikel', 'Kanäle', 'Einstellungen'];
-const currentTab = ref('Dashboard');
+defineEmits(['change-tab']);
 
-const emit = defineEmits(['change-tab']);
-
-function selectTab(tab) {
-  currentTab.value = tab;
-  emit('change-tab', tab);
-}
+const tabs = ['Dashboard', 'Artikel', 'Einstellungen'];
 </script>
 
 <style scoped>
 .cms-header {
-  height: 60px;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
+  padding: 0 32px;
+  height: 64px;
   display: flex;
   align-items: center;
-  padding: 0 32px;
 }
 
-.brand {
+.header-container {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand { display: flex; align-items: center; }
+
+.brand-title {
+  font-size: 18px;
   font-weight: 800;
-  font-size: 16px;
   color: #0f172a;
-  margin-right: 40px;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.02em;
 }
 
-.nav-links {
+.nav-tabs {
   display: flex;
   gap: 8px;
 }
 
 .nav-tab {
-  background: none;
+  background: transparent;
   border: none;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 14px;
   padding: 8px 16px;
   border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .nav-tab:hover {
-  background: #f1f5f9;
   color: #0f172a;
+  background: #f1f5f9;
 }
 
 .nav-tab.active {
-  background: #0f172a;
-  color: #ffffff;
+  color: #0f172a;
+  background: #f1f5f9;
   font-weight: 700;
 }
 </style>
