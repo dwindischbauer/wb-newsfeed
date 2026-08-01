@@ -21,7 +21,10 @@ export const worker = new Worker('generation_jobs', async job => {
     }
     const article = articleRes[0];
 
-    const promptText = `Fasse den folgenden Nachrichtenartikel in maximal 3 prägnanten Sätzen zusammen. Fokussiere dich auf die Kernpunkte:\n\n${article.content}`;
+    const promptText = `Du bist ein erfahrener Nachrichten-Redakteur. Fasse den folgenden Artikel zusammen.
+Antworte exakt im JSON Format mit zwei Feldern: "teaser" (maximal 3 Sätze Zusammenfassung) und "keyTakeaways" (3 Stichpunkte als ein String, getrennt durch Bullet-Points).
+Hier ist der Artikel:
+${article.content}`;
 
     const response = await fetch('http://localhost:11434/api/generate', {
       method: 'POST',
@@ -29,7 +32,8 @@ export const worker = new Worker('generation_jobs', async job => {
       body: JSON.stringify({
         model: 'qwen2.5:3b-instruct',
         prompt: promptText,
-        stream: false
+        stream: false,
+        format: 'json'
       })
     });
     
@@ -38,9 +42,20 @@ export const worker = new Worker('generation_jobs', async job => {
     }
     
     const data = await response.json();
+    let resultObj;
+    try {
+      resultObj = JSON.parse(data.response);
+    } catch (e) {
+      // Fallback if model failed to output strict JSON
+      resultObj = { teaser: data.response, keyTakeaways: '' };
+    }
     
-    await db.update(articles).set({ teaser: data.response }).where(eq(articles.id, articleId));
-    await db.update(jobs).set({ status: 'completed', result: data.response }).where(eq(jobs.id, jobId));
+    await db.update(articles).set({ 
+      teaser: resultObj.teaser,
+      keyTakeaways: resultObj.keyTakeaways 
+    }).where(eq(articles.id, articleId));
+    
+    await db.update(jobs).set({ status: 'completed', result: 'Erfolgreich generiert' }).where(eq(jobs.id, jobId));
   } catch (error: any) {
     await db.update(jobs).set({ status: 'failed', error: error.message }).where(eq(jobs.id, jobId));
   }
