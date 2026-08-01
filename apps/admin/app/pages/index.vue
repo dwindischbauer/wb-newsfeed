@@ -83,6 +83,7 @@
           {{ selectedArticle.status === 'published' ? 'In Entwurf umwandeln' : 'Veröffentlichen' }}
         </button>
         <button class="action-btn" @click="openMobilePreview">Mobile Ansicht</button>
+        <button class="action-btn danger-btn" @click="deleteArticle(selectedArticle.id)">Löschen</button>
         <button class="action-btn" @click="selectedArticle = null">Schließen</button>
       </div>
     </div>
@@ -159,6 +160,19 @@ const toggleStatus = async (article) => {
 
 const openMobilePreview = () => {
   window.open('http://localhost:3002', '_blank', 'width=375,height=812');
+};
+
+const deleteArticle = async (id) => {
+  if (!confirm('Artikel wirklich löschen?')) return;
+  try {
+    await fetch(`${config.public.apiUrl}/api/articles/${id}`, {
+      method: 'DELETE'
+    });
+    selectedArticle.value = null;
+    fetchArticles();
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 const fetchArticles = async () => {
@@ -390,6 +404,13 @@ onMounted(() => {
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   cursor: pointer;
+}
+.danger-btn {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+.danger-btn:hover {
+  background: #fef2f2;
 }
 .empty {
   text-align: center;
