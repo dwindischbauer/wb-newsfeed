@@ -127,6 +127,7 @@ onMounted(() => {
   height: 100vh;
   overflow-y: scroll;
   scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 .feed-item {
   height: 100vh;
