@@ -5,6 +5,7 @@
       <nav>
         <NuxtLink to="/">Dashboard</NuxtLink>
         <NuxtLink to="/jobs">Job-Queue</NuxtLink>
+        <NuxtLink to="/settings">Einstellungen</NuxtLink>
       </nav>
     </header>
     <main>
