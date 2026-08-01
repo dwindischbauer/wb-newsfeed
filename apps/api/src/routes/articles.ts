@@ -30,6 +30,14 @@ export default async function (server: FastifyInstance) {
     return { success: true };
   });
 
+  server.delete('/api/articles/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    
+    await db.delete(articles).where(eq(articles.id, parseInt(id)));
+    
+    return { success: true };
+  });
+
   server.post('/api/articles', async (request, reply) => {
     const body = request.body as any;
     const newArticle = await db.insert(articles).values({
