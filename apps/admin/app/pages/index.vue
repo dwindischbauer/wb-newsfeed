@@ -139,10 +139,12 @@ const selectArticle = (article) => {
   selectedArticle.value = article;
 };
 
+const config = useRuntimeConfig();
+
 const toggleStatus = async (article) => {
   const newStatus = article.status === 'published' ? 'draft' : 'published';
   try {
-    const res = await fetch(`http://localhost:3005/api/articles/${article.id}`, {
+    const res = await fetch(`${config.public.apiUrl}/api/articles/${article.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
@@ -161,7 +163,7 @@ const openMobilePreview = () => {
 
 const fetchArticles = async () => {
   try {
-    const res = await fetch('http://localhost:3005/api/articles');
+    const res = await fetch(`${config.public.apiUrl}/api/articles`);
     const data = await res.json();
     articles.value = data;
   } catch (e) {
@@ -188,14 +190,14 @@ const saveArticle = async () => {
   }
   
   try {
-    const res = await fetch('http://localhost:3005/api/articles', {
+    const res = await fetch(`${config.public.apiUrl}/api/articles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newArticle.value)
     });
     const article = await res.json();
     
-    const jobRes = await fetch('http://localhost:3005/api/jobs', {
+    const jobRes = await fetch(`${config.public.apiUrl}/api/jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ articleId: article.id, type: 'teaser_generation' })
@@ -213,7 +215,7 @@ const saveArticle = async () => {
 const pollJobStatus = async (jobId) => {
   const interval = setInterval(async () => {
     try {
-      const res = await fetch(`http://localhost:3005/api/jobs/${jobId}`);
+      const res = await fetch(`${config.public.apiUrl}/api/jobs/${jobId}`);
       if (res.ok) {
         const job = await res.json();
         if (job.status === 'completed' || job.status === 'failed') {

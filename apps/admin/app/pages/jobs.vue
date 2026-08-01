@@ -36,11 +36,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
+const config = useRuntimeConfig();
 const jobs = ref([]);
 
 const fetchJobs = async () => {
   try {
-    const res = await fetch('http://localhost:3005/api/jobs');
+    const res = await fetch(`${config.public.apiUrl}/api/jobs`);
     const data = await res.json();
     jobs.value = data;
   } catch (e) {
