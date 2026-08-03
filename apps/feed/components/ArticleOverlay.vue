@@ -4,6 +4,9 @@
     <p class="teaser" v-if="article.teaser">{{ article.teaser }}</p>
     <div class="meta">{{ article.author }} • vor 5 Min</div>
     <button class="read-more" @click="$emit('read', article)">Vollständigen Artikel lesen</button>
+    <div class="scroll-indicator">
+      &darr; Weiterscrollen
+    </div>
   </div>
 </template>
 
@@ -51,5 +54,20 @@ defineEmits(['read']);
   font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
+}
+.scroll-indicator {
+  position: absolute;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+  animation: pulse 2s infinite;
+  pointer-events: none;
+}
+@keyframes pulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.3; }
 }
 </style>
