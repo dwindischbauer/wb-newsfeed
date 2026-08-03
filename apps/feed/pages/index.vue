@@ -164,32 +164,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
 }
-.media-area {
-  flex: 1;
-  background: #1a1a1a;
-  position: relative;
-}
-.category-badge {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  background: rgba(255,255,255,0.2);
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-.content-overlay {
-  padding: 1.5rem;
-  background: linear-gradient(transparent, rgba(0,0,0,0.9));
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-.content-overlay h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-}
 .empty-feed h2 {
   margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
@@ -201,11 +175,6 @@ onMounted(() => {
   line-height: 1.2;
   font-weight: 800;
   letter-spacing: -0.02em;
-}
-.teaser {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  opacity: 0.9;
 }
 .meta {
   font-size: 0.8rem;
