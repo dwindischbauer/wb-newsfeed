@@ -249,6 +249,7 @@ const pollJobStatus = async (jobId) => {
         if (job.status === 'completed' || job.status === 'failed') {
           clearInterval(interval);
           fetchArticles();
+          fetchJobsStat();
         }
       }
     } catch (e) {
