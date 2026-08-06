@@ -76,10 +76,18 @@ onMounted(() => {
 .empty-feed {
   height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
   color: #888;
+  background: #000;
+  text-align: center;
+  padding: 2rem;
+}
+.empty-feed svg {
+  margin-bottom: 1rem;
+  opacity: 0.5;
 }
 .reader-overlay {
   position: fixed;
