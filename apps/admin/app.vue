@@ -27,6 +27,9 @@ main {
   margin: 0;
   padding: 0;
 }
+.text-center { text-align: center; }
+.text-muted { color: #6b7280; }
+.mt-4 { margin-top: 1rem; }
 .app-header {
   background-color: #fff;
   padding: 1rem 2rem;
