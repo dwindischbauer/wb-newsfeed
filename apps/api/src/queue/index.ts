@@ -28,6 +28,9 @@ Antworte exakt im JSON Format mit zwei Feldern: "teaser" (maximal 3 Sätze Zusam
 Hier ist der Artikel:
 ${article.content}`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
     const response = await fetch('http://localhost:11434/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -36,9 +39,12 @@ ${article.content}`;
         prompt: promptText,
         stream: false,
         format: 'json'
-      })
+      }),
+      signal: controller.signal
     });
     
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       throw new Error(`Ollama API error: ${response.status}`);
     }
