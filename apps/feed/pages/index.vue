@@ -146,10 +146,12 @@ onMounted(() => {
   border-left: 4px solid #4ade80;
 }
 .takeaways h3 { margin: 0 0 0.5rem 0; color: #4ade80; font-size: 1.1rem; }
-.full-text {
+.reader-body {
   line-height: 1.8;
   font-size: 1.1rem;
   white-space: pre-wrap;
+  margin-bottom: 3rem;
+  padding: 0 0.5rem;
 }
 .vertical-feed {
   height: 100vh;
