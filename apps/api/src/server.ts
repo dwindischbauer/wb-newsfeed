@@ -3,8 +3,14 @@ import jobRoutes from './routes/jobs';
 import articleRoutes from './routes/articles';
 import './queue'; // Initialize worker
 
+import cors from '@fastify/cors';
+
 const server = Fastify({
   logger: true
+});
+
+server.register(cors, {
+  origin: '*'
 });
 
 server.register(articleRoutes);
