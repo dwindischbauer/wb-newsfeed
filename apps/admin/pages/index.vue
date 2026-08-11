@@ -124,6 +124,10 @@
         </div>
       </div>
     </div>
+    
+    <div v-if="sysinfo" class="sysinfo-footer">
+      API Status: {{ sysinfo.status.toUpperCase() }} | Uptime: {{ Math.round(sysinfo.uptime) }}s
+    </div>
   </div>
 </template>
 
@@ -206,7 +210,22 @@ const fetchArticles = async () => {
 };
 
 const isModalOpen = ref(false);
-const newArticle = ref({ title: '', category: 'Wirtschaft', author: 'ORF.at Redaktion', content: '' });
+const newArticle = ref({ 
+  title: '', 
+  category: categories[1] || 'Wirtschaft', 
+  author: 'Redaktion', 
+  content: '' 
+});
+const sysinfo = ref(null);
+
+const fetchSysinfo = async () => {
+  try {
+    const res = await fetch(`${config.public.apiUrl}/api/sysinfo`);
+    sysinfo.value = await res.json();
+  } catch (e) {
+    console.error('API not reachable');
+  }
+};
 
 const openModal = () => {
   newArticle.value = { 
@@ -272,6 +291,7 @@ const pollJobStatus = async (jobId) => {
 onMounted(() => {
   fetchArticles();
   fetchJobsStat();
+  fetchSysinfo();
 
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'article_opened') {
@@ -445,6 +465,16 @@ onMounted(() => {
 }
 .status-badge.published { background: #bbf7d0; color: #166534; }
 .status-badge.draft { background: #e5e7eb; color: #374151; }
+
+.sysinfo-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  text-align: right;
+}
+
 .action-btn {
   background: none;
   border: 1px solid #ccc;
