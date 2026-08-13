@@ -249,7 +249,10 @@ const closeModal = () => {
 };
 
 const saveArticle = async () => {
-  if (!newArticle.value.content) return;
+  if (!newArticle.value.content || newArticle.value.content.length < 10) {
+    alert('Bitte gib einen Text mit mindestens 10 Zeichen ein.');
+    return;
+  }
   if (!newArticle.value.title) {
     newArticle.value.title = newArticle.value.content.substring(0, 30) + '...';
   }
@@ -260,6 +263,13 @@ const saveArticle = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newArticle.value)
     });
+    
+    if (!res.ok) {
+      const errorData = await res.json();
+      alert('Fehler beim Speichern: ' + (errorData.error || 'Unbekannt'));
+      return;
+    }
+    
     const article = await res.json();
     
     const jobRes = await fetch(`${config.public.apiUrl}/api/jobs`, {
