@@ -8,6 +8,7 @@ import { logger } from '../utils/logger';
 const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 export const generationQueue = new Queue('generation_jobs', { connection });
+logger.info('Generation queue initialized');
 
 export const worker = new Worker('generation_jobs', async job => {
   logger.info(`Processing job ${job.id} of type ${job.name}`, { jobId: job.id, type: job.name });
