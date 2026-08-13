@@ -11,24 +11,28 @@
     </div>
 
     <!-- Reader Overlay -->
-    <div class="reader-overlay" v-if="activeReaderArticle">
-      <div class="reader-header">
-        <button class="back-btn" @click="activeReaderArticle = null">Zurück zur Übersicht</button>
-      </div>
-      <div class="reader-content">
-        <h2>{{ activeReaderArticle.title }}</h2>
-        <div class="reader-meta">{{ activeReaderArticle.author }} | {{ activeReaderArticle.category }}</div>
-        
-        <div class="takeaways" v-if="activeReaderArticle.keyTakeaways">
-          <h3>KI-Kernpunkte</h3>
-          <p>{{ activeReaderArticle.keyTakeaways }}</p>
+    <transition name="reader">
+      <div v-if="activeReaderArticle" class="reader-overlay">
+        <div class="reader-header">
+          <button @click="activeReaderArticle = null" class="back-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Zurück zur Übersicht
+          </button>
         </div>
-        
-        <div class="full-text">
-          {{ activeReaderArticle.content }}
+        <div class="reader-content">
+          <h1 class="reader-title">{{ activeReaderArticle.title }}</h1>
+          
+          <div v-if="activeReaderArticle.keyTakeaways" class="takeaways">
+            <h3>KI-Kernpunkte</h3>
+            <ul style="padding-left: 1.2rem; margin: 0;">
+              <li v-for="point in activeReaderArticle.keyTakeaways.split('\n')" :key="point">{{ point }}</li>
+            </ul>
+          </div>
+          
+          <div class="reader-body">{{ activeReaderArticle.content }}</div>
         </div>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -85,6 +89,15 @@ onMounted(() => {
 .empty-feed svg {
   margin-bottom: 1rem;
   opacity: 0.4;
+}
+.reader-enter-active,
+.reader-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.reader-enter-from,
+.reader-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 .reader-overlay {
   position: fixed;
