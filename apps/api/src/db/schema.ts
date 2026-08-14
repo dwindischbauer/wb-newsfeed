@@ -15,12 +15,19 @@ export const articles = pgTable('articles', {
 
 export const jobs = pgTable('jobs', {
   id: serial('id').primaryKey(),
-  articleId: serial('article_id').references(() => articles.id),
-  type: text('type').notNull(), // e.g., teaser_generation
-  status: text('status').notNull().default('pending'), // pending, processing, completed, failed
+  articleId: integer('article_id').references(() => articles.id),
+  type: varchar('type', { length: 50 }).notNull(),
+  status: varchar('status', { length: 20 }).default('pending'),
   result: text('result'),
   error: text('error'),
   processingTimeMs: integer('processing_time_ms'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow()
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const settings = pgTable('settings', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 50 }).notNull().unique(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
