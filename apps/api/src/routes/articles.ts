@@ -63,4 +63,45 @@ export default async function (server: FastifyInstance) {
     }).returning();
     return newArticle[0];
   });
+
+  server.post('/api/articles/quick', async (request, reply) => {
+    const body = request.body as any;
+    const text = body.text || body.content;
+    
+    if (!text || text.length < 10) {
+      reply.status(400);
+      return { success: false, error: 'Text min 10 Zeichen wird benötigt' };
+    }
+
+    const cleanContent = stripHtml(text);
+    const generatedTitle = cleanContent.substring(0, 30) + '...';
+
+    const newArticle = await db.insert(articles).values({
+      title: generatedTitle,
+      content: cleanContent,
+      author: 'Quick API',
+      category: 'Allgemein',
+      status: 'published'
+    }).returning();
+    
+    const articleId = newArticle[0].id;
+    
+    // Automatically queue generation job
+    const { generationQueue } = require('../queue');
+    const job = await generationQueue.add('teaser_generation', {
+      articleId,
+      type: 'teaser_generation'
+    });
+    
+    // Create job record in db
+    const { jobs } = require('../db/schema');
+    await db.insert(jobs).values({
+      id: job.id,
+      articleId,
+      type: 'teaser_generation',
+      status: 'pending'
+    });
+    
+    return { success: true, article: newArticle[0], jobId: job.id };
+  });
 }
