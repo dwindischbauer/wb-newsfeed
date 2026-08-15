@@ -11,7 +11,12 @@ server.register(articleRoutes);
 server.register(jobRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
-  return { status: 'ok', service: 'wb-news-api', version: '1.0.0' };
+  return {
+    status: 'ok',
+    service: 'wb-news-api',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  };
 });
 
 const start = async () => {
