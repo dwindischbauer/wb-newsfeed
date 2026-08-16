@@ -24,11 +24,12 @@
           <th>Status</th>
           <th>Dauer</th>
           <th>Datum</th>
+          <th>Aktion</th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="filteredJobs.length === 0">
-          <td colspan="6" class="empty-state">Keine Jobs gefunden.</td>
+          <td colspan="7" class="empty-state">Keine Jobs gefunden.</td>
         </tr>
         <tr v-for="job in filteredJobs" :key="job.id">
           <td>{{ job.id }}</td>
@@ -43,9 +44,9 @@
             {{ job.processingTimeMs ? (job.processingTimeMs / 1000).toFixed(2) + 's' : '-' }}
           </td>
           <td>{{ new Date(job.createdAt).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' }) }}</td>
-        </tr>
-        <tr v-if="jobs.length === 0">
-          <td colspan="6" class="empty">Keine Jobs in der Warteschlange.</td>
+          <td>
+            <button v-if="job.status === 'failed'" @click="retryJob(job.id)" class="action-btn">Neu starten</button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -79,8 +80,23 @@ const fetchJobs = async () => {
   }
 };
 
+const retryJob = async (jobId) => {
+  try {
+    const res = await fetch(`${config.public.apiUrl}/api/jobs/${jobId}/retry`, {
+      method: 'POST'
+    });
+    if (res.ok) {
+      fetchJobs();
+    }
+  } catch (e) {
+    console.error('Failed to retry job', e);
+  }
+};
+
+let intervalId;
 onMounted(() => {
   fetchJobs();
+  intervalId = setInterval(fetchJobs, 5000);
 });
 </script>
 
