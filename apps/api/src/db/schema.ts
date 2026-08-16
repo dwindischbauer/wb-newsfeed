@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, boolean, integer, varchar } from 'drizzle-orm/pg-core';
 
 export const articles = pgTable('articles', {
   id: serial('id').primaryKey(),
@@ -6,9 +6,10 @@ export const articles = pgTable('articles', {
   content: text('content').notNull(),
   teaser: text('teaser'),
   keyTakeaways: text('key_takeaways'),
+  imageUrl: text('image_url'),
   category: text('category').notNull(),
   author: text('author').notNull().default('ORF.at Redaktion'),
-  status: text('status').notNull().default('draft'), // draft, published
+  status: text('status').notNull().default('draft'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
 });
