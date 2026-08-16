@@ -43,7 +43,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRuntimeConfig } from '#app';
+
+const config = useRuntimeConfig();
 
 const settings = ref({
   ollamaUrl: 'http://localhost:11434',
@@ -53,9 +56,48 @@ const settings = ref({
   dbPort: 5433
 });
 
-const saveSettings = () => {
-  alert('Einstellungen gespeichert! (Mock)');
+const loadSettings = async () => {
+  try {
+    const res = await fetch(`${config.public.apiUrl}/api/settings`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ollamaUrl) settings.value.ollamaUrl = data.ollamaUrl;
+      if (data.aiModel) settings.value.aiModel = data.aiModel;
+      if (data.timeout) settings.value.timeout = parseInt(data.timeout);
+    }
+  } catch (e) {
+    console.error('Failed to load settings', e);
+  }
 };
+
+const saveSettings = async () => {
+  try {
+    const payload = {
+      ollamaUrl: settings.value.ollamaUrl,
+      aiModel: settings.value.aiModel,
+      timeout: settings.value.timeout.toString()
+    };
+    
+    const res = await fetch(`${config.public.apiUrl}/api/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    if (res.ok) {
+      alert('Einstellungen erfolgreich gespeichert!');
+    } else {
+      alert('Fehler beim Speichern der Einstellungen.');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Fehler beim Speichern der Einstellungen.');
+  }
+};
+
+onMounted(() => {
+  loadSettings();
+});
 </script>
 
 <style scoped>
