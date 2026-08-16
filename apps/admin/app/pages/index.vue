@@ -137,7 +137,9 @@ const selectedArticle = ref(null);
 const pendingJobsCount = ref(0);
 
 const totalArticlesCount = computed(() => articles.value.length);
-const publishedArticlesCount = computed(() => articles.value.filter(a => a.status === 'published').length);
+const publishedArticlesCount = computed(() => {
+  return articles.value.reduce((count, a) => (a.status === 'published' ? count + 1 : count), 0);
+});
 
 const filteredArticles = computed(() => {
   if (activeCategory.value === 'Alle') return articles.value;
