@@ -26,6 +26,28 @@ export default async function (server: FastifyInstance) {
     return jobRes[0];
   });
 
+  server.post('/api/jobs/:id/retry', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    
+    // Find job in db
+    const jobRecord = await db.select().from(jobs).where(eq(jobs.id, parseInt(id)));
+    if (!jobRecord.length) {
+      return reply.code(404).send({ error: 'Job not found' });
+    }
+
+    // Update status to pending
+    await db.update(jobs).set({ status: 'pending', error: null }).where(eq(jobs.id, parseInt(id)));
+    
+    // Add to queue
+    const { generationQueue } = await import('../queue');
+    await generationQueue.add(jobRecord[0].type, {
+      jobId: parseInt(id),
+      articleId: jobRecord[0].articleId
+    });
+
+    return { success: true };
+  });
+
   server.post('/api/jobs', async (request, reply) => {
     const body = request.body as { articleId?: number, type?: string };
     
