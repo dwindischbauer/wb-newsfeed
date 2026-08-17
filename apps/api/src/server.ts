@@ -4,6 +4,9 @@ import articleRoutes from './routes/articles';
 import './queue'; // Initialize worker
 
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const server = Fastify({
   logger: true
@@ -11,6 +14,16 @@ const server = Fastify({
 
 server.register(cors, {
   origin: '*'
+});
+
+const publicDir = path.join(process.cwd(), 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
+server.register(fastifyStatic, {
+  root: publicDir,
+  prefix: '/'
 });
 
 server.register(articleRoutes);
