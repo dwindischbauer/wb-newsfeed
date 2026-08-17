@@ -35,8 +35,8 @@ ${article.content}`;
     const settingsMap = allSettings.reduce((acc, curr) => { acc[curr.key] = curr.value; return acc; }, {} as Record<string, string>);
     
     const ollamaUrl = settingsMap['ollamaUrl'] || 'http://localhost:11434';
-    const aiModel = settingsMap['aiModel'] || 'qwen2.5:3b-instruct';
-    const timeoutMs = parseInt(settingsMap['timeout'] || '30000', 10);
+    const aiModel = settingsMap['aiModel'] || 'llama3.1:8b-instruct-q4_0';
+    const timeoutMs = parseInt(settingsMap['timeout'] || '120000', 10);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
