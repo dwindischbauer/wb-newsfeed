@@ -13,11 +13,21 @@
       </div>
       
       <div class="form-group">
-        <label>KI-Modell</label>
+        <label>Text-KI-Modell (Teaser & Zusammenfassung)</label>
         <select v-model="settings.aiModel">
-          <option value="qwen2.5:3b-instruct">qwen2.5:3b-instruct (Lokal)</option>
+          <option value="llama3.1:8b-instruct-q4_0">llama3.1:8b-instruct (Empfohlen)</option>
+          <option value="qwen2.5:3b-instruct">qwen2.5:3b-instruct (Klein)</option>
           <option value="llama3:8b">llama3:8b</option>
           <option value="mistral:7b">mistral:7b</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Bild-KI-Modell (Artikelbild-Generierung)</label>
+        <select v-model="settings.imageModel">
+          <option value="x/z-image-turbo">Z-Image Turbo (Empfohlen)</option>
+          <option value="x/flux.2-klein:4b">FLUX.2 Klein 4B</option>
+          <option value="">Deaktiviert</option>
         </select>
       </div>
 
@@ -50,7 +60,8 @@ const config = useRuntimeConfig();
 
 const settings = ref({
   ollamaUrl: 'http://localhost:11434',
-  aiModel: 'qwen2.5:3b-instruct',
+  aiModel: 'llama3.1:8b-instruct-q4_0',
+  imageModel: 'x/z-image-turbo',
   timeout: 30000,
   apiPort: 3005,
   dbPort: 5433
@@ -63,6 +74,7 @@ const loadSettings = async () => {
       const data = await res.json();
       if (data.ollamaUrl) settings.value.ollamaUrl = data.ollamaUrl;
       if (data.aiModel) settings.value.aiModel = data.aiModel;
+      if (data.imageModel !== undefined) settings.value.imageModel = data.imageModel;
       if (data.timeout) settings.value.timeout = parseInt(data.timeout);
     }
   } catch (e) {
@@ -75,6 +87,7 @@ const saveSettings = async () => {
     const payload = {
       ollamaUrl: settings.value.ollamaUrl,
       aiModel: settings.value.aiModel,
+      imageModel: settings.value.imageModel,
       timeout: settings.value.timeout.toString()
     };
     

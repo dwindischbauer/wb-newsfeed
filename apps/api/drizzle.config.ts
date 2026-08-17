@@ -5,6 +5,6 @@ export default {
   out: './drizzle',
   driver: 'pg',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL || 'postgresql://admin:adminpassword@localhost:5433/wbnews'
+    connectionString: process.env.DATABASE_URL || 'postgresql://wb_user:wb_password@localhost:5433/wb_newsfeed'
   }
 } satisfies Config;
