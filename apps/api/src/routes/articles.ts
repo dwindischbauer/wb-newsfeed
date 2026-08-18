@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { articles } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { stripHtml } from '../utils/format';
+import { stripHtml } from 'shortform-news';
 
 export default async function (server: FastifyInstance) {
   server.get('/api/articles', async (request, reply) => {
@@ -12,7 +12,12 @@ export default async function (server: FastifyInstance) {
 
   server.get('/api/articles/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const article = await db.select().from(articles).where(eq(articles.id, parseInt(id)));
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid article ID' });
+      return;
+    }
+    const article = await db.select().from(articles).where(eq(articles.id, parsedId));
     if (article.length === 0) {
       reply.status(404).send({ error: 'Article not found' });
       return;
@@ -23,14 +28,19 @@ export default async function (server: FastifyInstance) {
   server.put('/api/articles/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = request.body as any;
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid article ID' });
+      return;
+    }
     
     if (body.status) {
-      const existing = await db.select().from(articles).where(eq(articles.id, parseInt(id)));
+      const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
       if (existing.length === 0) {
         reply.status(404);
         return { success: false, error: 'Article not found' };
       }
-      await db.update(articles).set({ status: body.status }).where(eq(articles.id, parseInt(id)));
+      await db.update(articles).set({ status: body.status }).where(eq(articles.id, parsedId));
     }
     
     return { success: true };
@@ -38,8 +48,13 @@ export default async function (server: FastifyInstance) {
 
   server.delete('/api/articles/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid article ID' });
+      return;
+    }
     
-    await db.delete(articles).where(eq(articles.id, parseInt(id)));
+    await db.delete(articles).where(eq(articles.id, parsedId));
     
     return { success: true };
   });
@@ -86,21 +101,23 @@ export default async function (server: FastifyInstance) {
     
     const articleId = newArticle[0].id;
     
+    // Create job record in db first to get the auto-increment ID
+    const { jobs } = require('../db/schema');
+    const newJob = await db.insert(jobs).values({
+      articleId,
+      type: 'teaser_generation',
+      status: 'pending'
+    }).returning();
+    
+    const dbJobId = newJob[0].id;
+    
     // Automatically queue generation job
     const { generationQueue } = require('../queue');
     const job = await generationQueue.add('teaser_generation', {
       articleId,
+      jobId: dbJobId,
       type: 'teaser_generation'
-    });
-    
-    // Create job record in db
-    const { jobs } = require('../db/schema');
-    await db.insert(jobs).values({
-      id: job.id,
-      articleId,
-      type: 'teaser_generation',
-      status: 'pending'
-    });
+    }, { jobId: dbJobId.toString() });
     
     return { success: true, article: newArticle[0], jobId: job.id };
   });
