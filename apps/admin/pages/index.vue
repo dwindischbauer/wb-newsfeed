@@ -77,7 +77,9 @@
         </div>
         <div class="preview-takeaways" v-if="selectedArticle.keyTakeaways">
           <strong>Kernpunkte:</strong>
-          <p>{{ selectedArticle.keyTakeaways }}</p>
+          <ul style="padding-left: 1.2rem; margin: 0.5rem 0 0 0;">
+            <li v-for="point in selectedArticle.keyTakeaways.split(/(?:\n|[,;]?\s*(?:•|-|\d+\.)\s+)/).filter(p => p.trim())" :key="point">{{ point.trim() }}</li>
+          </ul>
         </div>
         <div class="preview-meta">{{ selectedArticle.author }}</div>
         <div class="preview-body">{{ selectedArticle.content }}</div>

@@ -36,7 +36,7 @@
           <div v-if="activeReaderArticle.keyTakeaways" class="takeaways">
             <h3>KI-Kernpunkte</h3>
             <ul style="padding-left: 1.2rem; margin: 0;">
-              <li v-for="point in activeReaderArticle.keyTakeaways.split('\n')" :key="point">{{ point }}</li>
+              <li v-for="point in activeReaderArticle.keyTakeaways.split(/(?:\n|[,;]?\s*(?:•|-|\d+\.)\s+)/).filter(p => p.trim())" :key="point">{{ point.trim() }}</li>
             </ul>
           </div>
           
