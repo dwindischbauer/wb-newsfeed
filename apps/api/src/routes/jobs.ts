@@ -6,19 +6,22 @@ import { eq, desc } from 'drizzle-orm';
 export default async function (server: FastifyInstance) {
   server.get('/api/jobs', async (request, reply) => {
     const { status } = request.query as { status?: string };
-    let query = db.select().from(jobs).orderBy(desc(jobs.createdAt));
     
     if (status) {
-      const allJobs = await query;
-      return allJobs.filter(j => j.status === status);
+      return await db.select().from(jobs).where(eq(jobs.status, status)).orderBy(desc(jobs.createdAt));
     }
     
-    return await query;
+    return await db.select().from(jobs).orderBy(desc(jobs.createdAt));
   });
 
   server.get('/api/jobs/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const jobRes = await db.select().from(jobs).where(eq(jobs.id, parseInt(id)));
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid job ID' });
+      return;
+    }
+    const jobRes = await db.select().from(jobs).where(eq(jobs.id, parsedId));
     if (jobRes.length === 0) {
       reply.status(404).send({ error: 'Job not found' });
       return;
@@ -28,15 +31,20 @@ export default async function (server: FastifyInstance) {
 
   server.post('/api/jobs/:id/retry', async (request, reply) => {
     const { id } = request.params as { id: string };
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid job ID' });
+      return;
+    }
     
     // Find job in db
-    const jobRecord = await db.select().from(jobs).where(eq(jobs.id, parseInt(id)));
+    const jobRecord = await db.select().from(jobs).where(eq(jobs.id, parsedId));
     if (!jobRecord.length) {
       return reply.code(404).send({ error: 'Job not found' });
     }
 
     // Update status to pending
-    await db.update(jobs).set({ status: 'pending', error: null }).where(eq(jobs.id, parseInt(id)));
+    await db.update(jobs).set({ status: 'pending', error: null }).where(eq(jobs.id, parsedId));
     
     // Add to queue
     const { generationQueue } = await import('../queue');
@@ -63,7 +71,7 @@ export default async function (server: FastifyInstance) {
     }).returning();
     
     const { generationQueue } = await import('../queue');
-    await generationQueue.add(body.type, { jobId: newJob[0].id, articleId: body.articleId });
+    await generationQueue.add(body.type, { jobId: newJob[0].id, articleId: body.articleId }, { jobId: newJob[0].id.toString() });
     
     return newJob[0];
   });

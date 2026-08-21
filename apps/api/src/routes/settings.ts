@@ -16,8 +16,12 @@ export default async function (server: FastifyInstance) {
   server.post('/api/settings', async (request, reply) => {
     const body = request.body as Record<string, string>;
     
+    const validKeys = ['ollamaUrl', 'aiModel', 'timeout', 'imageModel'];
+    
     // Upsert each setting
     for (const [key, value] of Object.entries(body)) {
+      if (!validKeys.includes(key)) continue;
+      
       const existing = await db.select().from(settings).where(eq(settings.key, key));
       if (existing.length > 0) {
         await db.update(settings).set({ value }).where(eq(settings.key, key));
