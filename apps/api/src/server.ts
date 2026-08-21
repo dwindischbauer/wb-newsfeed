@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import jobRoutes from './routes/jobs';
 import articleRoutes from './routes/articles';
+import feedRoutes from './routes/feed';
+import settingsRoutes from './routes/settings';
 import './queue'; // Initialize worker
 
 import cors from '@fastify/cors';
@@ -13,7 +15,23 @@ const server = Fastify({
 });
 
 server.register(cors, {
-  origin: '*'
+  origin: process.env.NODE_ENV === 'production' ? 'https://admin.wb-news.local' : '*'
+});
+
+// Simple API Key authentication for admin routes
+server.addHook('preHandler', async (request, reply) => {
+  // Public routes
+  if (request.url.startsWith('/api/feed') || request.url.startsWith('/api/sysinfo') || request.url.startsWith('/images/')) {
+    return;
+  }
+  
+  // Require API key for everything else
+  const apiKey = request.headers['x-api-key'];
+  const validKey = process.env.API_KEY || 'diplomarbeit-secret-key';
+  
+  if (apiKey !== validKey) {
+    reply.status(401).send({ error: 'Unauthorized' });
+  }
 });
 
 const publicDir = path.join(process.cwd(), 'public');
@@ -28,8 +46,8 @@ server.register(fastifyStatic, {
 
 server.register(articleRoutes);
 server.register(jobRoutes);
-server.register(require('./routes/feed').default);
-server.register(require('./routes/settings').default);
+server.register(feedRoutes);
+server.register(settingsRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return {
