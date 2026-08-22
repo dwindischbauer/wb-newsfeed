@@ -41,14 +41,18 @@ import { ref, onMounted } from 'vue';
 
 const config = useRuntimeConfig();
 const jobs = ref([]);
+const isLoading = ref(false);
 
 const fetchJobs = async () => {
+  isLoading.value = true;
   try {
     const res = await fetch(`${config.public.apiUrl}/api/jobs`);
     const data = await res.json();
     jobs.value = data;
   } catch (e) {
     console.error(e);
+  } finally {
+    isLoading.value = false;
   }
 };
 
