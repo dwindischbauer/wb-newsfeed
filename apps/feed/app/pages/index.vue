@@ -1,7 +1,7 @@
 <template>
   <div class="vertical-feed">
     <div class="feed-item" v-for="article in publishedArticles" :key="article.id">
-      <div class="media-area">
+      <div class="media-area" :style="{ backgroundColor: article.image ? 'transparent' : '#1f2937' }">
         <span class="category-badge">{{ article.category }}</span>
       </div>
       <div class="content-overlay">
