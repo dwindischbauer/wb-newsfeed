@@ -40,6 +40,12 @@ export default async function (server: FastifyInstance) {
 
   server.post('/api/articles', async (request, reply) => {
     const body = request.body as any;
+    
+    if (!body.title || !body.content || body.content.length < 10) {
+      reply.status(400);
+      return { success: false, error: 'Titel und Content (min 10 Zeichen) werden benötigt' };
+    }
+
     const newArticle = await db.insert(articles).values({
       title: body.title,
       content: body.content,
