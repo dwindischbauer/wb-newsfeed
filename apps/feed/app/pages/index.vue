@@ -5,10 +5,13 @@
         <span class="category-badge">{{ article.category }}</span>
       </div>
       <div class="content-overlay">
-        <h2>{{ article.title }}</h2>
+        <h2 class="article-title">{{ article.title }}</h2>
         <p class="teaser" v-if="article.teaser">{{ article.teaser }}</p>
         <div class="meta">{{ article.author }} • vor 5 Min</div>
         <button class="read-more" @click="openReader(article)">Vollständigen Artikel lesen</button>
+        <div class="scroll-indicator" v-if="publishedArticles.length > 1">
+          &darr; Weiterscrollen
+        </div>
       </div>
     </div>
     <div v-if="publishedArticles.length === 0" class="empty-feed">
