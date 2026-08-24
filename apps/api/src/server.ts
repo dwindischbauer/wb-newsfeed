@@ -21,8 +21,9 @@ server.get('/api/sysinfo', async (request, reply) => {
 
 const start = async () => {
   try {
-    await server.listen({ port: 3005, host: '0.0.0.0' });
-    console.log(`Server listening on port 3005`);
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 3005;
+    await server.listen({ port, host: '0.0.0.0' });
+    console.log(`Server listening on port ${port}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);
