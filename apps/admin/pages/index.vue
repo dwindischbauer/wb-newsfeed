@@ -161,7 +161,7 @@ const config = useRuntimeConfig();
 const toggleStatus = async (article) => {
   const newStatus = article.status === 'published' ? 'draft' : 'published';
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/articles/${article.id}`, {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${article.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
@@ -181,7 +181,7 @@ const openMobilePreview = () => {
 const deleteArticle = async (id) => {
   if (!confirm('Artikel wirklich löschen?')) return;
   try {
-    await fetch(`${config.public.apiUrl}/api/articles/${id}`, {
+    await apiFetch(`${config.public.apiUrl}/api/articles/${id}`, {
       method: 'DELETE'
     });
     selectedArticle.value = null;
@@ -193,7 +193,7 @@ const deleteArticle = async (id) => {
 
 const fetchJobsStat = async () => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/jobs`);
+    const res = await apiFetch(`${config.public.apiUrl}/api/jobs`);
     const data = await res.json();
     pendingJobsCount.value = data.filter(j => j.status === 'pending' || j.status === 'processing').length;
   } catch (e) {
@@ -203,7 +203,7 @@ const fetchJobsStat = async () => {
 
 const fetchArticles = async () => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/articles`);
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles`);
     const data = await res.json();
     articles.value = data;
   } catch (e) {
@@ -222,7 +222,7 @@ const sysinfo = ref(null);
 
 const fetchSysinfo = async () => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/sysinfo`);
+    const res = await apiFetch(`${config.public.apiUrl}/api/sysinfo`);
     sysinfo.value = await res.json();
   } catch (e) {
     console.error('API not reachable');
@@ -260,7 +260,7 @@ const saveArticle = async () => {
   }
   
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/articles`, {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newArticle.value)
@@ -274,7 +274,7 @@ const saveArticle = async () => {
     
     const article = await res.json();
     
-    const jobRes = await fetch(`${config.public.apiUrl}/api/jobs`, {
+    const jobRes = await apiFetch(`${config.public.apiUrl}/api/jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ articleId: article.id, type: 'teaser_generation' })
@@ -292,7 +292,7 @@ const saveArticle = async () => {
 const pollJobStatus = async (jobId) => {
   const interval = setInterval(async () => {
     try {
-      const res = await fetch(`${config.public.apiUrl}/api/jobs/${jobId}`);
+      const res = await apiFetch(`${config.public.apiUrl}/api/jobs/${jobId}`);
       if (res.ok) {
         const job = await res.json();
         if (job.status === 'completed' || job.status === 'failed') {

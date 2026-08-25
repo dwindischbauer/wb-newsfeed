@@ -69,7 +69,7 @@ const settings = ref({
 
 const loadSettings = async () => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/settings`);
+    const res = await apiFetch(`${config.public.apiUrl}/api/settings`);
     if (res.ok) {
       const data = await res.json();
       if (data.ollamaUrl) settings.value.ollamaUrl = data.ollamaUrl;
@@ -91,7 +91,7 @@ const saveSettings = async () => {
       timeout: settings.value.timeout.toString()
     };
     
-    const res = await fetch(`${config.public.apiUrl}/api/settings`, {
+    const res = await apiFetch(`${config.public.apiUrl}/api/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

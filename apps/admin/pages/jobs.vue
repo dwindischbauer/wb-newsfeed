@@ -70,7 +70,7 @@ const filteredJobs = computed(() => {
 const fetchJobs = async () => {
   isLoading.value = true;
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/jobs`);
+    const res = await apiFetch(`${config.public.apiUrl}/api/jobs`);
     const data = await res.json();
     jobs.value = data;
   } catch (e) {
@@ -82,7 +82,7 @@ const fetchJobs = async () => {
 
 const retryJob = async (jobId) => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/jobs/${jobId}/retry`, {
+    const res = await apiFetch(`${config.public.apiUrl}/api/jobs/${jobId}/retry`, {
       method: 'POST'
     });
     if (res.ok) {
