@@ -15,33 +15,35 @@ export async function generateArticleImage(
   articleCategory: string,
   articleId: number
 ): Promise<string | null> {
-    // MOCK IMPLEMENTATION:
-    // AI Image generation requires a dedicated GPU or an external paid API (like OpenAI/Midjourney).
-    // Ollama's /api/generate does not generate images (it is a text/vision endpoint).
-    // For this diplomarbeit, we mock the image generation using Unsplash placeholders.
-    logger.info(`[MOCK] Generating image for article ${articleId}`, { prompt: buildImagePrompt(articleTitle, articleCategory) });
+  try {
+    logger.info(`Generating image for article ${articleId} via LocalAI...`);
+    const prompt = buildImagePrompt(articleTitle, articleCategory);
     
-    // Simulate generation delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Call LocalAI
+    const response = await fetch('http://localhost:8080/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        size: "512x512"
+      })
+    });
     
-    // Use Unsplash source based on category
-    const unsplashCategory = {
-      'Politik': 'politics',
-      'Wirtschaft': 'business',
-      'Sport': 'sports',
-      'Technologie': 'technology',
-      'Kultur': 'culture'
-    }[articleCategory] || 'news';
-    
-    // Download image from unsplash
-    const response = await fetch(`https://source.unsplash.com/800x600/?${unsplashCategory}`);
     if (!response.ok) {
-      logger.warn(`Image download failed with status ${response.status}, using fallback`);
+      logger.warn(`LocalAI image generation failed with status ${response.status}`);
       return null;
     }
     
-    const arrayBuffer = await response.arrayBuffer();
-    const imageBuffer = Buffer.from(arrayBuffer);
+    const data = await response.json();
+    if (!data.data || data.data.length === 0 || !data.data[0].b64_json) {
+      logger.warn('LocalAI returned invalid response format');
+      return null;
+    }
+    
+    const base64Data = data.data[0].b64_json;
+    const imageBuffer = Buffer.from(base64Data, 'base64');
     
     const filename = `article_${articleId}_${Date.now()}.jpg`;
     const filepath = path.join(IMAGES_DIR, filename);
