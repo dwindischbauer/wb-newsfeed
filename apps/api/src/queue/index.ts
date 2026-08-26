@@ -11,6 +11,7 @@ export const generationQueue = new Queue('generation_jobs', { connection });
 export const worker = new Worker('generation_jobs', async job => {
   console.log(`Processing job ${job.id} of type ${job.name}`);
   const { jobId, articleId } = job.data;
+  const startTime = Date.now();
   
   await db.update(jobs).set({ status: 'processing' }).where(eq(jobs.id, jobId));
   
@@ -50,12 +51,19 @@ ${article.content}`;
       resultObj = { teaser: data.response, keyTakeaways: '' };
     }
     
+    const endTime = Date.now();
+    const processingTimeMs = endTime - startTime;
+
     await db.update(articles).set({ 
       teaser: resultObj.teaser,
       keyTakeaways: resultObj.keyTakeaways 
     }).where(eq(articles.id, articleId));
     
-    await db.update(jobs).set({ status: 'completed', result: 'Erfolgreich generiert' }).where(eq(jobs.id, jobId));
+    await db.update(jobs).set({ 
+      status: 'completed', 
+      result: 'Erfolgreich generiert',
+      processingTimeMs: processingTimeMs
+    }).where(eq(jobs.id, jobId));
   } catch (error: any) {
     await db.update(jobs).set({ status: 'failed', error: error.message }).where(eq(jobs.id, jobId));
   }
