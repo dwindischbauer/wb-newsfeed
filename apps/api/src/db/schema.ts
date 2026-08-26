@@ -20,6 +20,7 @@ export const jobs = pgTable('jobs', {
   status: text('status').notNull().default('pending'), // pending, processing, completed, failed
   result: text('result'),
   error: text('error'),
+  processingTimeMs: integer('processing_time_ms'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
 });
