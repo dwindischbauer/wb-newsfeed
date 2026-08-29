@@ -99,10 +99,12 @@ onMounted(() => {
   border-bottom: 1px solid #eee;
 }
 .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 99px;
-  font-size: 0.8rem;
-  font-weight: bold;
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .status-badge.pending { background: #fef08a; color: #854d0e; }
 .status-badge.processing { background: #bfdbfe; color: #1e40af; }
