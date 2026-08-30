@@ -209,7 +209,12 @@ const isModalOpen = ref(false);
 const newArticle = ref({ title: '', category: 'Wirtschaft', author: 'ORF.at Redaktion', content: '' });
 
 const openModal = () => {
-  newArticle.value = { title: '', category: categories[1], author: 'ORF.at Redaktion', content: '' };
+  newArticle.value = { 
+    title: '', 
+    category: categories[1] || 'Wirtschaft', 
+    author: 'Redaktion', 
+    content: '' 
+  };
   isModalOpen.value = true;
 };
 
