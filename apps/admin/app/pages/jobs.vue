@@ -2,7 +2,10 @@
   <div class="jobs-page">
     <div class="header">
       <h2>Job Queue</h2>
-      <button @click="fetchJobs" class="refresh-btn">Aktualisieren</button>
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <Spinner v-if="isLoading" />
+        <button @click="fetchJobs" class="refresh-btn">Aktualisieren</button>
+      </div>
     </div>
     
     <table class="jobs-table">
