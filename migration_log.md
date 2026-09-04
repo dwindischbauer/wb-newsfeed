@@ -49,3 +49,4 @@
 - feat(config): update nuxt config for v4 – api
 - refactor(ui): replace tailwind-3 classes with v4 equivalents
 - refactor(ui): update custom utilities for tailwind-4
+- refactor(ui): adjust responsive breakpoints to v4 defaults
