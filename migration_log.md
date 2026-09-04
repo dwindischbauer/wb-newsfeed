@@ -21,3 +21,4 @@
 - docs: update contribution guidelines for nuxt 4
 - perf: enable tailwind-jit for faster dev builds
 - perf: configure nitro server options
+- refactor(db): adjust drizzle-orm migrations for nuxt 4
