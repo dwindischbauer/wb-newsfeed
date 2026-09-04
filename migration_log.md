@@ -24,3 +24,4 @@
 - refactor(db): adjust drizzle-orm migrations for nuxt 4
 - fix(api): update fastify route typings for nuxt 4
 - feat(ui): add new tailwind-4 based component library
+- style(admin): refresh admin dashboard colours
