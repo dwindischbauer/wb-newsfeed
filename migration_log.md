@@ -33,3 +33,4 @@
 - chore: health-check API, admin, feed – all 200
 - docs: update walkthrough with migration summary
 - refactor: clean up obsolete nuxt-3 config files
+- refactor: prune unused tailwind-3 plugins
