@@ -7,3 +7,4 @@
 - feat(config): enable dark mode & new palette
 - feat(config): update nuxt config for v4 – admin
 - feat(config): update nuxt config for v4 – feed
+- feat(config): update nuxt config for v4 – api
