@@ -1,12 +1,13 @@
 <template>
-  <div class="vertical-feed-app">
-    <div class="top-nav-area">
-      <div class="category-filters">
-        <div class="category-pill-group">
+  <div class="h-screen relative bg-black">
+    <div class="fixed top-0 left-0 w-full z-50 pb-3 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.3)_55%,rgba(0,0,0,0)_100%)]">
+      <div class="flex overflow-x-auto pt-[0.85rem] px-4 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+        <div class="flex items-center gap-1 bg-[rgba(20,20,20,0.4)] backdrop-blur-[14px] border border-[rgba(255,255,255,0.16)] rounded-full p-[0.3rem]">
           <button
             v-for="cat in categories"
             :key="cat"
-            :class="['nav-chip', { active: activeCategory === cat }]"
+            class="bg-transparent border-none [text-shadow:0_1px_6px_rgba(0,0,0,0.5)] rounded-full whitespace-nowrap cursor-pointer transition-all duration-200 py-[0.48rem] px-4 text-[0.86rem] font-semibold text-[rgba(255,255,255,0.82)]"
+            :class="{ '!bg-accent-lime !text-accent-ink [text-shadow:none] !font-bold': activeCategory === cat }"
             @click="activeCategory = cat; activeTagFilter = ''"
           >
             {{ cat }}
@@ -15,12 +16,13 @@
       </div>
 
       <!-- Subcategory chips for the active main category -->
-      <div class="subcategory-filters" v-if="activeSubtags.length > 0">
-        <div class="category-pill-group subtle">
+      <div class="flex overflow-x-auto pt-2 px-4 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden" v-if="activeSubtags.length > 0">
+        <div class="flex items-center gap-1 bg-[rgba(20,20,20,0.28)] backdrop-blur-[14px] border border-[rgba(255,255,255,0.1)] rounded-full p-[0.22rem]">
           <button
             v-for="sub in activeSubtags"
             :key="sub.slug"
-            :class="['nav-chip', 'sub', { active: activeTagFilter === sub.name }]"
+            class="bg-transparent border-none [text-shadow:0_1px_6px_rgba(0,0,0,0.5)] rounded-full whitespace-nowrap cursor-pointer transition-all duration-200 py-[0.36rem] px-[0.8rem] text-[0.76rem] font-medium text-[rgba(255,255,255,0.68)]"
+            :class="{ '!bg-accent-lime !text-accent-ink [text-shadow:none] !font-bold': activeTagFilter === sub.name }"
             @click="activeTagFilter = activeTagFilter === sub.name ? '' : sub.name"
           >
             {{ sub.name }}
@@ -31,9 +33,9 @@
 
     <!-- Active Tag Filter Badge — only for tags picked from a card, not for the
          canonical subcategory chips above (those already show their own active state) -->
-    <div v-if="activeTagFilter && !activeSubtags.some(s => s.name === activeTagFilter)" class="active-tag-banner">
+    <div v-if="activeTagFilter && !activeSubtags.some(s => s.name === activeTagFilter)" class="fixed top-[60px] left-4 right-4 z-45 bg-[rgba(20,20,20,0.55)] border border-[rgba(213,242,78,0.5)] backdrop-blur-[12px] text-white px-4 py-2 rounded-full flex justify-between items-center text-[0.85rem]">
       <span>Tag-Filter: <strong>{{ activeTagFilter }}</strong></span>
-      <button @click="activeTagFilter = ''" class="clear-tag-btn">✕ Entfernen</button>
+      <button @click="activeTagFilter = ''" class="bg-[rgba(255,255,255,0.2)] border-none text-white px-2 py-0.5 rounded-[10px] cursor-pointer text-[0.75rem] font-bold hover:bg-[rgba(255,255,255,0.35)]">✕ Entfernen</button>
     </div>
 
     <ShortformFeed
@@ -57,48 +59,48 @@
 
     <!-- Share toast -->
     <transition name="reader">
-      <div v-if="shareToast" class="share-toast">{{ shareToast }}</div>
+      <div v-if="shareToast" class="fixed bottom-[6.5rem] left-1/2 -translate-x-1/2 z-[150] bg-accent-ink text-accent-lime text-[0.85rem] font-semibold px-[1.2rem] py-[0.6rem] rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.4)]">{{ shareToast }}</div>
     </transition>
 
     <!-- Comments Sheet -->
     <transition name="sheet">
-      <div v-if="commentsArticle" class="comments-backdrop" @click.self="closeComments">
-        <div class="comments-sheet">
-          <div class="comments-sheet-header">
-            <h3>Kommentare <span class="comments-count">({{ commentsArticle.commentCount || comments.length }})</span></h3>
-            <button class="comments-close-btn" @click="closeComments">✕</button>
+      <div v-if="commentsArticle" class="comments-backdrop fixed inset-0 z-[140] bg-[rgba(0,0,0,0.55)] flex items-end" @click.self="closeComments">
+        <div class="comments-sheet w-full max-h-[75vh] bg-reader-bg rounded-t-[24px] flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.35)]">
+          <div class="flex items-center justify-between pt-[1.1rem] px-5 pb-[0.85rem] border-b border-[rgba(20,20,20,0.08)]">
+            <h3 class="m-0 font-accent italic font-medium text-[1.2rem] text-accent-ink">Kommentare <span class="not-italic font-medium text-[0.9rem] text-reader-muted">({{ commentsArticle.commentCount || comments.length }})</span></h3>
+            <button class="bg-[rgba(20,20,20,0.06)] border-none w-[30px] h-[30px] rounded-full text-accent-ink text-[0.9rem] cursor-pointer" @click="closeComments">✕</button>
           </div>
-          <div class="comments-list">
-            <div v-if="commentsLoading" class="comments-empty">Lade Kommentare…</div>
-            <div v-else-if="comments.length === 0" class="comments-empty">Noch keine Kommentare. Sei die/der Erste!</div>
-            <div v-for="c in comments" :key="c.id" class="comment-item">
-              <div class="comment-avatar">{{ (c.authorName || 'A').charAt(0).toUpperCase() }}</div>
-              <div class="comment-body">
-                <div class="comment-meta">
-                  <strong>{{ c.authorName }}</strong>
+          <div class="flex-1 overflow-y-auto py-2 px-5">
+            <div v-if="commentsLoading" class="py-10 text-center text-reader-muted text-[0.9rem]">Lade Kommentare…</div>
+            <div v-else-if="comments.length === 0" class="py-10 text-center text-reader-muted text-[0.9rem]">Noch keine Kommentare. Sei die/der Erste!</div>
+            <div v-for="c in comments" :key="c.id" class="flex gap-[0.7rem] py-[0.85rem] border-b border-[rgba(20,20,20,0.06)]">
+              <div class="shrink-0 w-[34px] h-[34px] rounded-full bg-accent-ink text-accent-lime flex items-center justify-center font-bold text-[0.85rem]">{{ (c.authorName || 'A').charAt(0).toUpperCase() }}</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-baseline gap-2 text-[0.78rem] text-reader-muted mb-[0.2rem]">
+                  <strong class="text-accent-ink text-[0.85rem]">{{ c.authorName }}</strong>
                   <span>{{ formatRelativeTime(c.createdAt) }}</span>
                 </div>
-                <p>{{ c.text }}</p>
+                <p class="m-0 text-[0.9rem] leading-[1.4] text-[#24252a] break-words">{{ c.text }}</p>
               </div>
             </div>
           </div>
-          <form class="comment-form" @submit.prevent="submitComment">
+          <form class="pt-[0.85rem] px-5 pb-5 border-t border-[rgba(20,20,20,0.08)] flex flex-col gap-2" @submit.prevent="submitComment">
             <input
               v-model="commentName"
               type="text"
               maxlength="60"
               placeholder="Dein Name (optional)"
-              class="comment-name-input"
+              class="border-none bg-transparent text-[0.78rem] text-reader-muted p-0 outline-none"
             />
-            <div class="comment-input-row">
+            <div class="flex gap-2 items-center">
               <input
                 v-model="commentText"
                 type="text"
                 maxlength="1000"
                 placeholder="Kommentar schreiben…"
-                class="comment-text-input"
+                class="flex-1 border border-[rgba(20,20,20,0.12)] bg-reader-input-bg rounded-full px-[1.1rem] py-[0.65rem] text-[0.9rem] text-accent-ink outline-none focus:border-accent-lime-deep"
               />
-              <button type="submit" class="comment-submit-btn" :disabled="!commentText.trim() || commentSubmitting">
+              <button type="submit" class="bg-accent-ink text-accent-lime border-none rounded-full px-[1.2rem] py-[0.65rem] text-[0.85rem] font-bold cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed" :disabled="!commentText.trim() || commentSubmitting">
                 Senden
               </button>
             </div>
@@ -109,71 +111,83 @@
 
     <!-- Reader Overlay -->
     <transition name="reader">
-      <div v-if="activeReaderArticle" class="reader-overlay">
-        <div class="reader-header">
-          <button @click="activeReaderArticle = null" class="back-btn">
+      <div v-if="activeReaderArticle" class="fixed top-0 left-0 w-full h-full bg-reader-bg z-100 overflow-y-auto flex flex-col">
+        <div class="py-4 px-6 bg-reader-bg sticky top-0 flex justify-between items-center border-b border-[rgba(20,20,20,0.08)] z-10">
+          <button @click="activeReaderArticle = null" class="bg-transparent border-none text-reader-accent text-base font-semibold cursor-pointer py-2 px-0">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             Zurück
           </button>
-          
-          <div class="reader-header-actions">
-            <button 
-              v-if="ttsSupported" 
-              :class="['tts-btn', { active: isSpeaking }]" 
+
+          <div class="flex items-center gap-2">
+            <button
+              v-if="ttsSupported"
+              class="bg-[rgba(20,20,20,0.05)] border border-[rgba(20,20,20,0.12)] text-reader-accent rounded-full px-[0.9rem] py-[0.4rem] text-[0.85rem] font-semibold cursor-pointer inline-flex items-center gap-1.5 transition-all duration-200 hover:bg-[rgba(111,143,26,0.12)] hover:border-accent-lime-deep"
+              :class="{ '!bg-[#ef4444] !text-white !border-[#ef4444]': isSpeaking }"
               @click="toggleSpeech"
               :title="isSpeaking ? 'Vorlesen stoppen' : 'KI-Zusammenfassung vorlesen'"
             >
-              <span v-if="isSpeaking" class="audio-wave">
-                <span></span><span></span><span></span>
+              <span v-if="isSpeaking" class="inline-flex items-center gap-0.5 h-3">
+                <span class="w-0.5 h-full bg-current rounded-[1px] animate-wave"></span><span class="w-0.5 h-full bg-current rounded-[1px] animate-wave" style="animation-delay: 0.2s"></span><span class="w-0.5 h-full bg-current rounded-[1px] animate-wave" style="animation-delay: 0.4s"></span>
               </span>
               <span v-else>🔊</span>
               {{ isSpeaking ? 'Stopp' : 'Vorlesen' }}
             </button>
           </div>
         </div>
-        <div class="reader-content">
-          <div class="reader-tags" v-if="activeReaderArticle.tags && activeReaderArticle.tags.length > 0">
-            <button 
-              v-for="tag in activeReaderArticle.tags" 
-              :key="tag.id" 
-              class="reader-tag-chip"
+        <div class="p-6 pb-16 font-reader text-accent-ink">
+          <div class="flex flex-wrap gap-2 mb-4" v-if="activeReaderArticle.tags && activeReaderArticle.tags.length > 0">
+            <button
+              v-for="tag in activeReaderArticle.tags"
+              :key="tag.id"
+              class="bg-[rgba(20,20,20,0.05)] border border-[rgba(20,20,20,0.12)] text-reader-accent px-3 py-[0.3rem] rounded-[14px] text-[0.85rem] font-medium cursor-pointer transition-all duration-150 hover:bg-[rgba(111,143,26,0.15)] hover:border-accent-lime-deep hover:-translate-y-px"
               @click="filterByTag(tag.name)"
               title="Nach diesem Tag filtern"
             >
               {{ tag.name }}
             </button>
           </div>
-          <h1 class="reader-title">{{ activeReaderArticle.title }}</h1>
-          
-          <div v-if="activeReaderArticle.keyTakeaways" class="takeaways">
-            <div class="takeaways-header">
-              <h3>KI-Kernpunkte</h3>
-              <span class="reading-time">{{ estimateReadingTime(activeReaderArticle.content) }}</span>
+          <h1 class="text-[2em] font-bold my-[0.67em]">{{ activeReaderArticle.title }}</h1>
+
+          <div v-if="activeReaderArticle.keyTakeaways" class="bg-reader-input-bg p-6 rounded-[18px] mb-8 border-l-4 border-l-accent-lime-deep">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="m-0 text-reader-accent text-[1.1rem] font-accent italic">KI-Kernpunkte</h3>
+              <span class="text-[0.75rem] text-reader-muted bg-[rgba(20,20,20,0.06)] px-[0.6rem] py-[0.2rem] rounded-xl">{{ estimateReadingTime(activeReaderArticle.content) }}</span>
             </div>
-            <ul style="padding-left: 1.2rem; margin: 0;">
+            <ul class="list-disc" style="padding-left: 1.2rem; margin: 0;">
               <li v-for="point in parseKeyTakeaways(activeReaderArticle.keyTakeaways)" :key="point">{{ point }}</li>
             </ul>
           </div>
-          
-          <div class="reader-body">{{ activeReaderArticle.content }}</div>
+
+          <div class="leading-[1.8] text-[1.1rem] whitespace-pre-wrap mb-12 px-2">{{ activeReaderArticle.content }}</div>
         </div>
       </div>
     </transition>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue';
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import {
   ShortformFeed,
   parseKeyTakeaways,
   estimateReadingTime,
   rankPersonalizedArticles,
-  CATEGORY_SUBTAGS
+  CATEGORY_SUBTAGS,
+  type Article,
+  type ArticleTag,
+  type UserInterests
 } from '@wb-news/shortform-news';
 
-const articles = ref([]);
-const activeReaderArticle = ref(null);
+interface Comment {
+  id: number;
+  articleId: number;
+  authorName: string;
+  text: string;
+  createdAt?: string | Date | null;
+}
+
+const articles = ref<Article[]>([]);
+const activeReaderArticle = ref<Article | null>(null);
 const activeCategory = ref('Für dich');
 const activeTagFilter = ref('');
 const categories = ['Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
@@ -182,7 +196,7 @@ const categories = ['Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Tech
 const activeSubtags = computed(() => CATEGORY_SUBTAGS[activeCategory.value] || []);
 
 // User Interest Model (Stored locally, privacy-first)
-const userInterests = ref({
+const userInterests = ref<UserInterests>({
   categories: {},
   tags: {}
 });
@@ -197,7 +211,7 @@ const loadUserInterests = () => {
   }
 };
 
-const recordInterestInteraction = (article, weight = 1) => {
+const recordInterestInteraction = (article: Article | null, weight = 1) => {
   if (!article) return;
   if (!userInterests.value.categories) userInterests.value.categories = {};
   if (!userInterests.value.tags) userInterests.value.tags = {};
@@ -218,16 +232,21 @@ const recordInterestInteraction = (article, weight = 1) => {
 
   try {
     localStorage.setItem('wb_user_interests', JSON.stringify(userInterests.value));
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
 };
 
 const publishedArticles = computed(() => {
   let filtered = articles.value.filter(a => a.status === 'published');
-  
+
   if (activeTagFilter.value) {
+    // Match by name first — auto-generated slugs strip umlauts/&/spaces and
+    // don't reliably round-trip back to the canonical subtag name (e.g.
+    // "Justiz & Recht" -> slug "justiz-recht" != "justiz & recht").
     const tagQuery = activeTagFilter.value.toLowerCase();
-    filtered = filtered.filter(a => 
-      a.tags && a.tags.some(t => (t.slug || t.name || '').toLowerCase() === tagQuery)
+    filtered = filtered.filter(a =>
+      a.tags && a.tags.some((t: ArticleTag) => (t.name || '').toLowerCase() === tagQuery || (t.slug || '').toLowerCase() === tagQuery)
     );
   }
 
@@ -245,7 +264,7 @@ const fetchArticles = async () => {
   try {
     const res = await fetch(`${config.public.apiUrl}/api/feed`);
     if (!res.ok) throw new Error('API Error');
-    const data = await res.json();
+    const data: Article[] = await res.json();
     articles.value = data;
   } catch (e) {
     console.error('Failed to fetch articles:', e);
@@ -253,7 +272,46 @@ const fetchArticles = async () => {
   }
 };
 
-const sendAnalytics = (eventType, articleId = null, metadata = null) => {
+// --- Background content-change detection ---
+// The feed is opened once and can stay open for a long time (vertical scroll
+// session); without this, newly published/edited/unpublished articles from
+// the CMS would never show up until a manual page reload. Polling merges
+// changes into the existing array in place (update-in-place, append-new,
+// drop-removed) instead of replacing it wholesale, so Vue's :key-based
+// diffing keeps already-rendered cards mounted and the user's scroll
+// position/reader/comments state stays untouched.
+const POLL_INTERVAL_MS = 60000;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+const pollForUpdates = async () => {
+  if (typeof document !== 'undefined' && document.hidden) return;
+  try {
+    const res = await fetch(`${config.public.apiUrl}/api/feed`);
+    if (!res.ok) return;
+    const data: Article[] = await res.json();
+
+    const existingIds = new Set(articles.value.map(a => a.id));
+    const incomingIds = new Set(data.map(a => a.id));
+
+    for (const incoming of data) {
+      const idx = articles.value.findIndex(a => a.id === incoming.id);
+      if (idx !== -1) {
+        articles.value[idx] = { ...articles.value[idx], ...incoming };
+      }
+    }
+
+    const newOnes = data.filter(a => !existingIds.has(a.id));
+    if (newOnes.length > 0) {
+      articles.value = [...articles.value, ...newOnes];
+    }
+
+    articles.value = articles.value.filter(a => incomingIds.has(a.id));
+  } catch (e) {
+    console.warn('Background content refresh failed:', e);
+  }
+};
+
+const sendAnalytics = (eventType: string, articleId: number | null = null, metadata: Record<string, unknown> | null = null) => {
   try {
     const payload = JSON.stringify({ eventType, articleId, metadata });
     if (navigator.sendBeacon) {
@@ -266,27 +324,29 @@ const sendAnalytics = (eventType, articleId = null, metadata = null) => {
         keepalive: true
       }).catch(() => {});
     }
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
 };
 
-const openReader = (article) => {
+const openReader = (article: Article) => {
   activeReaderArticle.value = article;
   recordInterestInteraction(article, 2);
   sendAnalytics('read', article.id, { category: article.category });
-  
+
   if (window.parent) {
     window.parent.postMessage({ type: 'article_opened', articleId: article.id }, '*');
   }
 };
 
-const onArticleImpression = (article) => {
+const onArticleImpression = (article: Article) => {
   recordInterestInteraction(article, 0.5);
   sendAnalytics('impression', article.id, { category: article.category });
 };
 
-const onScrollDepth = (percentage) => {
+const onScrollDepth = (percentage: number) => {
   if (percentage >= 80) {
-    sendAnalytics('scroll_depth', activeReaderArticle.value?.id, { depth: percentage });
+    sendAnalytics('scroll_depth', activeReaderArticle.value?.id ?? null, { depth: percentage });
   }
 };
 
@@ -322,30 +382,34 @@ const toggleSpeech = () => {
   sendAnalytics('tts_play', art.id);
 };
 
-const filterByTag = (tagName) => {
+const filterByTag = (tagName: string) => {
   activeTagFilter.value = tagName;
   activeReaderArticle.value = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // --- Likes (device-local, privacy-first — same pattern as userInterests) ---
-const likedArticleIds = ref([]);
+const likedArticleIds = ref<number[]>([]);
 
 const loadLikedArticles = () => {
   if (typeof window === 'undefined') return;
   try {
     const saved = localStorage.getItem('wb_liked_articles');
     if (saved) likedArticleIds.value = JSON.parse(saved);
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
 };
 
 const persistLikedArticles = () => {
   try {
     localStorage.setItem('wb_liked_articles', JSON.stringify(likedArticleIds.value));
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
 };
 
-const patchArticleCount = (articleId, field, delta) => {
+const patchArticleCount = (articleId: number, field: 'likeCount' | 'commentCount' | 'shareCount', delta: number) => {
   const article = articles.value.find(a => a.id === articleId);
   if (article) article[field] = Math.max(0, (article[field] || 0) + delta);
   if (activeReaderArticle.value?.id === articleId) {
@@ -353,7 +417,7 @@ const patchArticleCount = (articleId, field, delta) => {
   }
 };
 
-const handleLike = async (article) => {
+const handleLike = async (article: Article) => {
   if (likedArticleIds.value.includes(article.id)) return;
   likedArticleIds.value = [...likedArticleIds.value, article.id];
   persistLikedArticles();
@@ -361,29 +425,33 @@ const handleLike = async (article) => {
   recordInterestInteraction(article, 3);
   try {
     await fetch(`${config.public.apiUrl}/api/articles/${article.id}/like`, { method: 'POST' });
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
 };
 
-const handleUnlike = async (article) => {
+const handleUnlike = async (article: Article) => {
   likedArticleIds.value = likedArticleIds.value.filter(id => id !== article.id);
   persistLikedArticles();
   patchArticleCount(article.id, 'likeCount', -1);
   try {
     await fetch(`${config.public.apiUrl}/api/articles/${article.id}/unlike`, { method: 'POST' });
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
 };
 
 // --- Share ---
 const shareToast = ref('');
-let shareToastTimeout = null;
+let shareToastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const showShareToast = (msg) => {
+const showShareToast = (msg: string) => {
   shareToast.value = msg;
   if (shareToastTimeout) clearTimeout(shareToastTimeout);
   shareToastTimeout = setTimeout(() => { shareToast.value = ''; }, 2500);
 };
 
-const handleShare = async (article) => {
+const handleShare = async (article: Article) => {
   const shareUrl = `${window.location.origin}${window.location.pathname}?article=${article.id}`;
   const shareData = { title: article.title, text: article.teaser || article.title, url: shareUrl };
 
@@ -397,27 +465,29 @@ const handleShare = async (article) => {
     patchArticleCount(article.id, 'shareCount', 1);
     sendAnalytics('share', article.id, { category: article.category });
     fetch(`${config.public.apiUrl}/api/articles/${article.id}/share`, { method: 'POST' }).catch(() => {});
-  } catch (e) {
+  } catch {
     // User cancelled the native share sheet — not an error
   }
 };
 
 // --- Comments ---
-const commentsArticle = ref(null);
-const comments = ref([]);
+const commentsArticle = ref<Article | null>(null);
+const comments = ref<Comment[]>([]);
 const commentsLoading = ref(false);
 const commentName = ref('');
 const commentText = ref('');
 const commentSubmitting = ref(false);
 
-const openComments = async (article) => {
+const openComments = async (article: Article) => {
   commentsArticle.value = article;
   comments.value = [];
   commentsLoading.value = true;
   try {
     const savedName = localStorage.getItem('wb_comment_name');
     if (savedName) commentName.value = savedName;
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
   try {
     const res = await fetch(`${config.public.apiUrl}/api/articles/${article.id}/comments`);
     if (res.ok) comments.value = await res.json();
@@ -440,7 +510,9 @@ const submitComment = async () => {
   const authorName = commentName.value.trim() || 'Anonym';
   try {
     localStorage.setItem('wb_comment_name', authorName);
-  } catch (e) {}
+  } catch {
+    // best-effort, ignore failures
+  }
 
   try {
     const res = await fetch(`${config.public.apiUrl}/api/articles/${commentsArticle.value.id}/comments`, {
@@ -461,7 +533,7 @@ const submitComment = async () => {
   }
 };
 
-const formatRelativeTime = (dateStr) => {
+const formatRelativeTime = (dateStr: string | Date | null | undefined) => {
   if (!dateStr) return '';
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -477,8 +549,9 @@ onMounted(() => {
   loadLikedArticles();
   fetchArticles().then(() => {
     const params = new URLSearchParams(window.location.search);
-    const sharedId = parseInt(params.get('article'), 10);
-    if (sharedId) {
+    const sharedIdParam = params.get('article');
+    const sharedId = sharedIdParam ? parseInt(sharedIdParam, 10) : NaN;
+    if (!Number.isNaN(sharedId)) {
       const found = articles.value.find(a => a.id === sharedId);
       if (found) openReader(found);
     }
@@ -486,89 +559,18 @@ onMounted(() => {
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     ttsSupported.value = true;
   }
+  pollTimer = setInterval(pollForUpdates, POLL_INTERVAL_MS);
+});
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer);
+  if (shareToastTimeout) clearTimeout(shareToastTimeout);
 });
 </script>
 
 <style scoped>
-.vertical-feed-app {
-  height: 100vh;
-  position: relative;
-  background: #000;
-}
-.top-nav-area {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 50;
-  padding-bottom: 0.75rem;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.3) 55%, rgba(0,0,0,0) 100%);
-}
-
-.category-filters {
-  display: flex;
-  overflow-x: auto;
-  padding: 0.85rem 1rem 0;
-  -webkit-overflow-scrolling: touch;
-}
-.category-filters::-webkit-scrollbar {
-  display: none;
-}
-
-.subcategory-filters {
-  display: flex;
-  overflow-x: auto;
-  padding: 0.5rem 1rem 0;
-  -webkit-overflow-scrolling: touch;
-}
-.subcategory-filters::-webkit-scrollbar {
-  display: none;
-}
-
-/* Grouped pill container — mirrors the admin header-nav pattern */
-.category-pill-group {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: rgba(20, 20, 20, 0.4);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 9999px;
-  padding: 0.3rem;
-}
-.category-pill-group.subtle {
-  background: rgba(20, 20, 20, 0.28);
-  border-color: rgba(255, 255, 255, 0.1);
-  padding: 0.22rem;
-}
-
-.nav-chip {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.82);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
-  padding: 0.48rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.86rem;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.nav-chip.sub {
-  padding: 0.36rem 0.8rem;
-  font-size: 0.76rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.68);
-}
-.nav-chip.active {
-  background: #d5f24e;
-  color: #14151a;
-  text-shadow: none;
-  font-weight: 700;
-}
-
+/* Vue <transition> lifecycle classes — framework-injected during
+   enter/leave, not expressible as static Tailwind utility classes. */
 .reader-enter-active,
 .reader-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -577,271 +579,6 @@ onMounted(() => {
 .reader-leave-to {
   opacity: 0;
   transform: translateY(20px);
-}
-.reader-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: #faf8f2;
-  z-index: 100;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.reader-header {
-  padding: 1rem;
-  background: #faf8f2;
-  position: sticky;
-  top: 0;
-}
-.back-btn {
-  background: none;
-  border: none;
-  color: #4d6512;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0.5rem 0;
-}
-.reader-content {
-  padding: 1.5rem;
-  padding-bottom: 4rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color: #14151a;
-}
-.reader-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-.reader-tag-chip {
-  background: rgba(20, 20, 20, 0.05);
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  color: #4d6512;
-  padding: 0.3rem 0.75rem;
-  border-radius: 14px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-.reader-content h2 {
-  margin-top: 0;
-  font-size: 1.8rem;
-  line-height: 1.2;
-}
-.takeaways {
-  background: #f4f2ec;
-  padding: 1.5rem;
-  border-radius: 18px;
-  margin-bottom: 2rem;
-  border-left: 4px solid #6f8f1a;
-}
-.takeaways-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-.takeaways h3 { margin: 0; color: #4d6512; font-size: 1.1rem; font-family: var(--font-accent); font-style: italic; }
-.reading-time {
-  font-size: 0.75rem;
-  color: #6c6d73;
-  background: rgba(20, 20, 20, 0.06);
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-}
-.reader-body {
-  line-height: 1.8;
-  font-size: 1.1rem;
-  white-space: pre-wrap;
-  margin-bottom: 3rem;
-  padding: 0 0.5rem;
-}
-
-/* Share toast */
-.share-toast {
-  position: fixed;
-  bottom: 6.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 150;
-  background: #14151a;
-  color: #d5f24e;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.6rem 1.2rem;
-  border-radius: 9999px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-/* Comments sheet */
-.comments-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 140;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: flex-end;
-}
-
-.comments-sheet {
-  width: 100%;
-  max-height: 75vh;
-  background: #faf8f2;
-  border-radius: 24px 24px 0 0;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35);
-}
-
-.comments-sheet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.1rem 1.25rem 0.85rem;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.08);
-}
-
-.comments-sheet-header h3 {
-  margin: 0;
-  font-family: var(--font-accent);
-  font-style: italic;
-  font-weight: 500;
-  font-size: 1.2rem;
-  color: #14151a;
-}
-
-.comments-count {
-  font-style: normal;
-  font-weight: 500;
-  font-size: 0.9rem;
-  color: #6c6d73;
-}
-
-.comments-close-btn {
-  background: rgba(20, 20, 20, 0.06);
-  border: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  color: #14151a;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.comments-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.5rem 1.25rem;
-}
-
-.comments-empty {
-  padding: 2.5rem 0;
-  text-align: center;
-  color: #6c6d73;
-  font-size: 0.9rem;
-}
-
-.comment-item {
-  display: flex;
-  gap: 0.7rem;
-  padding: 0.85rem 0;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.06);
-}
-
-.comment-avatar {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #14151a;
-  color: #d5f24e;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-
-.comment-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.comment-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-size: 0.78rem;
-  color: #6c6d73;
-  margin-bottom: 0.2rem;
-}
-
-.comment-meta strong {
-  color: #14151a;
-  font-size: 0.85rem;
-}
-
-.comment-body p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  color: #24252a;
-  word-wrap: break-word;
-}
-
-.comment-form {
-  padding: 0.85rem 1.25rem 1.25rem;
-  border-top: 1px solid rgba(20, 20, 20, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.comment-name-input {
-  border: none;
-  background: transparent;
-  font-size: 0.78rem;
-  color: #6c6d73;
-  padding: 0;
-  outline: none;
-}
-
-.comment-input-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.comment-text-input {
-  flex: 1;
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  background: #f4f2ec;
-  border-radius: 9999px;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.9rem;
-  color: #14151a;
-  outline: none;
-}
-
-.comment-text-input:focus {
-  border-color: #6f8f1a;
-}
-
-.comment-submit-btn {
-  background: #14151a;
-  color: #d5f24e;
-  border: none;
-  border-radius: 9999px;
-  padding: 0.65rem 1.2rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.comment-submit-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .sheet-enter-active,
@@ -859,117 +596,5 @@ onMounted(() => {
 .sheet-enter-from .comments-sheet,
 .sheet-leave-to .comments-sheet {
   transform: translateY(100%);
-}
-
-.active-tag-banner {
-  position: fixed;
-  top: 60px;
-  left: 1rem;
-  right: 1rem;
-  z-index: 45;
-  background: rgba(20, 20, 20, 0.55);
-  border: 1px solid rgba(213, 242, 78, 0.5);
-  backdrop-filter: blur(12px);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-}
-
-.clear-tag-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: bold;
-}
-.clear-tag-btn:hover {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.reader-header {
-  padding: 1rem 1.5rem;
-  background: #faf8f2;
-  position: sticky;
-  top: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.08);
-  z-index: 10;
-}
-
-.reader-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tts-btn {
-  background: rgba(20, 20, 20, 0.05);
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  color: #4d6512;
-  border-radius: 9999px;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-}
-.tts-btn:hover {
-  background: rgba(111, 143, 26, 0.12);
-  border-color: #6f8f1a;
-}
-.tts-btn.active {
-  background: #ef4444;
-  color: white;
-  border-color: #ef4444;
-}
-
-.audio-wave {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 12px;
-}
-.audio-wave span {
-  width: 2px;
-  height: 100%;
-  background-color: currentColor;
-  border-radius: 1px;
-  animation: wave 1s ease-in-out infinite;
-}
-.audio-wave span:nth-child(2) { animation-delay: 0.2s; }
-.audio-wave span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes wave {
-  0%, 100% { height: 4px; }
-  50% { height: 14px; }
-}
-
-.reader-tag-chip {
-  background: rgba(20, 20, 20, 0.05);
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  color: #4d6512;
-  padding: 0.3rem 0.75rem;
-  border-radius: 14px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.reader-tag-chip:hover {
-  background: rgba(111, 143, 26, 0.15);
-  border-color: #6f8f1a;
-  transform: translateY(-1px);
 }
 </style>
