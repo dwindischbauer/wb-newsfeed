@@ -15,3 +15,4 @@
 - feat(build): add nuxt-4 specific build flags
 - test(utils): update vitest imports for nuxt 4
 - test(utils): ensure all vitest suites pass after migration
+- ci: update github actions for nuxt 4
