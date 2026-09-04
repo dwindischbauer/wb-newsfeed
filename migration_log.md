@@ -9,3 +9,4 @@
 - feat(config): update nuxt config for v4 – feed
 - feat(config): update nuxt config for v4 – api
 - refactor(ui): replace tailwind-3 classes with v4 equivalents
+- refactor(ui): update custom utilities for tailwind-4
