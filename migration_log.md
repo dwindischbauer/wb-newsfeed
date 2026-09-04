@@ -38,3 +38,4 @@
 - chore: update lockfile after tailwind-4 upgrade
 - feat: add CI badge for nuxt 4 build status
 - chore: final repo cleanup & tag v4-tailwind-nuxt
+- chore(deps): bump nuxt to v4
