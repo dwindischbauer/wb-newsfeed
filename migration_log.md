@@ -64,3 +64,4 @@
 - fix(api): update fastify route typings for nuxt 4
 - feat(ui): add new tailwind-4 based component library
 - style(admin): refresh admin dashboard colours
+- style(feed): redesign feed layout using v4 utilities
