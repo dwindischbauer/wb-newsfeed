@@ -1,106 +1,119 @@
 <template>
-  <div class="settings-page">
-    <div class="header">
-      <h2>Einstellungen</h2>
+  <div class="px-8 pt-6 pb-12 max-w-[800px] mx-auto">
+    <div class="mb-6">
+      <h2 class="text-[1.35rem] font-extrabold text-text-primary m-0">Einstellungen</h2>
     </div>
-    
-    <div class="settings-card">
-      <div class="card-header-flex">
+
+    <div class="bg-bg-card border border-border-subtle p-7 rounded-[22px] shadow-[0_4px_20px_rgba(20,20,20,0.08)] mb-6">
+      <div class="flex justify-between items-start mb-6 pb-4 border-b border-border-subtle">
         <div>
-          <h3>KI & API Konfiguration</h3>
-          <p class="card-subtitle">Steuerung der lokalen LLM- und Bildgenerierungs-Modelle</p>
+          <h3 class="m-0 text-[1.1rem] font-bold text-text-primary">KI & API Konfiguration</h3>
+          <p class="mt-1 mb-0 text-[0.76rem] text-text-muted">Steuerung der lokalen LLM- und Bildgenerierungs-Modelle</p>
         </div>
-        <button class="secondary-btn" :disabled="loadingModels" @click="fetchModels">
-          <span v-if="loadingModels" class="btn-spinner"></span>
+        <button class="bg-[rgba(20,20,20,0.04)] text-[#3f4046] border border-border-subtle rounded-md px-3 py-[0.35rem] text-[0.76rem] font-semibold cursor-pointer inline-flex items-center gap-1.5 transition-all duration-150 enabled:hover:bg-[rgba(20,20,20,0.08)] enabled:hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed" :disabled="loadingModels" @click="fetchModels">
+          <span v-if="loadingModels" class="w-3 h-3 border-2 border-[rgba(20,20,20,0.2)] border-t-[#5c7a14] rounded-full animate-btn-spin inline-block"></span>
           <span v-else>⟳</span>
           Modelle abfragen
         </button>
       </div>
-      
-      <div class="form-group">
-        <label>Ollama Base URL</label>
-        <input type="text" v-model="settings.ollamaUrl" placeholder="http://localhost:11434" />
+
+      <div class="flex flex-col gap-[0.4rem] mb-5">
+        <label class="font-semibold text-[0.78rem] text-text-secondary">Ollama Base URL</label>
+        <input type="text" v-model="settings.ollamaUrl" placeholder="http://localhost:11434" class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus" />
       </div>
-      
-      <div class="form-group">
-        <div class="label-with-hint">
-          <label>Text-KI-Modell (Teaser & Zusammenfassung)</label>
-          <span class="active-model-badge">{{ settings.aiModel }}</span>
+
+      <div class="flex flex-col gap-[0.4rem] mb-5">
+        <div class="flex justify-between items-center">
+          <label class="font-semibold text-[0.78rem] text-text-secondary">Text-KI-Modell (Teaser & Zusammenfassung)</label>
+          <span class="bg-[rgba(111,143,26,0.15)] text-[#5c7a14] px-2 py-0.5 rounded-xl text-[0.72rem] font-mono font-semibold border border-[rgba(111,143,26,0.3)]">{{ settings.aiModel }}</span>
         </div>
-        <select v-model="settings.aiModel">
+        <select v-model="settings.aiModel" class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus">
           <option v-for="m in textModels" :key="m" :value="m">{{ m }}</option>
         </select>
-        <input 
-          type="text" 
-          v-model="settings.aiModel" 
-          placeholder="Oder spezifischen Modellnamen manuell eintragen..." 
-          class="custom-model-input" 
+        <input
+          type="text"
+          v-model="settings.aiModel"
+          placeholder="Oder spezifischen Modellnamen manuell eintragen..."
+          class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus mt-[0.35rem] text-[0.8rem] !text-text-secondary"
         />
       </div>
 
-      <div class="form-group">
-        <label>LocalAI Base URL (Bild-Generierung)</label>
-        <input type="text" v-model="settings.localAiUrl" placeholder="http://localhost:8080" />
+      <div class="flex flex-col gap-[0.4rem] mb-5">
+        <label class="font-semibold text-[0.78rem] text-text-secondary">LocalAI Base URL (Bild-Generierung)</label>
+        <input type="text" v-model="settings.localAiUrl" placeholder="http://localhost:8080" class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus" />
       </div>
 
-      <div class="form-group">
-        <div class="label-with-hint">
-          <label>Bild-KI-Modell (Artikelbild-Generierung)</label>
-          <span class="active-model-badge">{{ settings.imageModel || 'Deaktiviert' }}</span>
+      <div class="flex flex-col gap-[0.4rem] mb-5">
+        <div class="flex justify-between items-center">
+          <label class="font-semibold text-[0.78rem] text-text-secondary">Bild-KI-Modell (Artikelbild-Generierung)</label>
+          <span class="bg-[rgba(111,143,26,0.15)] text-[#5c7a14] px-2 py-0.5 rounded-xl text-[0.72rem] font-mono font-semibold border border-[rgba(111,143,26,0.3)]">{{ settings.imageModel || 'Deaktiviert' }}</span>
         </div>
-        <select v-model="settings.imageModel">
+        <select v-model="settings.imageModel" class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus">
           <option value="">Deaktiviert</option>
           <option v-for="m in imageModels" :key="m" :value="m">{{ m }}</option>
         </select>
-        <input 
+        <input
           v-if="settings.imageModel !== ''"
-          type="text" 
-          v-model="settings.imageModel" 
-          placeholder="Oder spezifischen Modellnamen manuell eintragen..." 
-          class="custom-model-input" 
+          type="text"
+          v-model="settings.imageModel"
+          placeholder="Oder spezifischen Modellnamen manuell eintragen..."
+          class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus mt-[0.35rem] text-[0.8rem] !text-text-secondary"
         />
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Ollama Timeout (ms)</label>
-          <input type="number" v-model="settings.timeout" />
+      <div class="flex gap-4">
+        <div class="flex flex-col gap-[0.4rem] mb-5 flex-1">
+          <label class="font-semibold text-[0.78rem] text-text-secondary">Ollama Timeout (ms)</label>
+          <input type="number" v-model="settings.timeout" class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus" />
         </div>
-        
-        <div class="form-group">
-          <label>Bild-KI Timeout (ms)</label>
-          <input type="number" v-model="settings.imageTimeout" />
+
+        <div class="flex flex-col gap-[0.4rem] mb-5 flex-1">
+          <label class="font-semibold text-[0.78rem] text-text-secondary">Bild-KI Timeout (ms)</label>
+          <input type="number" v-model="settings.imageTimeout" class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus" />
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>API Port</label>
-          <input type="number" v-model="settings.apiPort" disabled />
+      <div class="flex gap-4">
+        <div class="flex flex-col gap-[0.4rem] mb-5 flex-1">
+          <label class="font-semibold text-[0.78rem] text-text-secondary">API Port</label>
+          <input type="number" v-model="settings.apiPort" disabled class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus disabled:bg-[rgba(20,20,20,0.01)] disabled:text-text-muted" />
         </div>
-        <div class="form-group">
-          <label>DB Port</label>
-          <input type="number" v-model="settings.dbPort" disabled />
+        <div class="flex flex-col gap-[0.4rem] mb-5 flex-1">
+          <label class="font-semibold text-[0.78rem] text-text-secondary">DB Port</label>
+          <input type="number" v-model="settings.dbPort" disabled class="px-[0.85rem] py-[0.65rem] border border-border-subtle rounded-lg text-[0.85rem] bg-[rgba(20,20,20,0.03)] text-text-primary outline-none font-[inherit] focus:border-border-focus disabled:bg-[rgba(20,20,20,0.01)] disabled:text-text-muted" />
         </div>
       </div>
-      
-      <div class="form-actions-row">
-        <button class="primary-btn" @click="saveSettings">Einstellungen speichern</button>
-        <span v-if="saveSuccess" class="save-indicator">✓ Gespeichert</span>
+
+      <div class="flex items-center gap-4 mt-4">
+        <button class="bg-accent-ink text-accent-lime border-none px-[1.35rem] py-[0.65rem] rounded-full cursor-pointer font-semibold text-[0.85rem] transition-all duration-200 shadow-[0_4px_14px_rgba(20,20,20,0.2)] hover:opacity-[0.92] hover:shadow-[0_6px_18px_rgba(20,20,20,0.28)]" @click="saveSettings">Einstellungen speichern</button>
+        <span v-if="saveSuccess" class="text-[#34d399] font-semibold text-[0.82rem] animate-fade-in">✓ Gespeichert</span>
       </div>
     </div>
 
     <!-- Floating Toast Notification -->
-    <div v-if="toast" :class="['toast-notification', toast.type]">
-      <span class="toast-icon">{{ toast.type === 'success' ? '✓' : '⚠️' }}</span>
+    <div
+      v-if="toast"
+      class="fixed bottom-6 right-6 bg-white text-text-primary px-[18px] py-3 rounded-[14px] shadow-[0_10px_25px_rgba(20,20,20,0.12)] border border-border-subtle text-[0.85rem] font-medium flex items-center gap-2.5 z-[9999] animate-slide-toast"
+      :class="{
+        'border-l-4 border-l-[#10b981]': toast.type === 'success',
+        'border-l-4 border-l-[#ef4444]': toast.type === 'error',
+        'border-l-4 border-l-[#f59e0b]': toast.type === 'warning'
+      }"
+    >
+      <span>{{ toast.type === 'success' ? '✓' : '⚠️' }}</span>
       <span>{{ toast.message }}</span>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRuntimeConfig } from '#app';
+
+interface Toast {
+  message: string;
+  type: 'success' | 'warning' | 'error';
+}
 
 const config = useRuntimeConfig();
 
@@ -115,7 +128,7 @@ const settings = ref({
   dbPort: 5433
 });
 
-const textModels = ref([
+const textModels = ref<string[]>([
   'llama3.1:8b-instruct-q4_0',
   'qwen2.5:3b-instruct',
   'llama3:8b',
@@ -123,7 +136,7 @@ const textModels = ref([
   'phi3:mini'
 ]);
 
-const imageModels = ref([
+const imageModels = ref<string[]>([
   'stablediffusion',
   'stable-diffusion-3-medium',
   'flux.1-schnell',
@@ -132,9 +145,9 @@ const imageModels = ref([
 
 const loadingModels = ref(false);
 const saveSuccess = ref(false);
-const toast = ref(null);
+const toast = ref<Toast | null>(null);
 
-const showToast = (message, type = 'success') => {
+const showToast = (message: string, type: Toast['type'] = 'success') => {
   toast.value = { message, type };
   setTimeout(() => {
     if (toast.value?.message === message) toast.value = null;
@@ -146,12 +159,12 @@ const fetchModels = async () => {
   try {
     const res = await apiFetch(`${config.public.apiUrl}/api/settings/models`);
     if (res.ok) {
-      const data = await res.json();
+      const data: { textModels?: string[]; imageModels?: string[] } = await res.json();
       if (data.textModels?.length) textModels.value = data.textModels;
       if (data.imageModels?.length) imageModels.value = data.imageModels;
       showToast('Modell-Listen erfolgreich aktualisiert', 'success');
     }
-  } catch (e) {
+  } catch {
     showToast('Konnte Live-Modelle nicht abrufen, Standard-Liste aktiv', 'warning');
   } finally {
     loadingModels.value = false;
@@ -162,7 +175,7 @@ const loadSettings = async () => {
   try {
     const res = await apiFetch(`${config.public.apiUrl}/api/settings`);
     if (res.ok) {
-      const data = await res.json();
+      const data: Record<string, string> = await res.json();
       if (data.ollamaUrl) settings.value.ollamaUrl = data.ollamaUrl;
       if (data.localAiUrl) settings.value.localAiUrl = data.localAiUrl;
       if (data.aiModel) {
@@ -220,211 +233,3 @@ onMounted(() => {
   fetchModels();
 });
 </script>
-
-<style scoped>
-.settings-page {
-  padding: 1.5rem 2rem 3rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-.header {
-  margin-bottom: 1.5rem;
-}
-.header h2 {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #14151a;
-  margin: 0;
-}
-.settings-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  padding: 1.75rem;
-  border-radius: 22px;
-  box-shadow: 0 4px 20px rgba(20, 20, 20, 0.08);
-  margin-bottom: 1.5rem;
-}
-.settings-card h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #14151a;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 1.25rem;
-}
-.form-row {
-  display: flex;
-  gap: 1rem;
-}
-.form-row .form-group {
-  flex: 1;
-}
-label {
-  font-weight: 600;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-}
-input, select {
-  padding: 0.65rem 0.85rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  font-size: 0.85rem;
-  background: rgba(20, 20, 20, 0.03);
-  color: #14151a;
-  outline: none;
-  font-family: inherit;
-}
-input:focus, select:focus {
-  border-color: var(--border-focus);
-}
-input:disabled {
-  background: rgba(20, 20, 20, 0.01);
-  color: var(--text-muted);
-}
-.primary-btn {
-  background: #14151a;
-  color: #d5f24e;
-  border: none;
-  padding: 0.65rem 1.35rem;
-  border-radius: 9999px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.2);
-}
-.primary-btn:hover {
-  opacity: 0.92;
-  box-shadow: 0 6px 18px rgba(20, 20, 20, 0.28);
-}
-
-.card-header-flex {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.card-subtitle {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-}
-
-.secondary-btn {
-  background: rgba(20, 20, 20, 0.04);
-  color: #3f4046;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
-}
-.secondary-btn:hover:not(:disabled) {
-  background: rgba(20, 20, 20, 0.08);
-  color: #14151a;
-}
-.secondary-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.label-with-hint {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.active-model-badge {
-  background: rgba(111, 143, 26, 0.15);
-  color: #5c7a14;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.72rem;
-  font-family: ui-monospace, monospace;
-  font-weight: 600;
-  border: 1px solid rgba(111, 143, 26, 0.3);
-}
-
-.custom-model-input {
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.form-actions-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.save-indicator {
-  color: #34d399;
-  font-weight: 600;
-  font-size: 0.82rem;
-  animation: fadeIn 0.2s ease;
-}
-
-.btn-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(20, 20, 20, 0.2);
-  border-top-color: #5c7a14;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  display: inline-block;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateX(-4px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.toast-notification {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: #ffffff;
-  color: #14151a;
-  padding: 12px 18px;
-  border-radius: 14px;
-  box-shadow: 0 10px 25px rgba(20, 20, 20, 0.12);
-  border: 1px solid var(--border-subtle);
-  font-size: 0.85rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  z-index: 9999;
-  animation: slideToast 0.25s ease;
-}
-.toast-notification.success {
-  border-left: 4px solid #10b981;
-}
-.toast-notification.error {
-  border-left: 4px solid #ef4444;
-}
-.toast-notification.warning {
-  border-left: 4px solid #f59e0b;
-}
-
-@keyframes slideToast {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-</style>

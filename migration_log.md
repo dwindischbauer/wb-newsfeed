@@ -27,3 +27,4 @@
 - style(admin): refresh admin dashboard colours
 - style(feed): redesign feed layout using v4 utilities
 - test(e2e): add health-check e2e tests for ports
+- chore: run full nuxt 4 build for admin
