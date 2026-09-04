@@ -11,6 +11,8 @@
     "dev": "pnpm --recursive --parallel run dev",
     "build": "pnpm --recursive run build",
     "start": "pnpm --filter api run start",
-    "test": "pnpm --filter @wb-news/shortform-news run test"
+    "test": "pnpm --filter @wb-news/shortform-news run test",
+    "lint": "pnpm --recursive run lint",
+    "typecheck": "pnpm --filter @wb-news/admin --filter @wb-news/feed run typecheck"
   }
 }

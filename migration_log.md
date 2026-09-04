@@ -11,3 +11,4 @@
 - refactor(ui): replace tailwind-3 classes with v4 equivalents
 - refactor(ui): update custom utilities for tailwind-4
 - refactor(ui): adjust responsive breakpoints to v4 defaults
+- feat(build): adapt npm scripts to nuxt 4
