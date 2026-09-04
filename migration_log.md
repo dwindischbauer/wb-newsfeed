@@ -67,3 +67,4 @@
 - style(feed): redesign feed layout using v4 utilities
 - test(e2e): add health-check e2e tests for ports
 - chore: run full nuxt 4 build for admin
+- chore: run full nuxt 4 build for feed
