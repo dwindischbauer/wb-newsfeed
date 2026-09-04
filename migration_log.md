@@ -61,3 +61,4 @@
 - perf: enable tailwind-jit for faster dev builds
 - perf: configure nitro server options
 - refactor(db): adjust drizzle-orm migrations for nuxt 4
+- fix(api): update fastify route typings for nuxt 4
