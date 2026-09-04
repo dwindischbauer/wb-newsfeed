@@ -58,3 +58,4 @@
 - ci: cache node_modules for faster nuxt 4 builds
 - docs: add migration notes to README
 - docs: update contribution guidelines for nuxt 4
+- perf: enable tailwind-jit for faster dev builds
