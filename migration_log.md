@@ -74,3 +74,4 @@
 - refactor: clean up obsolete nuxt-3 config files
 - refactor: prune unused tailwind-3 plugins
 - chore: rename .nuxtrc to .nuxtrc (nuxt 4)
+- chore: update lockfile after tailwind-4 upgrade
