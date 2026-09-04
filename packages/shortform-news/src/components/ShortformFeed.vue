@@ -1,5 +1,5 @@
 <template>
-  <div class="sf-feed" ref="feedRef">
+  <div class="h-screen overflow-y-scroll [scroll-snap-type:y_mandatory] [-webkit-overflow-scrolling:touch] bg-[var(--sf-bg-color,#000)]" ref="feedRef">
     <template v-if="articles && articles.length > 0">
       <ShortformCard
         v-for="article in articles"
@@ -25,12 +25,12 @@
       </ShortformCard>
     </template>
     <template v-else-if="loading">
-      <div class="sf-loading">
+      <div class="h-screen flex flex-col items-center justify-center text-xl text-[var(--sf-empty-color,#888)] bg-[var(--sf-bg-color,#000)] text-center p-8">
         <slot name="loading">Lade Nachrichten...</slot>
       </div>
     </template>
     <template v-else>
-      <div class="sf-empty">
+      <div class="h-screen flex flex-col items-center justify-center text-xl text-[var(--sf-empty-color,#888)] bg-[var(--sf-bg-color,#000)] text-center p-8">
         <slot name="empty">Keine Nachrichten verfügbar.</slot>
       </div>
     </template>
@@ -40,9 +40,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import ShortformCard from './ShortformCard.vue';
+import type { Article } from '../utils';
 
 const props = defineProps<{
-  articles: any[];
+  articles: Article[];
   apiUrl?: string;
   loading?: boolean;
   trackingEnabled?: boolean;
@@ -72,26 +73,3 @@ onUnmounted(() => {
   }
 });
 </script>
-
-<style scoped>
-.sf-feed {
-  height: 100vh;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
-  -webkit-overflow-scrolling: touch;
-  background-color: var(--sf-bg-color, #000);
-}
-
-.sf-loading, .sf-empty {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  color: var(--sf-empty-color, #888);
-  background: var(--sf-bg-color, #000);
-  text-align: center;
-  padding: 2rem;
-}
-</style>
