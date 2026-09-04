@@ -30,3 +30,4 @@
 - chore: run full nuxt 4 build for admin
 - chore: run full nuxt 4 build for feed
 - chore: run vitest suite – all green
+- chore: health-check API, admin, feed – all 200
