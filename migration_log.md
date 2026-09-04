@@ -52,3 +52,4 @@
 - refactor(ui): adjust responsive breakpoints to v4 defaults
 - feat(build): adapt npm scripts to nuxt 4
 - feat(build): add nuxt-4 specific build flags
+- test(utils): update vitest imports for nuxt 4
