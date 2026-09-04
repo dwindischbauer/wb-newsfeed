@@ -1,11 +1,13 @@
+type LogMeta = Record<string, unknown>;
+
 export const logger = {
-  info: (msg: string, meta?: any) => {
+  info: (msg: string, meta?: LogMeta) => {
     console.log(JSON.stringify({ level: 'info', msg, timestamp: new Date().toISOString(), ...meta }));
   },
-  error: (msg: string, meta?: any) => {
+  error: (msg: string, meta?: LogMeta) => {
     console.error(JSON.stringify({ level: 'error', msg, timestamp: new Date().toISOString(), ...meta }));
   },
-  warn: (msg: string, meta?: any) => {
+  warn: (msg: string, meta?: LogMeta) => {
     console.warn(JSON.stringify({ level: 'warn', msg, timestamp: new Date().toISOString(), ...meta }));
   }
 };

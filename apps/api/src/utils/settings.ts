@@ -8,7 +8,7 @@ export async function getSettings(): Promise<Record<string, string>> {
       acc[curr.key] = curr.value;
       return acc;
     }, {} as Record<string, string>);
-  } catch (err) {
+  } catch {
     return {};
   }
 }

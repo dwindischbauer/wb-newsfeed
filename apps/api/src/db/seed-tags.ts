@@ -23,7 +23,7 @@ export async function seedTags() {
       if (existing.length === 0) {
         await db.insert(tags).values(tag);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }

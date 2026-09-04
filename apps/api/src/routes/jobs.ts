@@ -1,17 +1,30 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { jobs, articles } from '../db/schema';
-import { eq, desc } from 'drizzle-orm';
-import { inMemoryArticles } from './articles';
+import { eq, desc, type InferInsertModel } from 'drizzle-orm';
+import { inMemoryArticles, type ArticleRecord, type ArticleTagRef } from './articles';
 import { autoExtractArticleMetadata } from '../utils/metadata';
 import { generateArticleImage } from '../services/imageGenerator';
 
-export const inMemoryJobs: Map<number, any> = new Map();
+export interface JobRecord {
+  id: number;
+  articleId?: number | null;
+  type: string;
+  status?: string | null;
+  result?: string | null;
+  error?: string | null;
+  processingTimeMs?: number | null;
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+  [key: string]: unknown;
+}
+
+export const inMemoryJobs: Map<number, JobRecord> = new Map();
 let jobCounter = 100;
 
 export async function executeDirectJob(jobId: number, articleId: number, type: string) {
   const startTime = Date.now();
-  const updateJob = async (fields: any) => {
+  const updateJob = async (fields: Partial<InferInsertModel<typeof jobs>>) => {
     try {
       await db.update(jobs).set(fields).where(eq(jobs.id, jobId));
     } catch {}
@@ -24,13 +37,13 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
   await updateJob({ status: 'processing' });
 
   try {
-    let article: any = null;
+    let article: ArticleRecord | null = null;
     try {
       const dbRes = await db.select().from(articles).where(eq(articles.id, articleId));
       if (dbRes.length > 0) article = dbRes[0];
     } catch {}
     if (!article) {
-      article = inMemoryArticles.get(articleId);
+      article = inMemoryArticles.get(articleId) || null;
     }
     if (!article) {
       throw new Error('Article not found');
@@ -40,8 +53,8 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
       const meta = autoExtractArticleMetadata(article.content, article.category);
       const newTitle = (!article.title || article.title === '[Auto-Titel ausstehend]') ? meta.title : article.title;
       const newCategory = (!article.category || article.category === 'Auto' || article.category === 'Allgemein') ? meta.category : article.category;
-      
-      const updateData: any = {
+
+      const updateData: Partial<InferInsertModel<typeof articles>> = {
         title: newTitle,
         category: newCategory,
         teaser: meta.teaser,
@@ -60,12 +73,12 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
     }
 
     if (type === 'image_generation' || type === 'full_generation') {
-      const tagsList = (article.tags || []).map((t: any) => typeof t === 'string' ? t : t.name);
+      const tagsList = (article.tags || []).map((t: string | ArticleTagRef) => typeof t === 'string' ? t : t.name);
       const imgUrl = await generateArticleImage(
         article.title,
         article.category,
         article.id,
-        article.teaser,
+        article.teaser ?? undefined,
         tagsList
       );
       if (imgUrl) {
@@ -84,20 +97,20 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
       result: type === 'image_generation' ? 'KI-Bild generiert' : 'Erfolgreich generiert',
       processingTimeMs: Date.now() - startTime
     });
-  } catch (err: any) {
+  } catch (err) {
     await updateJob({
       status: 'failed',
-      error: err.message,
+      error: err instanceof Error ? err.message : String(err),
       processingTimeMs: Date.now() - startTime
     });
   }
 }
 
 export default async function (server: FastifyInstance) {
-  server.get('/api/jobs', async (request, reply) => {
+  server.get('/api/jobs', async (request, _reply) => {
     const { status } = request.query as { status?: string };
-    
-    let list: any[] = [];
+
+    let list: JobRecord[] = [];
     try {
       if (status) {
         list = await db.select().from(jobs).where(eq(jobs.status, status)).orderBy(desc(jobs.createdAt));
@@ -110,7 +123,7 @@ export default async function (server: FastifyInstance) {
     } catch {
       list = Array.from(inMemoryJobs.values());
       if (status) list = list.filter(j => j.status === status);
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      list.sort((a, b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
     }
     
     return list.map(j => ({ ...j, jobId: j.id }));
@@ -148,14 +161,14 @@ export default async function (server: FastifyInstance) {
       return;
     }
     
-    let jobRecord: any = null;
+    let jobRecord: JobRecord | null = null;
     try {
       const res = await db.select().from(jobs).where(eq(jobs.id, parsedId));
       if (res.length > 0) jobRecord = res[0];
     } catch {}
 
     if (!jobRecord) {
-      jobRecord = inMemoryJobs.get(parsedId);
+      jobRecord = inMemoryJobs.get(parsedId) || null;
     }
 
     if (!jobRecord) {
@@ -163,7 +176,7 @@ export default async function (server: FastifyInstance) {
     }
 
     setImmediate(() => {
-      executeDirectJob(parsedId, jobRecord.articleId, jobRecord.type);
+      executeDirectJob(parsedId, jobRecord!.articleId as number, jobRecord!.type);
     });
 
     return { success: true };
@@ -177,7 +190,7 @@ export default async function (server: FastifyInstance) {
       return { success: false, error: 'Missing articleId or type' };
     }
 
-    let jobRecord: any = null;
+    let jobRecord: JobRecord | null = null;
     try {
       const newJob = await db.insert(jobs).values({
         articleId: body.articleId,
@@ -185,7 +198,7 @@ export default async function (server: FastifyInstance) {
         status: 'pending'
       }).returning();
       jobRecord = newJob[0];
-    } catch (e) {
+    } catch {
       jobCounter++;
       jobRecord = {
         id: jobCounter,
@@ -205,7 +218,7 @@ export default async function (server: FastifyInstance) {
     let queuedToRedis = false;
     try {
       const { generationQueue } = await import('../queue');
-      await generationQueue.add(body.type, { jobId: jobRecord.id, articleId: body.articleId }, { 
+      await generationQueue.add(body.type, { jobId: jobRecord.id, articleId: body.articleId }, {
         jobId: `job-${jobRecord.id}`,
         removeOnComplete: 100,
         removeOnFail: 100,
@@ -213,7 +226,7 @@ export default async function (server: FastifyInstance) {
         backoff: { type: 'exponential', delay: 1000 }
       });
       queuedToRedis = true;
-    } catch (err) {
+    } catch {
       // Redis offline: direct execution fallback
     }
 
@@ -241,7 +254,7 @@ export default async function (server: FastifyInstance) {
       const { generationQueue } = await import('../queue');
       const job = await generationQueue.getJob(`job-${id}`);
       if (job) await job.remove();
-    } catch (e) {}
+    } catch {}
 
     try {
       await db.delete(jobs).where(eq(jobs.id, parsedId));

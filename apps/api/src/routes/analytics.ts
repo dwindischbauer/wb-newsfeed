@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { analyticsEvents, articles } from '../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { desc, type InferSelectModel } from 'drizzle-orm';
+
+type AnalyticsEvent = InferSelectModel<typeof analyticsEvents>;
+type Article = InferSelectModel<typeof articles>;
 
 export default async function (server: FastifyInstance) {
   // Ingest tracking events (Public endpoint called by mobile feed / readers)
@@ -10,7 +13,7 @@ export default async function (server: FastifyInstance) {
       const body = request.body as {
         eventType?: string;
         articleId?: number;
-        metadata?: any;
+        metadata?: unknown;
       };
 
       if (!body || !body.eventType) {
@@ -31,7 +34,7 @@ export default async function (server: FastifyInstance) {
       });
 
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       server.log.warn({ err: e }, 'Failed to insert analytics event');
       // Return 200/accepted even if DB is temporarily busy so clients are never blocked
       return { success: false, error: 'Event noted' };
@@ -39,9 +42,9 @@ export default async function (server: FastifyInstance) {
   });
 
   // Aggregated analytics metrics for Admin CMS Dashboard
-  server.get('/api/analytics', async (request, reply) => {
+  server.get('/api/analytics', async (_request, _reply) => {
     try {
-      let events: any[] = [];
+      let events: AnalyticsEvent[] = [];
       try {
         events = await db.select().from(analyticsEvents).orderBy(desc(analyticsEvents.createdAt)).limit(500);
       } catch {
@@ -67,7 +70,7 @@ export default async function (server: FastifyInstance) {
       }
 
       // Fetch top article details
-      let allArticles: any[] = [];
+      let allArticles: Article[] = [];
       try {
         allArticles = await db.select().from(articles);
       } catch {
@@ -103,7 +106,7 @@ export default async function (server: FastifyInstance) {
           createdAt: e.createdAt
         }))
       };
-    } catch (e: any) {
+    } catch (e) {
       server.log.error(e);
       return {
         totalImpressions: 0,

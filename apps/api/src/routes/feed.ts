@@ -2,15 +2,15 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { articles, tags, articleTags } from '../db/schema';
 import { eq, desc, inArray } from 'drizzle-orm';
-import { inMemoryArticles } from './articles';
+import { inMemoryArticles, type ArticleRecord, type ArticleTagRef } from './articles';
 
 export default async function (server: FastifyInstance) {
-  server.get('/api/feed', async (request, reply) => {
+  server.get('/api/feed', async (request, _reply) => {
     const query = request.query as { tag?: string; category?: string; limit?: string; offset?: string };
 
-    let result: any[] = [];
+    let result: ArticleRecord[] = [];
     try {
-      let publishedArticles = await db
+      const publishedArticles = await db
         .select()
         .from(articles)
         .where(eq(articles.status, 'published'))
@@ -43,16 +43,18 @@ export default async function (server: FastifyInstance) {
         ...a,
         tags: tagsMap.get(a.id) || []
       }));
-    } catch (e) {
+    } catch {
       server.log.warn('DB offline, serving published feed from in-memory store');
       result = Array.from(inMemoryArticles.values())
-        .filter((a: any) => a.status === 'published')
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .filter((a) => a.status === 'published')
+        .sort((a, b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
     }
 
     if (query.tag) {
+      // Match by name first — auto-generated slugs strip umlauts/&/spaces
+      // and don't reliably round-trip back to the canonical tag name.
       const filterTag = query.tag.toLowerCase();
-      result = result.filter(a => a.tags && a.tags.some((t: any) => (t.slug || t.name || '').toLowerCase() === filterTag));
+      result = result.filter(a => a.tags && a.tags.some((t: ArticleTagRef) => (t.name || '').toLowerCase() === filterTag || (t.slug || '').toLowerCase() === filterTag));
     }
 
     if (query.category && query.category !== 'Alle') {

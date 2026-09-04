@@ -72,7 +72,7 @@ server.register(tagRoutes);
 server.register(analyticsRoutes);
 server.register(engagementRoutes);
 
-server.get('/api/sysinfo', async (request, reply) => {
+server.get('/api/sysinfo', async (_request, _reply) => {
   return {
     status: 'ok',
     service: 'wb-news-api',

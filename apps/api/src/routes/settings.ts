@@ -4,7 +4,7 @@ import { settings } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 export default async function (server: FastifyInstance) {
-  server.get('/api/settings', async (request, reply) => {
+  server.get('/api/settings', async (_request, _reply) => {
     const allSettings = await db.select().from(settings);
     const result: Record<string, string> = {};
     for (const row of allSettings) {
@@ -13,7 +13,7 @@ export default async function (server: FastifyInstance) {
     return result;
   });
 
-  server.post('/api/settings', async (request, reply) => {
+  server.post('/api/settings', async (request, _reply) => {
     const body = request.body as Record<string, string>;
     
     const validKeys = ['ollamaUrl', 'aiModel', 'timeout', 'imageModel', 'localAiUrl', 'imageTimeout'];
@@ -33,7 +33,7 @@ export default async function (server: FastifyInstance) {
     return { success: true };
   });
 
-  server.get('/api/settings/models', async (request, reply) => {
+  server.get('/api/settings/models', async (_request, _reply) => {
     let ollamaUrl = 'http://localhost:11434';
     let localAiUrl = 'http://localhost:8080';
     try {
