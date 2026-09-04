@@ -36,3 +36,4 @@
 - refactor: prune unused tailwind-3 plugins
 - chore: rename .nuxtrc to .nuxtrc (nuxt 4)
 - chore: update lockfile after tailwind-4 upgrade
+- feat: add CI badge for nuxt 4 build status
