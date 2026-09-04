@@ -56,3 +56,4 @@
 - test(utils): ensure all vitest suites pass after migration
 - ci: update github actions for nuxt 4
 - ci: cache node_modules for faster nuxt 4 builds
+- docs: add migration notes to README
