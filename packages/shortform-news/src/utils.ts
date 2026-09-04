@@ -1,3 +1,28 @@
+export interface ArticleTag {
+  id?: number;
+  name: string;
+  slug?: string;
+  color?: string | null;
+}
+
+export interface Article {
+  id: number;
+  title: string;
+  content: string;
+  teaser?: string | null;
+  keyTakeaways?: string | null;
+  imageUrl?: string | null;
+  category: string;
+  author?: string;
+  status?: string;
+  likeCount?: number;
+  commentCount?: number;
+  shareCount?: number;
+  createdAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+  tags?: ArticleTag[];
+}
+
 export const truncate = (str: string, length: number = 100): string => {
   if (!str) return '';
   if (str.length <= length) return str;
@@ -42,7 +67,7 @@ export interface ScorableArticle {
   category?: string;
   tags?: Array<{ name: string; slug?: string }>;
   createdAt?: string | Date | null;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const calculatePersonalizedScore = (
@@ -184,7 +209,7 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
   // If first line is very long, extract the first sentence (avoiding decimals like 0.25)
   if (headlineCandidate.length > 100 || /[.?!]/.test(headlineCandidate)) {
     const firstSentenceMatch = headlineCandidate.match(/^((?:[0-9]+\.[0-9]+|[^.?!])+[.?!]?)/);
-    if (firstSentenceMatch) {
+    if (firstSentenceMatch?.[1]) {
       headlineCandidate = firstSentenceMatch[1].trim();
     }
   }
@@ -280,11 +305,12 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
   }
 
   // Always ensure at least one primary tag
-  if (matchedTags.length === 0 && relevantSubtags.length > 0) {
+  const firstSubtag = relevantSubtags[0];
+  if (matchedTags.length === 0 && firstSubtag) {
     matchedTags.push({
-      name: relevantSubtags[0].name,
-      slug: relevantSubtags[0].slug,
-      color: relevantSubtags[0].color
+      name: firstSubtag.name,
+      slug: firstSubtag.slug,
+      color: firstSubtag.color
     });
   }
 
