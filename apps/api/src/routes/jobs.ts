@@ -5,8 +5,15 @@ import { eq, desc } from 'drizzle-orm';
 
 export default async function (server: FastifyInstance) {
   server.get('/api/jobs', async (request, reply) => {
-    const allJobs = await db.select().from(jobs).orderBy(desc(jobs.createdAt));
-    return allJobs;
+    const { status } = request.query as { status?: string };
+    let query = db.select().from(jobs).orderBy(desc(jobs.createdAt));
+    
+    if (status) {
+      const allJobs = await query;
+      return allJobs.filter(j => j.status === status);
+    }
+    
+    return await query;
   });
 
   server.get('/api/jobs/:id', async (request, reply) => {
