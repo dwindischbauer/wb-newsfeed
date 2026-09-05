@@ -102,6 +102,13 @@ onMounted(() => {
   border-radius: 4px;
   cursor: pointer;
 }
+.filter-select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 0.9rem;
+}
 .jobs-table {
   width: 100%;
   border-collapse: collapse;
