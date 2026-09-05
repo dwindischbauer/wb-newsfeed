@@ -3,6 +3,13 @@
     <div class="header">
       <h2>Job Queue</h2>
       <div style="display: flex; gap: 1rem; align-items: center;">
+        <select v-model="statusFilter" class="filter-select">
+          <option value="">Alle Jobs</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+        </select>
         <Spinner v-if="isLoading" />
         <button @click="fetchJobs" class="refresh-btn">Aktualisieren</button>
       </div>
@@ -20,10 +27,10 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-if="jobs.length === 0">
-          <td colspan="6" class="empty-state">Keine Jobs in der Queue.</td>
+        <tr v-if="filteredJobs.length === 0">
+          <td colspan="6" class="empty-state">Keine Jobs gefunden.</td>
         </tr>
-        <tr v-for="job in jobs" :key="job.id">
+        <tr v-for="job in filteredJobs" :key="job.id">
           <td>{{ job.id }}</td>
           <td>{{ job.type }}</td>
           <td>{{ job.articleId }}</td>
@@ -46,11 +53,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import Spinner from '../components/Spinner.vue';
 
 const config = useRuntimeConfig();
 const jobs = ref([]);
 const isLoading = ref(false);
+const statusFilter = ref('');
+
+const filteredJobs = computed(() => {
+  if (!statusFilter.value) return jobs.value;
+  return jobs.value.filter(j => j.status === statusFilter.value);
+});
 
 const fetchJobs = async () => {
   isLoading.value = true;
