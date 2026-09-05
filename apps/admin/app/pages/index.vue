@@ -126,7 +126,7 @@
     </div>
     
     <div v-if="sysinfo" class="sysinfo-footer">
-      API Status: {{ sysinfo.status.toUpperCase() }} | Uptime: {{ Math.round(sysinfo.uptime) }}s
+      API Status: {{ sysinfo.status.toUpperCase() }} | Uptime: {{ formatUptime(sysinfo.uptime) }}
     </div>
   </div>
 </template>
@@ -225,6 +225,13 @@ const fetchSysinfo = async () => {
   } catch (e) {
     console.error('API not reachable');
   }
+};
+
+const formatUptime = (seconds) => {
+  if (!seconds) return '00:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
 const openModal = () => {
