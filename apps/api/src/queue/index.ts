@@ -5,7 +5,9 @@ import { jobs, articles } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
+const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null
+});
 
 export const generationQueue = new Queue('generation_jobs', { connection });
 logger.info('Generation queue initialized');
