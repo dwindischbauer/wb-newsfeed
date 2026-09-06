@@ -15,6 +15,7 @@ server.register(cors, {
 
 server.register(articleRoutes);
 server.register(jobRoutes);
+server.register(require('./routes/feed').default);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return {

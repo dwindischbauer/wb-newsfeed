@@ -46,11 +46,13 @@ const config = useRuntimeConfig();
 
 const fetchArticles = async () => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/articles`);
+    const res = await fetch(`${config.public.apiUrl}/api/feed`);
+    if (!res.ok) throw new Error('API Error');
     const data = await res.json();
     articles.value = data;
   } catch (e) {
-    console.error(e);
+    console.error('Failed to fetch articles:', e);
+    articles.value = [];
   }
 };
 
