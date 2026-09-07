@@ -1,7 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { db } from '../db';
-import { jobs, articles } from '../db/schema';
+import { jobs, articles, settings } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
@@ -31,14 +31,21 @@ Antworte exakt im JSON Format mit zwei Feldern: "teaser" (maximal 3 Sätze Zusam
 Hier ist der Artikel:
 ${article.content}`;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const allSettings = await db.select().from(settings);
+    const settingsMap = allSettings.reduce((acc, curr) => { acc[curr.key] = curr.value; return acc; }, {} as Record<string, string>);
+    
+    const ollamaUrl = settingsMap['ollamaUrl'] || 'http://localhost:11434';
+    const aiModel = settingsMap['aiModel'] || 'qwen2.5:3b-instruct';
+    const timeoutMs = parseInt(settingsMap['timeout'] || '30000', 10);
 
-    const response = await fetch('http://localhost:11434/api/generate', {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'qwen2.5:3b-instruct',
+        model: aiModel,
         prompt: promptText,
         stream: false,
         format: 'json'
