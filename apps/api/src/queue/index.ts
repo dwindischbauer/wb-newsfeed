@@ -75,10 +75,26 @@ ${article.content}`;
       teaser: resultObj.teaser,
       keyTakeaways: resultObj.keyTakeaways 
     }).where(eq(articles.id, articleId));
+
+    // Step 2: Generate cover image
+    let imageUrl: string | null = null;
+    try {
+      const { generateArticleImage } = await import('../services/imageGenerator');
+      imageUrl = await generateArticleImage(article.title, article.category, articleId);
+      if (imageUrl) {
+        await db.update(articles).set({ imageUrl }).where(eq(articles.id, articleId));
+        logger.info(`Cover image generated for article ${articleId}`, { imageUrl });
+      }
+    } catch (imgError: any) {
+      logger.warn(`Image generation skipped: ${imgError.message}`);
+    }
     
+    const endTime = Date.now();
+    const processingTimeMs = endTime - startTime;
+
     await db.update(jobs).set({ 
       status: 'completed', 
-      result: 'Erfolgreich generiert',
+      result: imageUrl ? 'Teaser + Bild generiert' : 'Teaser generiert',
       processingTimeMs: processingTimeMs
     }).where(eq(jobs.id, jobId));
   } catch (error: any) {
