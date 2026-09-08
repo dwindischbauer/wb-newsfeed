@@ -75,4 +75,27 @@ export default async function (server: FastifyInstance) {
     
     return newJob[0];
   });
+
+  server.delete('/api/jobs/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid job ID' });
+      return;
+    }
+    
+    // Attempt to remove from queue if it exists
+    try {
+      const { generationQueue } = await import('../queue');
+      const job = await generationQueue.getJob(id);
+      if (job) {
+        await job.remove();
+      }
+    } catch (e) {
+      // Ignore queue errors
+    }
+
+    await db.delete(jobs).where(eq(jobs.id, parsedId));
+    return { success: true };
+  });
 }
