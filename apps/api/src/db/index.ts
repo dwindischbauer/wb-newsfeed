@@ -3,11 +3,11 @@ import { Pool } from 'pg';
 import * as schema from './schema';
 
 if (!process.env.DATABASE_URL) {
-  console.warn('DATABASE_URL is not set, falling back to default localhost connection string.');
+  throw new Error('DATABASE_URL is not set in the environment variables.');
 }
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://wb_user:wb_password@localhost:5433/wb_newsfeed'
+  connectionString: process.env.DATABASE_URL
 });
 
 export const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema });
