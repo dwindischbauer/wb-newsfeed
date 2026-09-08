@@ -1,5 +1,5 @@
 <template>
-  <div class="vertical-feed">
+  <div class="vertical-feed-app">
     <div class="category-filters">
       <button 
         v-for="cat in categories" 
@@ -11,15 +11,18 @@
       </button>
     </div>
 
-    <div class="feed-item" v-for="article in publishedArticles" :key="article.id">
-      <div class="media-area" :style="{ backgroundColor: article.image ? 'transparent' : '#1f2937' }">
-        <span class="category-badge">{{ article.category }}</span>
-      </div>
-      <ArticleOverlay :article="article" @read="openReader" />
-    </div>
-    <div v-if="publishedArticles.length === 0" class="empty-feed">
-      Keine aktiven Nachrichten in Kategorie '{{ activeCategory === 'Alle' ? 'Alle Kategorien' : activeCategory }}'.
-    </div>
+    <ShortformFeed 
+      :articles="publishedArticles" 
+      :apiUrl="config.public.apiUrl"
+      :trackingEnabled="true"
+      @article-read="openReader"
+      @article-impression="onArticleImpression"
+      @scroll-depth="onScrollDepth"
+    >
+      <template #empty>
+        Keine aktiven Nachrichten in Kategorie '{{ activeCategory === 'Alle' ? 'Alle Kategorien' : activeCategory }}'.
+      </template>
+    </ShortformFeed>
 
     <!-- Reader Overlay -->
     <transition name="reader">
@@ -49,6 +52,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { ShortformFeed } from '@wb-news/shortform-news';
 
 const articles = ref([]);
 const activeReaderArticle = ref(null);
@@ -85,12 +89,25 @@ const openReader = (article) => {
   }
 };
 
+const onArticleImpression = (article) => {
+  console.log('Article impression tracked:', article.title);
+};
+
+const onScrollDepth = (percentage) => {
+  // console.log('Scroll depth:', percentage);
+};
+
 onMounted(() => {
   fetchArticles();
 });
 </script>
 
 <style scoped>
+.vertical-feed-app {
+  height: 100vh;
+  position: relative;
+  background: #000;
+}
 .category-filters {
   position: fixed;
   top: 0;
@@ -126,22 +143,6 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.empty-feed {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  color: #888;
-  background: #000;
-  text-align: center;
-  padding: 2rem;
-}
-.empty-feed svg {
-  margin-bottom: 1rem;
-  opacity: 0.4;
-}
 .reader-enter-active,
 .reader-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -178,32 +179,12 @@ onMounted(() => {
   padding: 1.5rem;
   padding-bottom: 4rem;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #fff;
 }
 .reader-content h2 { 
   margin-top: 0; 
   font-size: 1.8rem;
   line-height: 1.2;
-}
-.reader-meta { 
-  color: #9ca3af; 
-  font-size: 0.9rem; 
-  margin-bottom: 2rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.scroll-indicator {
-  position: absolute;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(255,255,255,0.5);
-  font-size: 0.8rem;
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0% { opacity: 0.3; }
-  50% { opacity: 0.8; }
-  100% { opacity: 0.3; }
 }
 .takeaways {
   background: #1f2937;
@@ -219,45 +200,5 @@ onMounted(() => {
   white-space: pre-wrap;
   margin-bottom: 3rem;
   padding: 0 0.5rem;
-}
-.vertical-feed {
-  height: 100vh;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-.feed-item {
-  height: 100vh;
-  scroll-snap-align: start;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-.empty-feed h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  font-weight: 500;
-}
-.article-title {
-  margin: 0 0 1rem 0;
-  font-size: 2rem;
-  line-height: 1.2;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.meta {
-  font-size: 0.8rem;
-  opacity: 0.7;
-  margin-bottom: 1rem;
-}
-.read-more {
-  width: 100%;
-  padding: 1rem;
-  background: #4ade80;
-  color: #000;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
 }
 </style>
