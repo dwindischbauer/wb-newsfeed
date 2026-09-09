@@ -110,10 +110,15 @@ const deleteJob = async (jobId) => {
   }
 };
 
-let intervalId;
+let intervalId = null;
+
 onMounted(() => {
   fetchJobs();
   intervalId = setInterval(fetchJobs, 5000);
+});
+
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId);
 });
 </script>
 
