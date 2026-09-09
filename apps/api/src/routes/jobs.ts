@@ -48,10 +48,27 @@ export default async function (server: FastifyInstance) {
     
     // Add to queue
     const { generationQueue } = await import('../queue');
-    await generationQueue.add(jobRecord[0].type, {
-      jobId: parseInt(id),
-      articleId: jobRecord[0].articleId
-    });
+    try {
+      // First remove the existing job to allow deduplication to accept a new one
+      const oldJob = await generationQueue.getJob(`job-${id}`);
+      if (oldJob) {
+        await oldJob.remove();
+      }
+      
+      await generationQueue.add(jobRecord[0].type, {
+        jobId: parseInt(id),
+        articleId: jobRecord[0].articleId
+      }, { 
+        jobId: `job-${id}`,
+        removeOnComplete: 100,
+        removeOnFail: 100,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 }
+      });
+    } catch (err) {
+      await db.update(jobs).set({ status: 'failed', error: String(err) }).where(eq(jobs.id, parsedId));
+      return reply.code(500).send({ success: false, error: 'Job enqueuing failed' });
+    }
 
     return { success: true };
   });
@@ -71,7 +88,18 @@ export default async function (server: FastifyInstance) {
     }).returning();
     
     const { generationQueue } = await import('../queue');
-    await generationQueue.add(body.type, { jobId: newJob[0].id, articleId: body.articleId }, { jobId: newJob[0].id.toString() });
+    try {
+      await generationQueue.add(body.type, { jobId: newJob[0].id, articleId: body.articleId }, { 
+        jobId: `job-${newJob[0].id}`,
+        removeOnComplete: 100,
+        removeOnFail: 100,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 }
+      });
+    } catch (err) {
+      await db.update(jobs).set({ status: 'failed', error: String(err) }).where(eq(jobs.id, newJob[0].id));
+      return { success: false, error: 'Job enqueuing failed' };
+    }
     
     return newJob[0];
   });
@@ -87,7 +115,7 @@ export default async function (server: FastifyInstance) {
     // Attempt to remove from queue if it exists
     try {
       const { generationQueue } = await import('../queue');
-      const job = await generationQueue.getJob(id);
+      const job = await generationQueue.getJob(`job-${id}`);
       if (job) {
         await job.remove();
       }
