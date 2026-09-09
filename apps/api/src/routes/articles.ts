@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { articles, jobs } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { stripHtml } from '@wb-news/shortform-news';
+import { stripHtml } from '../utils/format';
 import { generationQueue } from '../queue';
 
 export default async function (server: FastifyInstance) {
@@ -35,13 +35,23 @@ export default async function (server: FastifyInstance) {
       return;
     }
     
-    if (body.status) {
-      const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
-      if (existing.length === 0) {
-        reply.status(404);
-        return { success: false, error: 'Article not found' };
-      }
-      await db.update(articles).set({ status: body.status }).where(eq(articles.id, parsedId));
+    const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
+    if (existing.length === 0) {
+      reply.status(404);
+      return { success: false, error: 'Article not found' };
+    }
+
+    const updateData: any = {};
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.title !== undefined) updateData.title = body.title;
+    if (body.category !== undefined) updateData.category = body.category;
+    if (body.content !== undefined) updateData.content = body.content;
+    if (body.teaser !== undefined) updateData.teaser = body.teaser;
+    if (body.keyTakeaways !== undefined) updateData.keyTakeaways = body.keyTakeaways;
+    if (body.author !== undefined) updateData.author = body.author;
+    
+    if (Object.keys(updateData).length > 0) {
+      await db.update(articles).set(updateData).where(eq(articles.id, parsedId));
     }
     
     return { success: true };
@@ -60,18 +70,71 @@ export default async function (server: FastifyInstance) {
     return { success: true };
   });
 
+  server.post('/api/articles/:id/image', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid article ID' });
+      return;
+    }
+
+    const data = await request.file();
+    if (!data) {
+      reply.status(400).send({ error: 'No file uploaded' });
+      return;
+    }
+
+    if (!data.mimetype.startsWith('image/')) {
+      reply.status(400).send({ error: 'Only images are allowed' });
+      return;
+    }
+
+    const { pipeline } = await import('stream/promises');
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    const ext = path.extname(data.filename) || '.jpg';
+    const filename = `article_${parsedId}_${Date.now()}${ext}`;
+    const IMAGES_DIR = path.join(process.cwd(), 'public', 'images');
+    const filepath = path.join(IMAGES_DIR, filename);
+
+    if (!fs.existsSync(IMAGES_DIR)) {
+      fs.mkdirSync(IMAGES_DIR, { recursive: true });
+    }
+
+    await pipeline(data.file, fs.createWriteStream(filepath));
+    const imageUrl = `/images/${filename}`;
+
+    await db.update(articles).set({ imageUrl }).where(eq(articles.id, parsedId));
+
+    return { success: true, imageUrl };
+  });
+
+  server.delete('/api/articles/:id/image', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsedId = parseInt(id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid article ID' });
+      return;
+    }
+    
+    await db.update(articles).set({ imageUrl: null }).where(eq(articles.id, parsedId));
+    return { success: true };
+  });
+
   server.post('/api/articles', async (request, reply) => {
     const body = request.body as any;
     
-    if (!body.title || !body.content || body.content.length < 10) {
+    if (!body.content || body.content.length < 10) {
       reply.status(400);
-      return { success: false, error: 'Titel und Content (min 10 Zeichen) werden benötigt' };
+      return { success: false, error: 'Content (min 10 Zeichen) wird benötigt' };
     }
 
     const cleanContent = stripHtml(body.content);
+    const finalTitle = body.title ? body.title : '[Auto-Titel ausstehend]';
 
     const newArticle = await db.insert(articles).values({
-      title: body.title,
+      title: finalTitle,
       content: cleanContent,
       author: body.author || 'Unbekannt',
       category: body.category || 'Allgemein',
@@ -112,12 +175,18 @@ export default async function (server: FastifyInstance) {
     const dbJobId = newJob[0].id;
     
     // Automatically queue generation job
-    const job = await generationQueue.add('teaser_generation', {
-      articleId,
-      jobId: dbJobId,
-      type: 'teaser_generation'
-    }, { jobId: dbJobId.toString() });
-    
-    return { success: true, article: newArticle[0], jobId: job.id };
+    let jobIdStr = `job-${dbJobId}`;
+    try {
+      const job = await generationQueue.add('teaser_generation', {
+        articleId,
+        jobId: dbJobId,
+        type: 'teaser_generation'
+      }, { jobId: jobIdStr });
+      
+      return { success: true, article: newArticle[0], jobId: job.id };
+    } catch (error) {
+      await db.update(jobs).set({ status: 'failed', error: String(error) }).where(eq(jobs.id, dbJobId));
+      return { success: false, article: newArticle[0], jobId: jobIdStr, error: 'Job enqueuing failed' };
+    }
   });
 }
