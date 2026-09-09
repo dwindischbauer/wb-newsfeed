@@ -45,20 +45,19 @@ services:
               count: all
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 3
 
   localai:
-    image: localai/localai:latest-aio-gpu-nvidia-cuda-12
+    image: localai/localai:latest-gpu-nvidia-cuda-12
     container_name: wb_newsfeed_localai
     ports:
       - "8080:8080"
     environment:
       - MODELS_PATH=/models
-      - GALLERIES=[{"name":"model-gallery", "url":"github:mudler/LocalAI/gallery/stable-diffusion.yaml"}]
-      - PRELOAD_MODELS=[{"url": "github:mudler/LocalAI/gallery/stable-diffusion.yaml"}]
+
     volumes:
       - localai_models:/models
     deploy:
