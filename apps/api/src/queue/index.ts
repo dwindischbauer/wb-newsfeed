@@ -68,8 +68,6 @@ ${article.content}`;
       resultObj = { teaser: data.response, keyTakeaways: '' };
     }
     
-    const endTime = Date.now();
-    const processingTimeMs = endTime - startTime;
 
     await db.update(articles).set({ 
       teaser: resultObj.teaser,
