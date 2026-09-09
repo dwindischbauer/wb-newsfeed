@@ -1,5 +1,16 @@
 <template>
   <div class="vertical-feed">
+    <div class="category-filters">
+      <button 
+        v-for="cat in categories" 
+        :key="cat"
+        :class="['chip', { active: activeCategory === cat }]"
+        @click="activeCategory = cat"
+      >
+        {{ cat }}
+      </button>
+    </div>
+
     <div class="feed-item" v-for="article in publishedArticles" :key="article.id">
       <div class="media-area" :style="{ backgroundColor: article.image ? 'transparent' : '#1f2937' }">
         <span class="category-badge">{{ article.category }}</span>
@@ -7,7 +18,7 @@
       <ArticleOverlay :article="article" @read="openReader" />
     </div>
     <div v-if="publishedArticles.length === 0" class="empty-feed">
-      Keine aktiven Nachrichten vorhanden.
+      Keine aktiven Nachrichten in Kategorie '{{ activeCategory === 'Alle' ? 'Alle Kategorien' : activeCategory }}'.
     </div>
 
     <!-- Reader Overlay -->
@@ -41,9 +52,15 @@ import { ref, onMounted, computed } from 'vue';
 
 const articles = ref([]);
 const activeReaderArticle = ref(null);
+const activeCategory = ref('Alle');
+const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
 
 const publishedArticles = computed(() => {
-  return articles.value.filter(a => a.status === 'published');
+  let filtered = articles.value.filter(a => a.status === 'published');
+  if (activeCategory.value !== 'Alle') {
+    filtered = filtered.filter(a => a.category === activeCategory.value);
+  }
+  return filtered;
 });
 
 const config = useRuntimeConfig();
@@ -74,6 +91,41 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.category-filters {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  display: flex;
+  overflow-x: auto;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+  -webkit-overflow-scrolling: touch;
+}
+.category-filters::-webkit-scrollbar {
+  display: none;
+}
+.chip {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+.chip.active {
+  background: #4ade80;
+  color: #000;
+  border-color: #4ade80;
+  font-weight: bold;
+}
+
 .empty-feed {
   height: 100vh;
   display: flex;
