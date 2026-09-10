@@ -7,7 +7,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/wbnews'
+  connectionString: process.env.DATABASE_URL || 'postgresql://wb_user:wb_password@localhost:5433/wb_newsfeed'
 });
 
 export const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema });
