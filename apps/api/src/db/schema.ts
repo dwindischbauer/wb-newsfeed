@@ -32,3 +32,19 @@ export const settings = pgTable('settings', {
   value: text('value').notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+export const tags = pgTable('tags', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 50 }).notNull().unique(),
+  slug: varchar('slug', { length: 60 }).notNull().unique(),
+  color: varchar('color', { length: 20 }).default('#3b82f6'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+export const articleTags = pgTable('article_tags', {
+  id: serial('id').primaryKey(),
+  articleId: integer('article_id').notNull().references(() => articles.id, { onDelete: 'cascade' }),
+  tagId: integer('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
