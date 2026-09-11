@@ -15,49 +15,41 @@ export async function generateArticleImage(
   articleCategory: string,
   articleId: number
 ): Promise<string | null> {
-  try {
-    const allSettings = await db.select().from(settings);
-    const settingsMap = allSettings.reduce((acc, curr) => {
-      acc[curr.key] = curr.value;
-      return acc;
-    }, {} as Record<string, string>);
-
-    const ollamaUrl = settingsMap['ollamaUrl'] || 'http://localhost:11434';
-    const imageModel = settingsMap['imageModel'] || 'x/z-image-turbo';
-
-    const prompt = buildImagePrompt(articleTitle, articleCategory);
-
-    logger.info(`Generating image for article ${articleId}`, { prompt, model: imageModel });
-
-    const response = await fetch(`${ollamaUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: imageModel,
-        prompt: prompt,
-        stream: false
-      })
-    });
-
+    // MOCK IMPLEMENTATION:
+    // AI Image generation requires a dedicated GPU or an external paid API (like OpenAI/Midjourney).
+    // Ollama's /api/generate does not generate images (it is a text/vision endpoint).
+    // For this diplomarbeit, we mock the image generation using Unsplash placeholders.
+    logger.info(`[MOCK] Generating image for article ${articleId}`, { prompt: buildImagePrompt(articleTitle, articleCategory) });
+    
+    // Simulate generation delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Use Unsplash source based on category
+    const unsplashCategory = {
+      'Politik': 'politics',
+      'Wirtschaft': 'business',
+      'Sport': 'sports',
+      'Technologie': 'technology',
+      'Kultur': 'culture'
+    }[articleCategory] || 'news';
+    
+    // Download image from unsplash
+    const response = await fetch(`https://source.unsplash.com/800x600/?${unsplashCategory}`);
     if (!response.ok) {
-      logger.warn(`Image generation failed with status ${response.status}, using fallback`);
+      logger.warn(`Image download failed with status ${response.status}, using fallback`);
       return null;
     }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const imageBuffer = Buffer.from(arrayBuffer);
+    
+    const filename = `article_${articleId}_${Date.now()}.jpg`;
+    const filepath = path.join(IMAGES_DIR, filename);
 
-    const data = await response.json();
+    fs.writeFileSync(filepath, imageBuffer);
+    logger.info(`Image saved: ${filename}`);
 
-    if (data.images && data.images.length > 0) {
-      const imageBuffer = Buffer.from(data.images[0], 'base64');
-      const filename = `article_${articleId}_${Date.now()}.png`;
-      const filepath = path.join(IMAGES_DIR, filename);
-
-      fs.writeFileSync(filepath, imageBuffer);
-      logger.info(`Image saved: ${filename}`);
-
-      return `/images/${filename}`;
-    }
-
-    return null;
+    return `/images/${filename}`;
   } catch (error: any) {
     logger.warn(`Image generation error: ${error.message}`);
     return null;
