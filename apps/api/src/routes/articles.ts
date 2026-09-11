@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
-import { articles } from '../db/schema';
+import { articles, jobs } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { stripHtml } from 'shortform-news';
+import { stripHtml } from '@wb-news/shortform-news';
+import { generationQueue } from '../queue';
 
 export default async function (server: FastifyInstance) {
   server.get('/api/articles', async (request, reply) => {
@@ -102,7 +103,6 @@ export default async function (server: FastifyInstance) {
     const articleId = newArticle[0].id;
     
     // Create job record in db first to get the auto-increment ID
-    const { jobs } = require('../db/schema');
     const newJob = await db.insert(jobs).values({
       articleId,
       type: 'teaser_generation',
@@ -112,7 +112,6 @@ export default async function (server: FastifyInstance) {
     const dbJobId = newJob[0].id;
     
     // Automatically queue generation job
-    const { generationQueue } = require('../queue');
     const job = await generationQueue.add('teaser_generation', {
       articleId,
       jobId: dbJobId,
