@@ -3,6 +3,7 @@ import jobRoutes from './routes/jobs';
 import articleRoutes from './routes/articles';
 import feedRoutes from './routes/feed';
 import settingsRoutes from './routes/settings';
+import tagRoutes from './routes/tags';
 import './queue'; // Initialize worker
 
 import cors from '@fastify/cors';
@@ -60,6 +61,7 @@ server.register(articleRoutes);
 server.register(jobRoutes);
 server.register(feedRoutes);
 server.register(settingsRoutes);
+server.register(tagRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return {
@@ -70,8 +72,11 @@ server.get('/api/sysinfo', async (request, reply) => {
   };
 });
 
+import { seedTags } from './db/seed-tags';
+
 const start = async () => {
   try {
+    await seedTags().catch(e => server.log.warn('Could not seed initial tags: ' + e.message));
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3005;
     await server.listen({ port, host: '0.0.0.0' });
     console.log(`Server listening on port ${port}`);
