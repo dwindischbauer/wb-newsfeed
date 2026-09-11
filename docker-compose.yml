@@ -50,7 +50,32 @@ services:
       timeout: 5s
       retries: 3
 
+  localai:
+    image: localai/localai:latest-aio-gpu-nvidia-cuda-12
+    container_name: wb_newsfeed_localai
+    ports:
+      - "8080:8080"
+    environment:
+      - MODELS_PATH=/models
+      - GALLERIES=[{"name":"model-gallery", "url":"github:mudler/LocalAI/gallery/stable-diffusion.yaml"}]
+      - PRELOAD_MODELS=[{"url": "github:mudler/LocalAI/gallery/stable-diffusion.yaml"}]
+    volumes:
+      - localai_models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   redis_data:
   ollama_data:
+  localai_models:
