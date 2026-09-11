@@ -45,7 +45,10 @@
           </td>
           <td>{{ new Date(job.createdAt).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' }) }}</td>
           <td>
-            <button v-if="job.status === 'failed'" @click="retryJob(job.id)" class="action-btn">Neu starten</button>
+            <div style="display: flex; gap: 0.5rem;">
+              <button v-if="job.status === 'failed'" @click="retryJob(job.id)" class="action-btn">Neu starten</button>
+              <button @click="deleteJob(job.id)" class="action-btn danger-btn">Löschen</button>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -90,6 +93,20 @@ const retryJob = async (jobId) => {
     }
   } catch (e) {
     console.error('Failed to retry job', e);
+  }
+};
+
+const deleteJob = async (jobId) => {
+  if (!confirm('Diesen Job wirklich löschen?')) return;
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/jobs/${jobId}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      fetchJobs();
+    }
+  } catch (e) {
+    console.error('Failed to delete job', e);
   }
 };
 
@@ -154,5 +171,19 @@ onMounted(() => {
   text-align: center;
   color: #666;
   padding: 2rem;
+}
+.action-btn {
+  background: none;
+  border: 1px solid #ccc;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.danger-btn {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+.danger-btn:hover {
+  background: #fef2f2;
 }
 </style>
