@@ -7,11 +7,18 @@ import './queue'; // Initialize worker
 
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
+import multipart from '@fastify/multipart';
 import * as path from 'path';
 import * as fs from 'fs';
 
 const server = Fastify({
   logger: true
+});
+
+server.register(multipart, {
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
 });
 
 server.register(cors, {
@@ -27,7 +34,12 @@ server.addHook('preHandler', async (request, reply) => {
   
   // Require API key for everything else
   const apiKey = request.headers['x-api-key'];
-  const validKey = process.env.API_KEY || 'diplomarbeit-secret-key';
+  const validKey = process.env.API_KEY;
+  if (!validKey) {
+    server.log.error('API_KEY is not configured on the server');
+    reply.status(500).send({ error: 'Server configuration error' });
+    return;
+  }
   
   if (apiKey !== validKey) {
     reply.status(401).send({ error: 'Unauthorized' });
