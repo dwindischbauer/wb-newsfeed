@@ -34,6 +34,11 @@
           </button>
         </div>
         <div class="reader-content">
+          <div class="reader-tags" v-if="activeReaderArticle.tags && activeReaderArticle.tags.length > 0">
+            <span v-for="tag in activeReaderArticle.tags" :key="tag.id" class="reader-tag-chip">
+              #{{ tag.name }}
+            </span>
+          </div>
           <h1 class="reader-title">{{ activeReaderArticle.title }}</h1>
           
           <div v-if="activeReaderArticle.keyTakeaways" class="takeaways">
@@ -180,6 +185,21 @@ onMounted(() => {
   padding-bottom: 4rem;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: #fff;
+}
+.reader-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.reader-tag-chip {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #4ade80;
+  padding: 0.3rem 0.75rem;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 .reader-content h2 { 
   margin-top: 0; 
