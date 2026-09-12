@@ -23,17 +23,29 @@
       </div>
 
       <div class="form-group">
+        <label>LocalAI Base URL (Bild-Generierung)</label>
+        <input type="text" v-model="settings.localAiUrl" />
+      </div>
+
+      <div class="form-group">
         <label>Bild-KI-Modell (Artikelbild-Generierung)</label>
         <select v-model="settings.imageModel">
-          <option value="x/z-image-turbo">Z-Image Turbo (Empfohlen)</option>
-          <option value="x/flux.2-klein:4b">FLUX.2 Klein 4B</option>
+          <option value="stablediffusion">stablediffusion</option>
+          <option value="flux.1-schnell">flux.1-schnell</option>
+          <option value="stable-diffusion-3-medium">stable-diffusion-3-medium</option>
+          <option value="x/z-image-turbo">x/z-image-turbo</option>
           <option value="">Deaktiviert</option>
         </select>
       </div>
 
       <div class="form-group">
-        <label>Timeout (ms)</label>
+        <label>Ollama Timeout (ms)</label>
         <input type="number" v-model="settings.timeout" />
+      </div>
+      
+      <div class="form-group">
+        <label>Bild-Generierung Timeout (ms)</label>
+        <input type="number" v-model="settings.imageTimeout" />
       </div>
 
       <div class="form-row">
@@ -60,9 +72,11 @@ const config = useRuntimeConfig();
 
 const settings = ref({
   ollamaUrl: 'http://localhost:11434',
+  localAiUrl: 'http://localhost:8080',
   aiModel: 'llama3.1:8b-instruct-q4_0',
-  imageModel: 'x/z-image-turbo',
+  imageModel: 'stablediffusion',
   timeout: 30000,
+  imageTimeout: 180000,
   apiPort: 3005,
   dbPort: 5433
 });
@@ -73,9 +87,11 @@ const loadSettings = async () => {
     if (res.ok) {
       const data = await res.json();
       if (data.ollamaUrl) settings.value.ollamaUrl = data.ollamaUrl;
+      if (data.localAiUrl) settings.value.localAiUrl = data.localAiUrl;
       if (data.aiModel) settings.value.aiModel = data.aiModel;
       if (data.imageModel !== undefined) settings.value.imageModel = data.imageModel;
       if (data.timeout) settings.value.timeout = parseInt(data.timeout);
+      if (data.imageTimeout) settings.value.imageTimeout = parseInt(data.imageTimeout);
     }
   } catch (e) {
     console.error('Failed to load settings', e);
@@ -86,9 +102,11 @@ const saveSettings = async () => {
   try {
     const payload = {
       ollamaUrl: settings.value.ollamaUrl,
+      localAiUrl: settings.value.localAiUrl,
       aiModel: settings.value.aiModel,
       imageModel: settings.value.imageModel,
-      timeout: settings.value.timeout.toString()
+      timeout: settings.value.timeout.toString(),
+      imageTimeout: settings.value.imageTimeout.toString()
     };
     
     const res = await apiFetch(`${config.public.apiUrl}/api/settings`, {
