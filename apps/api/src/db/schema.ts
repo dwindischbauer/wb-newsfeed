@@ -11,19 +11,19 @@ export const articles = pgTable('articles', {
   author: text('author').notNull().default('ORF.at Redaktion'),
   status: text('status').notNull().default('draft'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow()
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date())
 });
 
 export const jobs = pgTable('jobs', {
   id: serial('id').primaryKey(),
-  articleId: integer('article_id').references(() => articles.id),
+  articleId: integer('article_id').references(() => articles.id, { onDelete: 'cascade' }),
   type: varchar('type', { length: 50 }).notNull(),
   status: varchar('status', { length: 20 }).default('pending'),
   result: text('result'),
   error: text('error'),
   processingTimeMs: integer('processing_time_ms'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
 
 export const settings = pgTable('settings', {
