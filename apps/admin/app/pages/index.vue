@@ -70,6 +70,21 @@
         <span class="sync-badge">Echtzeit-Sync</span>
       </div>
       <div class="preview-content">
+        <div v-if="selectedArticle.imageUrl" class="preview-image" :style="{ backgroundImage: `url(${config.public.apiUrl}${selectedArticle.imageUrl})` }">
+          <button class="action-btn danger-btn remove-image-btn" @click="removeImage(selectedArticle.id)">Bild löschen</button>
+        </div>
+        <div v-else class="preview-image-placeholder" @dragover.prevent @drop.prevent="handleImageDrop">
+          <p>Kein Bild vorhanden</p>
+          <div class="placeholder-actions">
+            <button class="action-btn" @click="generateImageForArticle">KI-Bild generieren</button>
+            <label class="action-btn upload-btn">
+              Bild hochladen
+              <input type="file" accept="image/*" @change="handleImageUpload" style="display: none;" />
+            </label>
+          </div>
+          <p class="drop-hint" v-if="!imageGenStatus">Oder Bild hierher ziehen</p>
+          <p v-if="imageGenStatus" class="gen-status">{{ imageGenStatus }}</p>
+        </div>
         <span class="preview-category">{{ selectedArticle.category }}</span>
         <h2 class="preview-title">{{ selectedArticle.title }}</h2>
         <div class="preview-teaser" v-if="selectedArticle.teaser">
@@ -89,6 +104,7 @@
           {{ selectedArticle.status === 'published' ? 'In Entwurf umwandeln' : 'Veröffentlichen' }}
         </button>
         <button class="action-btn" @click="openMobilePreview">Mobile Ansicht</button>
+        <button class="action-btn" @click="editArticle(selectedArticle)">Artikel bearbeiten</button>
         <button class="action-btn danger-btn" @click="deleteArticle(selectedArticle.id)">Löschen</button>
         <button class="action-btn" @click="selectedArticle = null">Schließen</button>
       </div>
@@ -108,6 +124,7 @@
           <div class="form-group">
             <label>Kategorie</label>
             <select v-model="newArticle.category">
+              <option value="Auto">KI-Erkennung (Auto)</option>
               <option v-for="cat in categories.slice(1)" :key="cat" :value="cat">{{ cat }}</option>
             </select>
           </div>
@@ -214,10 +231,13 @@ const fetchArticles = async () => {
 const isModalOpen = ref(false);
 const newArticle = ref({ 
   title: '', 
-  category: categories[1] || 'Wirtschaft', 
+  category: 'Auto', 
   author: 'Redaktion', 
   content: '' 
 });
+
+const imageGenStatus = ref('');
+
 const sysinfo = ref(null);
 
 const fetchSysinfo = async () => {
@@ -239,10 +259,15 @@ const formatUptime = (seconds) => {
 const openModal = () => {
   newArticle.value = { 
     title: '', 
-    category: categories[1] || 'Wirtschaft', 
+    category: 'Auto', 
     author: 'Redaktion', 
     content: '' 
   };
+  isModalOpen.value = true;
+};
+
+const editArticle = (article) => {
+  newArticle.value = { ...article };
   isModalOpen.value = true;
 };
 
@@ -255,13 +280,14 @@ const saveArticle = async () => {
     alert('Bitte gib einen Text mit mindestens 10 Zeichen ein.');
     return;
   }
-  if (!newArticle.value.title) {
-    newArticle.value.title = newArticle.value.content.substring(0, 30) + '...';
-  }
   
   try {
-    const res = await apiFetch(`${config.public.apiUrl}/api/articles`, {
-      method: 'POST',
+    const isEdit = !!newArticle.value.id;
+    const url = isEdit ? `${config.public.apiUrl}/api/articles/${newArticle.value.id}` : `${config.public.apiUrl}/api/articles`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const res = await apiFetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newArticle.value)
     });
@@ -272,54 +298,173 @@ const saveArticle = async () => {
       return;
     }
     
-    const article = await res.json();
+    // For POST, res returns the article. For PUT, it just returns success.
+    const article = isEdit ? newArticle.value : await res.json();
     
-    const jobRes = await apiFetch(`${config.public.apiUrl}/api/jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ articleId: article.id, type: 'teaser_generation' })
-    });
-    const job = await jobRes.json();
+    if (!isEdit) {
+      const jobRes = await apiFetch(`${config.public.apiUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articleId: article.id, type: 'teaser_generation' })
+      });
+      const job = await jobRes.json();
+      pollJobStatus(job.id);
+    } else {
+      // If editing, update selected article immediately
+      if (selectedArticle.value && selectedArticle.value.id === article.id) {
+        selectedArticle.value = { ...selectedArticle.value, ...newArticle.value };
+      }
+    }
     
     closeModal();
     fetchArticles();
-    pollJobStatus(job.id);
   } catch (e) {
     console.error(e);
   }
 };
 
 const pollJobStatus = async (jobId) => {
-  const interval = setInterval(async () => {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
     try {
       const res = await apiFetch(`${config.public.apiUrl}/api/jobs/${jobId}`);
       if (res.ok) {
         const job = await res.json();
         if (job.status === 'completed' || job.status === 'failed') {
-          clearInterval(interval);
+          clearInterval(pollInterval);
+          pollInterval = null;
+          
+          if (job.type === 'image_generation') {
+            if (job.status === 'failed') {
+              imageGenStatus.value = `Fehler: ${job.error || 'Unbekannt'}`;
+            } else {
+              imageGenStatus.value = ''; // Success
+              // refetch article to get image
+              if (selectedArticle.value) {
+                const updatedArticleRes = await apiFetch(`${config.public.apiUrl}/api/articles/${selectedArticle.value.id}`);
+                if (updatedArticleRes.ok) {
+                  selectedArticle.value = await updatedArticleRes.json();
+                }
+              }
+            }
+          }
+          
           fetchArticles();
           fetchJobsStat();
         }
       }
     } catch (e) {
-      clearInterval(interval);
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
     }
   }, 2000);
 };
+
+const generateImageForArticle = async () => {
+  if (!selectedArticle.value) return;
+  imageGenStatus.value = 'Reihe Job ein...';
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articleId: selectedArticle.value.id, type: 'image_generation' })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      imageGenStatus.value = 'Generiere (Warte auf KI)...';
+      pollJobStatus(data.jobId);
+    } else {
+      imageGenStatus.value = 'Fehler beim Einreihen';
+    }
+  } catch (e) {
+    console.error(e);
+    imageGenStatus.value = 'Fehler beim Einreihen';
+  }
+};
+
+const uploadImageFile = async (file) => {
+  if (!selectedArticle.value || !file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${selectedArticle.value.id}/image`, {
+      method: 'POST',
+      body: formData
+    });
+    if (res.ok) {
+      const data = await res.json();
+      selectedArticle.value.imageUrl = data.imageUrl;
+      fetchArticles();
+    } else {
+      alert('Fehler beim Upload');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Fehler beim Upload');
+  }
+};
+
+const handleImageUpload = (event) => {
+  const file = event.target.files[0];
+  if (file) uploadImageFile(file);
+};
+
+const handleImageDrop = (event) => {
+  const file = event.dataTransfer?.files[0];
+  if (file && file.type.startsWith('image/')) {
+    uploadImageFile(file);
+  }
+};
+
+const removeImage = async (id) => {
+  if (!confirm('Bild wirklich löschen?')) return;
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${id}/image`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      if (selectedArticle.value && selectedArticle.value.id === id) {
+        selectedArticle.value.imageUrl = null;
+      }
+      fetchArticles();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+let pollInterval = null;
+let statsInterval = null;
+let articlesInterval = null;
 
 onMounted(() => {
   fetchArticles();
   fetchJobsStat();
   fetchSysinfo();
+  
+  statsInterval = setInterval(fetchJobsStat, 5000);
+  articlesInterval = setInterval(fetchArticles, 10000);
 
-  window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'article_opened') {
-      const openedArticle = articles.value.find(a => a.id === event.data.articleId);
-      if (openedArticle) {
-        selectArticle(openedArticle);
-      }
+  window.addEventListener('message', handleMessage);
+});
+
+const handleMessage = (event) => {
+  if (event.data && event.data.type === 'article_opened') {
+    const openedArticle = articles.value.find(a => a.id === event.data.articleId);
+    if (openedArticle) {
+      selectArticle(openedArticle);
     }
-  });
+  }
+};
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+  if (statsInterval) clearInterval(statsInterval);
+  if (articlesInterval) clearInterval(articlesInterval);
+  window.removeEventListener('message', handleMessage);
 });
 </script>
 
@@ -360,6 +505,49 @@ onMounted(() => {
   padding: 1.5rem;
   flex: 1;
   overflow-y: auto;
+}
+.preview-image {
+  width: 100%;
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  position: relative;
+}
+.remove-image-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(255, 255, 255, 0.9);
+}
+.preview-image-placeholder {
+  width: 100%;
+  height: 200px;
+  background-color: #f1f5f9;
+  border: 2px dashed #cbd5e1;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  gap: 0.5rem;
+}
+.placeholder-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.upload-btn {
+  display: inline-block;
+  cursor: pointer;
+  background: white;
+}
+.drop-hint {
+  font-size: 0.75rem;
+  margin: 0;
+  opacity: 0.7;
 }
 .preview-category {
   display: inline-block;
