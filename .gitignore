@@ -18,3 +18,8 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+apps/api/public/images/
+available-models.json
+test-article.json
+test-job.json
