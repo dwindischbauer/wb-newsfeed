@@ -1,93 +1,157 @@
 <template>
   <div class="dashboard-layout">
+    <!-- Modern Toast Notification -->
+    <transition name="toast">
+      <div v-if="toastMessage" :class="['toast-notification', toastType]">
+        <span class="toast-dot"></span>
+        <span>{{ toastMessage }}</span>
+      </div>
+    </transition>
+
     <div class="dashboard-main">
-      <h2>Dashboard</h2>
       <div class="stats">
-      <div class="stat-card">
-        <h3>Verwaltete Artikel</h3>
-        <p>{{ totalArticlesCount }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>KI-Jobs</h3>
-        <p>{{ pendingJobsCount }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Veröffentlicht im Feed</h3>
-        <p>{{ publishedArticlesCount }}</p>
-      </div>
-    </div>
-    
-    <div class="articles-section">
-      <div class="section-header">
-        <h3>Artikel verwalten</h3>
-        <button class="primary-btn" @click="openModal">+ Artikel einpflegen</button>
-      </div>
-
-      <div class="category-filters">
-        <button 
-          v-for="cat in categories" 
-          :key="cat"
-          :class="['chip', { active: activeCategory === cat }]"
-          @click="activeCategory = cat"
-        >
-          {{ cat }}
-        </button>
-      </div>
-
-      <div class="tag-filters" v-if="allTags && allTags.length > 0">
-        <span class="filter-label">Filter Tags:</span>
-        <button 
-          :class="['tag-chip-filter', { active: activeTag === null }]"
-          @click="activeTag = null"
-        >
-          Alle
-        </button>
-        <button 
-          v-for="t in allTags" 
-          :key="t.id"
-          :class="['tag-chip-filter', { active: activeTag === t.name }]"
-          @click="activeTag = activeTag === t.name ? null : t.name"
-        >
-          #{{ t.name }} <span v-if="t.articleCount > 0" class="badge-count">({{ t.articleCount }})</span>
-        </button>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          </div>
+          <div>
+            <h3>Verwaltete Artikel</h3>
+            <p>{{ totalArticlesCount }}</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          </div>
+          <div>
+            <h3>KI-Jobs aktiv</h3>
+            <p>{{ pendingJobsCount }}</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
+          <div>
+            <h3>Live im Feed</h3>
+            <p>{{ publishedArticlesCount }}</p>
+          </div>
+        </div>
       </div>
       
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Titel</th>
-            <th>Kategorie</th>
-            <th>Tags</th>
-            <th>Autor</th>
-            <th>Status</th>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="article in filteredArticles" :key="article.id">
-            <td>{{ article.title }}</td>
-            <td><span class="category-cell-badge">{{ article.category }}</span></td>
-            <td>
-              <div class="table-tags-list">
-                <span v-for="tag in (article.tags || [])" :key="tag.id || tag.name" class="table-tag-chip">
-                  #{{ tag.name }}
+      <div class="articles-section">
+        <div class="section-header">
+          <div>
+            <h3>Artikel verwalten</h3>
+            <p class="section-subtitle">Übersicht aller redaktionellen Short-Form-Inhalte</p>
+          </div>
+          <div class="header-actions-row">
+            <div class="search-box">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" v-model="searchQuery" placeholder="Suchen nach Titel, Tags, Autor..." />
+              <button v-if="searchQuery" @click="searchQuery = ''" class="clear-search-btn">&times;</button>
+            </div>
+            <button class="primary-btn" @click="openModal">
+              <span class="btn-icon">+</span> Neuer Artikel
+            </button>
+          </div>
+        </div>
+
+        <div class="category-filters">
+          <button 
+            v-for="cat in categories" 
+            :key="cat"
+            :class="['chip', { active: activeCategory === cat }]"
+            @click="activeCategory = cat"
+          >
+            {{ cat }}
+          </button>
+        </div>
+
+        <div class="tag-filters" v-if="allTags && allTags.length > 0">
+          <span class="filter-label">Filter Tags:</span>
+          <button 
+            :class="['tag-chip-filter', { active: activeTag === null }]"
+            @click="activeTag = null"
+          >
+            Alle
+          </button>
+          <button 
+            v-for="t in allTags" 
+            :key="t.id"
+            :class="['tag-chip-filter', { active: activeTag === t.name }]"
+            @click="activeTag = activeTag === t.name ? null : t.name"
+          >
+            #{{ t.name }} <span v-if="t.articleCount > 0" class="badge-count">({{ t.articleCount }})</span>
+          </button>
+        </div>
+        
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Titel</th>
+              <th>Kategorie</th>
+              <th>Tags</th>
+              <th>Autor</th>
+              <th>Status</th>
+              <th style="text-align: right;">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr 
+              v-for="article in filteredArticles" 
+              :key="article.id"
+              :class="{ 'row-selected': selectedArticle && selectedArticle.id === article.id }"
+            >
+              <td class="article-title-cell">
+                <div class="title-with-thumb">
+                  <div 
+                    v-if="article.imageUrl" 
+                    class="table-thumb" 
+                    :style="{ backgroundImage: `url(${config.public.apiUrl}${article.imageUrl})` }"
+                  ></div>
+                  <span class="title-text">{{ article.title }}</span>
+                </div>
+              </td>
+              <td><span :class="['category-cell-badge', `cat-${article.category?.toLowerCase()}`]">{{ article.category }}</span></td>
+              <td>
+                <div class="table-tags-list">
+                  <span v-for="tag in (article.tags || [])" :key="tag.id || tag.name" class="table-tag-chip">
+                    #{{ tag.name }}
+                  </span>
+                  <span v-if="!article.tags || article.tags.length === 0" class="no-tags">-</span>
+                </div>
+              </td>
+              <td class="author-cell">{{ article.author }}</td>
+              <td>
+                <span :class="['status-pill', article.status]">
+                  <span class="status-dot"></span>
+                  {{ article.status === 'published' ? 'Veröffentlicht' : 'Entwurf' }}
                 </span>
-                <span v-if="!article.tags || article.tags.length === 0" class="no-tags">-</span>
-              </div>
-            </td>
-            <td>{{ article.author }}</td>
-            <td>
-              <span :class="['status-badge', article.status]">{{ article.status === 'published' ? 'Veröffentlicht' : 'Entwurf' }}</span>
-            </td>
-            <td>
-              <button class="action-btn" @click="selectArticle(article)">Vorschau</button>
-            </td>
-          </tr>
-          <tr v-if="filteredArticles.length === 0">
-            <td colspan="6" class="empty">Keine Artikel gefunden.</td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+              <td style="text-align: right;">
+                <div class="table-actions">
+                  <button class="table-action-btn" @click="selectArticle(article)" title="Vorschau anzeigen">
+                    Vorschau
+                  </button>
+                  <button class="table-action-btn-subtle" @click="editArticle(article)" title="Bearbeiten">
+                    Bearbeiten
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredArticles.length === 0">
+              <td colspan="6" class="empty-state-cell">
+                <div class="empty-state-wrapper">
+                  <span class="empty-icon">🔍</span>
+                  <p class="empty-title">Keine Artikel gefunden</p>
+                  <p class="empty-desc">Passe deine Filter an oder erstelle einen neuen Artikel.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
     </div> <!-- End dashboard-main -->
 
@@ -217,8 +281,23 @@ const activeCategory = ref('Alle');
 const allTags = ref([]);
 const activeTag = ref(null);
 const newTagName = ref('');
+const searchQuery = ref('');
 const selectedArticle = ref(null);
 const pendingJobsCount = ref(0);
+
+// Toast Notification
+const toastMessage = ref('');
+const toastType = ref('success');
+let toastTimeout = null;
+
+const showToast = (message, type = 'success') => {
+  toastMessage.value = message;
+  toastType.value = type;
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toastMessage.value = '';
+  }, 3500);
+};
 
 const totalArticlesCount = computed(() => articles.value.length);
 const publishedArticlesCount = computed(() => {
@@ -232,6 +311,15 @@ const filteredArticles = computed(() => {
   }
   if (activeTag.value) {
     list = list.filter(a => (a.tags || []).some(t => t.name === activeTag.value || t.slug === activeTag.value));
+  }
+  if (searchQuery.value && searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim();
+    list = list.filter(a =>
+      a.title?.toLowerCase().includes(q) ||
+      a.author?.toLowerCase().includes(q) ||
+      a.content?.toLowerCase().includes(q) ||
+      (a.tags || []).some(t => t.name?.toLowerCase().includes(q))
+    );
   }
   return list;
 });
@@ -402,7 +490,7 @@ const closeModal = () => {
 
 const saveArticle = async () => {
   if (!newArticle.value.content || newArticle.value.content.length < 10) {
-    alert('Bitte gib einen Text mit mindestens 10 Zeichen ein.');
+    showToast('Bitte Text mit mindestens 10 Zeichen eingeben', 'error');
     return;
   }
   
@@ -419,7 +507,7 @@ const saveArticle = async () => {
     
     if (!res.ok) {
       const errorData = await res.json();
-      alert('Fehler beim Speichern: ' + (errorData.error || 'Unbekannt'));
+      showToast('Fehler beim Speichern: ' + (errorData.error || 'Unbekannt'), 'error');
       return;
     }
     
@@ -434,17 +522,21 @@ const saveArticle = async () => {
       });
       const job = await jobRes.json();
       pollJobStatus(job.id);
+      showToast('Artikel angelegt! KI generiert Titel, Teaser & Tags...', 'success');
     } else {
       // If editing, update selected article immediately
       if (selectedArticle.value && selectedArticle.value.id === article.id) {
         selectedArticle.value = { ...selectedArticle.value, ...newArticle.value };
       }
+      showToast('Artikel erfolgreich aktualisiert', 'success');
     }
     
     closeModal();
     fetchArticles();
+    fetchTags();
   } catch (e) {
     console.error(e);
+    showToast('Netzwerkfehler beim Speichern', 'error');
   }
 };
 
@@ -462,9 +554,13 @@ const pollJobStatus = async (jobId) => {
           if (job.type === 'image_generation') {
             if (job.status === 'failed') {
               imageGenStatus.value = `Fehler: ${job.error || 'Unbekannt'}`;
+              showToast('Bild-Generierung fehlgeschlagen', 'error');
             } else {
               imageGenStatus.value = ''; // Success
+              showToast('KI-Bild erfolgreich generiert!', 'success');
             }
+          } else if (job.type === 'teaser_generation' && job.status === 'completed') {
+            showToast('KI-Aufbereitung erfolgreich abgeschlossen!', 'success');
           }
           
           if (selectedArticle.value && selectedArticle.value.id === job.articleId) {
@@ -503,6 +599,7 @@ const generateImageForArticle = async () => {
       pollJobStatus(data.jobId);
     } else {
       imageGenStatus.value = 'Fehler beim Einreihen';
+      showToast('Fehler beim Starten der Bild-KI', 'error');
     }
   } catch (e) {
     console.error(e);
@@ -524,12 +621,13 @@ const uploadImageFile = async (file) => {
       const data = await res.json();
       selectedArticle.value.imageUrl = data.imageUrl;
       fetchArticles();
+      showToast('Bild erfolgreich hochgeladen!', 'success');
     } else {
-      alert('Fehler beim Upload');
+      showToast('Fehler beim Bild-Upload', 'error');
     }
   } catch (e) {
     console.error(e);
-    alert('Fehler beim Upload');
+    showToast('Upload-Fehler', 'error');
   }
 };
 
@@ -556,6 +654,7 @@ const removeImage = async (id) => {
         selectedArticle.value.imageUrl = null;
       }
       fetchArticles();
+      showToast('Bild entfernt', 'success');
     }
   } catch (e) {
     console.error(e);
@@ -712,121 +811,364 @@ onUnmounted(() => {
   border-top: 1px solid #eee;
 }
 .stats {
-  display: flex;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
   margin-top: 1rem;
 }
 .stat-card {
   background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  flex: 1;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+}
+.stat-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-icon-wrapper.blue { background: #eff6ff; color: #2563eb; }
+.stat-icon-wrapper.purple { background: #faf5ff; color: #9333ea; }
+.stat-icon-wrapper.green { background: #f0fdf4; color: #16a34a; }
+
 .stat-card h3 {
   margin: 0;
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  font-weight: 600;
 }
 .stat-card p {
-  margin: 0.5rem 0 0;
-  font-size: 2rem;
-  font-weight: bold;
-  color: #2c3e50;
+  margin: 0.25rem 0 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
+
 .articles-section {
   margin-top: 2rem;
 }
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
+.section-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+.header-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 0.4rem 0.85rem;
+  transition: all 0.2s ease;
+}
+.search-box:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.search-icon {
+  color: #94a3b8;
+  margin-right: 0.5rem;
+}
+.search-box input {
+  border: none;
+  outline: none;
+  font-size: 0.85rem;
+  width: 220px;
+  color: #1e293b;
+}
+.clear-search-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+}
+
 .primary-btn {
-  background-color: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+  transition: all 0.15s ease;
 }
+.primary-btn:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+}
+.btn-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .category-filters {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
 }
 .chip {
-  padding: 0.25rem 1rem;
-  border-radius: 99px;
-  border: 1px solid #ccc;
+  padding: 0.35rem 1rem;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
   background: white;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+.chip:hover {
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 .chip.active {
-  background: #3b82f6;
+  background: #0f172a;
   color: white;
-  border-color: #3b82f6;
+  border-color: #0f172a;
+  font-weight: 600;
 }
+
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.data-table th, .data-table td {
-  padding: 1rem;
+.data-table th {
+  background: #f8fafc;
+  padding: 0.85rem 1.25rem;
   text-align: left;
-  border-bottom: 1px solid #eee;
-}
-.data-table tbody tr {
-  transition: background-color 0.2s ease;
-}
-.data-table tbody tr:hover {
-  background-color: #f8fafc;
-}
-.status-badge {
-  padding: 0.35rem 0.85rem;
-  border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
 }
-.status-badge.published { background: #bbf7d0; color: #166534; }
-.status-badge.draft { background: #e5e7eb; color: #374151; }
+.data-table td {
+  padding: 0.9rem 1.25rem;
+  font-size: 0.9rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.data-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+.data-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+.data-table tbody tr.row-selected {
+  background-color: #f0fdf4 !important;
+}
 
-.sysinfo-footer {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+.title-with-thumb {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.table-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+.title-text {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.category-cell-badge {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.category-cell-badge.cat-politik { background: #fee2e2; color: #b91c1c; }
+.category-cell-badge.cat-wirtschaft { background: #dcfce7; color: #15803d; }
+.category-cell-badge.cat-sport { background: #fef3c7; color: #b45309; }
+.category-cell-badge.cat-technologie { background: #e0e7ff; color: #4338ca; }
+.category-cell-badge.cat-kultur { background: #fae8ff; color: #86198f; }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.status-pill.published {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+.status-pill.published .status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+.status-pill.draft {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.status-pill.draft .status-dot {
+  background: #94a3b8;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+.table-action-btn {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
   font-size: 0.8rem;
-  color: #9ca3af;
-  text-align: right;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.table-action-btn:hover {
+  background: #dbeafe;
+}
+.table-action-btn-subtle {
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.table-action-btn-subtle:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
-.action-btn {
-  background: none;
-  border: 1px solid #ccc;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.danger-btn {
-  color: #ef4444;
-  border-color: #ef4444;
-}
-.danger-btn:hover {
-  background: #fef2f2;
-}
-.empty {
+.empty-state-cell {
   text-align: center;
-  color: #666;
-  padding: 2rem;
+  padding: 3rem 1.5rem !important;
+}
+.empty-state-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.empty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+.empty-title {
+  margin: 0;
+  font-weight: 700;
+  color: #334155;
+}
+.empty-desc {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* Toast Notifications */
+.toast-notification {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #0f172a;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2), 0 4px 6px -2px rgba(0,0,0,0.1);
+}
+.toast-notification.success {
+  border-left: 4px solid #22c55e;
+}
+.toast-notification.error {
+  border-left: 4px solid #ef4444;
+}
+.toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.toast-notification.error .toast-dot {
+  background: #ef4444;
+}
+.toast-enter-active, .toast-leave-active {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-enter-from, .toast-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
 }
 
 .modal-overlay {
