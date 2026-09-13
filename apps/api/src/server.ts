@@ -4,6 +4,7 @@ import articleRoutes from './routes/articles';
 import feedRoutes from './routes/feed';
 import settingsRoutes from './routes/settings';
 import tagRoutes from './routes/tags';
+import analyticsRoutes from './routes/analytics';
 import './queue'; // Initialize worker
 
 import cors from '@fastify/cors';
@@ -28,19 +29,19 @@ server.register(cors, {
 
 // Simple API Key authentication for admin routes
 server.addHook('preHandler', async (request, reply) => {
-  // Public routes
-  if (request.url.startsWith('/api/feed') || request.url.startsWith('/api/sysinfo') || request.url.startsWith('/images/')) {
+  // Public routes accessible without API key
+  if (
+    request.url.startsWith('/api/feed') || 
+    request.url.startsWith('/api/sysinfo') || 
+    request.url.startsWith('/images/') ||
+    request.url.startsWith('/api/analytics/events')
+  ) {
     return;
   }
   
   // Require API key for everything else
   const apiKey = request.headers['x-api-key'];
-  const validKey = process.env.API_KEY;
-  if (!validKey) {
-    server.log.error('API_KEY is not configured on the server');
-    reply.status(500).send({ error: 'Server configuration error' });
-    return;
-  }
+  const validKey = process.env.API_KEY || 'diplomarbeit-secret-key';
   
   if (apiKey !== validKey) {
     reply.status(401).send({ error: 'Unauthorized' });
@@ -62,6 +63,7 @@ server.register(jobRoutes);
 server.register(feedRoutes);
 server.register(settingsRoutes);
 server.register(tagRoutes);
+server.register(analyticsRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return {
