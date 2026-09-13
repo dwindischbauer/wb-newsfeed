@@ -10,6 +10,9 @@ export const articles = pgTable('articles', {
   category: text('category').notNull(),
   author: text('author').notNull().default('ORF.at Redaktion'),
   status: text('status').notNull().default('draft'),
+  likeCount: integer('like_count').notNull().default(0),
+  commentCount: integer('comment_count').notNull().default(0),
+  shareCount: integer('share_count').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date())
 });
@@ -55,5 +58,3 @@ export const analyticsEvents = pgTable('analytics_events', {
   metadata: text('metadata'),
   createdAt: timestamp('created_at').defaultNow()
 });
-
-
