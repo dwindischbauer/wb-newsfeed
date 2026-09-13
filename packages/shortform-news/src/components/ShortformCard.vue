@@ -2,7 +2,18 @@
   <div class="sf-card" ref="cardRef">
     <div class="sf-media-area" :style="mediaStyle">
       <slot name="card-media" :article="article">
-        <span class="sf-category-badge">{{ article.category }}</span>
+        <div class="sf-badges-wrapper">
+          <span class="sf-category-badge">{{ article.category }}</span>
+          <div class="sf-tags-container" v-if="article.tags && article.tags.length > 0">
+            <span 
+              v-for="tag in article.tags" 
+              :key="tag.id || tag.name" 
+              class="sf-tag-badge"
+            >
+              #{{ tag.name }}
+            </span>
+          </div>
+        </div>
       </slot>
     </div>
     <div class="sf-content-overlay">
@@ -92,14 +103,41 @@ onUnmounted(() => {
   background-color: var(--sf-media-bg, #1f2937);
 }
 
+.sf-badges-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.sf-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  max-width: 250px;
+}
+
 .sf-category-badge {
-  background: var(--sf-badge-bg, rgba(255, 255, 255, 0.1));
-  border: 1px solid var(--sf-badge-border, rgba(255, 255, 255, 0.2));
+  background: var(--sf-badge-bg, rgba(255, 255, 255, 0.15));
+  border: 1px solid var(--sf-badge-border, rgba(255, 255, 255, 0.3));
   color: var(--sf-badge-color, white);
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 20px;
-  font-size: 0.9rem;
-  backdrop-filter: blur(4px);
+  font-size: 0.85rem;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+
+.sf-tag-badge {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #e2e8f0;
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  backdrop-filter: blur(6px);
 }
 
 .sf-content-overlay {
