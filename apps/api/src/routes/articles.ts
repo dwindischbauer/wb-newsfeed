@@ -366,13 +366,18 @@ export default async function (server: FastifyInstance) {
       return reply.status(404).send({ error: 'Article not found' });
     }
 
+    const reqBody = (request.body as any) || {};
+    const reqQuery = (request.query as any) || {};
+    const mode = (reqBody.mode || reqQuery.mode || 'editorial') as 'editorial' | 'ai';
+
     const tagNames = (article.tags || []).map((t: any) => typeof t === 'string' ? t : t.name);
     const imageUrl = await generateArticleImage(
       article.title,
       article.category,
       parsedId,
       article.teaser,
-      tagNames
+      tagNames,
+      mode
     );
 
     if (!imageUrl) {
