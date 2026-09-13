@@ -9,6 +9,7 @@
         :trackingEnabled="trackingEnabled"
         @read="(a) => $emit('article-read', a)"
         @impression="(a) => $emit('article-impression', a)"
+        @filter-tag="(t) => $emit('filter-tag', t)"
       >
         <template #card-media="{ article }">
           <slot name="media" :article="article"></slot>
@@ -42,7 +43,7 @@ const props = defineProps<{
   trackingEnabled?: boolean;
 }>();
 
-const emit = defineEmits(['article-read', 'article-impression', 'scroll-depth']);
+const emit = defineEmits(['article-read', 'article-impression', 'scroll-depth', 'filter-tag']);
 
 const feedRef = ref<HTMLElement | null>(null);
 
