@@ -37,6 +37,15 @@
             <p>{{ publishedArticlesCount }}</p>
           </div>
         </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper amber">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </div>
+          <div>
+            <h3>Feed-Leserate</h3>
+            <p>{{ analyticsSummary.readThroughRate }} <span class="stat-sub">({{ analyticsSummary.totalReads }}/{{ analyticsSummary.totalImpressions }})</span></p>
+          </div>
+        </div>
       </div>
       
       <div class="articles-section">
@@ -521,6 +530,22 @@ const fetchSysinfo = async () => {
   }
 };
 
+const analyticsSummary = ref({
+  totalImpressions: 0,
+  totalReads: 0,
+  totalTtsPlays: 0,
+  readThroughRate: '0.0%'
+});
+
+const fetchAnalytics = async () => {
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/analytics`);
+    if (res.ok) {
+      analyticsSummary.value = await res.json();
+    }
+  } catch (e) {}
+};
+
 const formatUptime = (seconds) => {
   if (!seconds) return '00:00';
   const m = Math.floor(seconds / 60);
@@ -571,8 +596,18 @@ const saveArticle = async () => {
     });
     
     if (!res.ok) {
-      const errorData = await res.json();
-      showToast('Fehler beim Speichern: ' + (errorData.error || 'Unbekannt'), 'error');
+      let errDetail = 'Unbekannter Serverfehler';
+      try {
+        const errorData = await res.json();
+        if (errorData.message?.includes('ECONNREFUSED') || errorData.message?.includes('Failed query')) {
+          errDetail = 'Datenbank offline (PostgreSQL Port 5433 nicht erreichbar – bitte Docker starten)';
+        } else {
+          errDetail = errorData.error || errorData.message || 'Unbekannt';
+        }
+      } catch {
+        errDetail = `HTTP ${res.status}`;
+      }
+      showToast('Fehler beim Speichern: ' + errDetail, 'error');
       return;
     }
     
@@ -779,8 +814,12 @@ onMounted(() => {
   fetchJobsStat();
   fetchTags();
   fetchSysinfo();
+  fetchAnalytics();
   
-  statsInterval = setInterval(fetchJobsStat, 5000);
+  statsInterval = setInterval(() => {
+    fetchJobsStat();
+    fetchAnalytics();
+  }, 5000);
   articlesInterval = setInterval(fetchArticles, 10000);
 
   window.addEventListener('message', handleMessage);
@@ -1137,6 +1176,14 @@ onUnmounted(() => {
 .stat-icon-wrapper.blue { background: #eff6ff; color: #2563eb; }
 .stat-icon-wrapper.purple { background: #faf5ff; color: #9333ea; }
 .stat-icon-wrapper.green { background: #f0fdf4; color: #16a34a; }
+.stat-icon-wrapper.amber { background: #fffbeb; color: #d97706; }
+
+.stat-sub {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+  margin-left: 4px;
+}
 
 .stat-card h3 {
   margin: 0;
