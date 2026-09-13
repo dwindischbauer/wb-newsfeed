@@ -173,9 +173,9 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
   const firstLine = lines[0] || '';
   
   let headlineCandidate = firstLine;
-  // If first line is very long, extract the first sentence
-  if (headlineCandidate.length > 100 || headlineCandidate.includes('.')) {
-    const firstSentenceMatch = headlineCandidate.match(/^([^.?!]+[.?!]?)/);
+  // If first line is very long, extract the first sentence (avoiding decimals like 0.25)
+  if (headlineCandidate.length > 100 || /[.?!]/.test(headlineCandidate)) {
+    const firstSentenceMatch = headlineCandidate.match(/^((?:[0-9]+\.[0-9]+|[^.?!])+[.?!]?)/);
     if (firstSentenceMatch) {
       headlineCandidate = firstSentenceMatch[1].trim();
     }
@@ -281,7 +281,7 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
   }
 
   // 4. Concise Teaser and Key Takeaways
-  const sentences = clean.match(/[^.!?]+[.!?]+/g) || [clean];
+  const sentences = clean.match(/(?:[0-9]+\.[0-9]+|[^.!?])+[.!?]+/g) || [clean];
   const teaserSentences = sentences.slice(0, 2).map(s => s.trim()).join(' ');
   const teaser = truncate(teaserSentences || clean, 160);
 

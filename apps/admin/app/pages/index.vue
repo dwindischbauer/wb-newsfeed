@@ -268,47 +268,98 @@
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>Titel (Auto-Titel falls leer)</label>
-            <input type="text" v-model="newArticle.title" />
+            <div class="flashtext-header-row">
+              <label>Fließtext (Aus Zwischenablage einfügen)</label>
+              <button 
+                type="button" 
+                class="btn-magic-extract" 
+                :disabled="isExtracting || !newArticle.content || newArticle.content.length < 10"
+                @click="autoFillFromContent"
+                title="Titel, Kategorie und passende Subtags automatisch aus dem Text generieren"
+              >
+                <span v-if="isExtracting" class="mini-spinner"></span>
+                <span v-else>⚡</span>
+                KI Auto-Ausfüllen (Titel & Subtags)
+              </button>
+            </div>
+            <textarea 
+              v-model="newArticle.content" 
+              rows="6" 
+              placeholder="Füge hier den Volltext der Nachricht ein..."
+            ></textarea>
           </div>
+
+          <div class="form-group">
+            <div class="label-with-action">
+              <label>Titel</label>
+              <button 
+                v-if="newArticle.content && newArticle.content.length >= 10" 
+                type="button" 
+                class="btn-small-extract" 
+                @click="generateTitleOnly"
+                title="Titel automatisch aus dem Fließtext ableiten"
+              >
+                ⚡ Auto-Titel ableiten
+              </button>
+            </div>
+            <input type="text" v-model="newArticle.title" placeholder="Titel der Meldung (wird beim Speichern automatisch generiert falls leer)..." />
+          </div>
+
           <div class="form-group">
             <label>Kategorie</label>
-            <select v-model="newArticle.category">
+            <select v-model="newArticle.category" @change="onCategoryChange">
               <option value="Auto">KI-Erkennung (Auto)</option>
               <option v-for="cat in categories.slice(1)" :key="cat" :value="cat">{{ cat }}</option>
             </select>
           </div>
+
+          <!-- Kategoriespezifische Subtags Section -->
           <div class="form-group">
-            <label>Tags / Schlagwörter (mehrere möglich)</label>
-            <div class="modal-tags-selection" v-if="allTags && allTags.length > 0">
+            <label class="subtags-section-label">
+              Empfohlene Subtags für <span class="active-cat-name">{{ newArticle.category === 'Auto' ? 'Erkennung' : newArticle.category }}</span>:
+            </label>
+            <div class="subtags-category-grid" v-if="availableSubtags && availableSubtags.length > 0">
               <button 
                 type="button"
-                v-for="t in allTags" 
-                :key="t.id"
-                :class="['tag-toggle-btn', { selected: isTagSelected(t.name) }]"
-                @click="toggleTag(t.name)"
+                v-for="sub in availableSubtags" 
+                :key="sub.slug || sub.name"
+                :class="['subtag-chip-btn', { selected: isTagSelected(sub.name) }]"
+                :style="isTagSelected(sub.name) ? { borderColor: sub.color, backgroundColor: sub.color + '22', color: sub.color } : {}"
+                @click="toggleTag(sub.name)"
               >
-                #{{ t.name }}
+                <span class="subtag-dot" :style="{ backgroundColor: sub.color }"></span>
+                #{{ sub.name }}
               </button>
             </div>
+
+            <!-- Ausgewählte Tags Anzeige -->
+            <div class="custom-tags-bar">
+              <span class="custom-tags-label">Zugeordnete Subtags:</span>
+              <div class="selected-tags-chips">
+                <span v-for="t in (newArticle.tags || [])" :key="t" class="active-tag-chip">
+                  #{{ t }}
+                  <button type="button" @click="toggleTag(t)" class="remove-tag-cross" title="Tag entfernen">&times;</button>
+                </span>
+                <span v-if="!newArticle.tags || newArticle.tags.length === 0" class="no-tags-hint">
+                  Noch keine Tags gewählt (werden beim Speichern automatisch zugeordnet)
+                </span>
+              </div>
+            </div>
+
             <div class="add-tag-inline">
               <input 
                 type="text" 
                 v-model="newTagName" 
-                placeholder="Neuen Tag erstellen (z.B. Innenpolitik)..." 
+                placeholder="Eigenen Subtag erstellen (z.B. Innenpolitik)..." 
                 @keydown.enter.prevent="addNewTag"
               />
-              <button type="button" class="action-btn" @click="addNewTag">+ Tag</button>
+              <button type="button" class="action-btn" @click="addNewTag">+ Hinzufügen</button>
             </div>
-            <p class="field-hint">Tipp: Bei neuem Artikel weist die KI passende Tags auch automatisch zu.</p>
           </div>
+
           <div class="form-group">
             <label>Autor / Quelle</label>
             <input type="text" v-model="newArticle.author" />
-          </div>
-          <div class="form-group">
-            <label>Fließtext (Aus Zwischenablage einfügen)</label>
-            <textarea v-model="newArticle.content" rows="6"></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -326,7 +377,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { parseKeyTakeaways, estimateReadingTime } from '@wb-news/shortform-news';
+import { parseKeyTakeaways, estimateReadingTime, CATEGORY_SUBTAGS, autoExtractArticleMetadata } from '@wb-news/shortform-news';
 
 const articles = ref([]);
 const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
@@ -337,6 +388,7 @@ const newTagName = ref('');
 const searchQuery = ref('');
 const selectedArticle = ref(null);
 const pendingJobsCount = ref(0);
+const isExtracting = ref(false);
 
 // Toast Notification
 const toastMessage = ref('');
@@ -356,6 +408,83 @@ const totalArticlesCount = computed(() => articles.value.length);
 const publishedArticlesCount = computed(() => {
   return articles.value.reduce((count, a) => (a.status === 'published' ? count + 1 : count), 0);
 });
+
+const availableSubtags = computed(() => {
+  const cat = newArticle.value?.category;
+  if (cat && cat !== 'Auto' && CATEGORY_SUBTAGS[cat]) {
+    return CATEGORY_SUBTAGS[cat];
+  }
+  // If Auto, provide top prominent subtags across all categories
+  const res = [];
+  for (const list of Object.values(CATEGORY_SUBTAGS)) {
+    res.push(...list.slice(0, 3));
+  }
+  return res;
+});
+
+const onCategoryChange = () => {
+  // Category changed, user will see new subtag chips
+};
+
+const autoFillFromContent = async () => {
+  if (!newArticle.value.content || newArticle.value.content.length < 10) return;
+  isExtracting.value = true;
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/auto-extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: newArticle.value.content,
+        category: newArticle.value.category
+      })
+    });
+    if (res.ok) {
+      const meta = await res.json();
+      if (!newArticle.value.title || newArticle.value.title.trim() === '' || newArticle.value.title === '[Auto-Titel ausstehend]') {
+        newArticle.value.title = meta.title;
+      }
+      if (newArticle.value.category === 'Auto' && meta.category) {
+        newArticle.value.category = meta.category;
+      }
+      const tagNames = (meta.tags || []).map(t => t.name || t);
+      if (!newArticle.value.tags) newArticle.value.tags = [];
+      for (const t of tagNames) {
+        if (!newArticle.value.tags.includes(t)) {
+          newArticle.value.tags.push(t);
+        }
+      }
+      showToast('Titel, Kategorie & Subtags automatisch zugeordnet!', 'success');
+    } else {
+      throw new Error('API auto-extract returned non-ok');
+    }
+  } catch (e) {
+    // Client-side fallback
+    const meta = autoExtractArticleMetadata(newArticle.value.content, newArticle.value.category);
+    if (!newArticle.value.title || newArticle.value.title.trim() === '' || newArticle.value.title === '[Auto-Titel ausstehend]') {
+      newArticle.value.title = meta.title;
+    }
+    if (newArticle.value.category === 'Auto' && meta.category) {
+      newArticle.value.category = meta.category;
+    }
+    const tagNames = (meta.tags || []).map(t => t.name);
+    if (!newArticle.value.tags) newArticle.value.tags = [];
+    for (const t of tagNames) {
+      if (!newArticle.value.tags.includes(t)) {
+        newArticle.value.tags.push(t);
+      }
+    }
+    showToast('Titel & Subtags aus Fließtext abgeleitet!', 'success');
+  } finally {
+    isExtracting.value = false;
+  }
+};
+
+const generateTitleOnly = () => {
+  if (!newArticle.value.content || newArticle.value.content.length < 10) return;
+  const meta = autoExtractArticleMetadata(newArticle.value.content, newArticle.value.category);
+  newArticle.value.title = meta.title;
+  showToast('Auto-Titel aktualisiert!', 'success');
+};
 
 const filteredArticles = computed(() => {
   let list = articles.value;
@@ -641,6 +770,7 @@ const saveArticle = async () => {
 };
 
 const pollJobStatus = async (jobId) => {
+  if (!jobId) return;
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(async () => {
     try {
@@ -651,7 +781,7 @@ const pollJobStatus = async (jobId) => {
         if (job.type === 'image_generation') {
           if (job.status === 'processing') {
             if (imageGenState.value) {
-              imageGenState.value.message = 'LocalAI generiert Bild...';
+              imageGenState.value.message = 'LocalAI / Pollinations generiert Bild...';
             }
           }
         }
@@ -714,40 +844,65 @@ const generateImageForArticle = async () => {
   startGenTimer();
   imageGenState.value = {
     type: 'loading',
-    message: 'Job wird vorbereitet...',
+    message: 'KI generiert Cover (LocalAI / Pollinations)...',
     elapsed: 0
   };
+
   try {
-    const res = await apiFetch(`${config.public.apiUrl}/api/jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ articleId: selectedArticle.value.id, type: 'image_generation' })
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${selectedArticle.value.id}/generate-image`, {
+      method: 'POST'
     });
+    stopGenTimer();
+    isGeneratingImage.value = false;
+
     if (res.ok) {
       const data = await res.json();
+      selectedArticle.value.imageUrl = data.imageUrl;
       imageGenState.value = {
-        type: 'loading',
-        message: 'In Queue eingereiht (Warte auf KI)...',
-        elapsed: genSeconds
+        type: 'success',
+        message: `Bild fertiggestellt (${genSeconds}s)!`
       };
-      pollJobStatus(data.jobId);
+      showToast('KI-Bild erfolgreich generiert!', 'success');
+      fetchArticles();
+      setTimeout(() => {
+        if (imageGenState.value?.type === 'success') {
+          imageGenState.value = null;
+        }
+      }, 5000);
     } else {
-      stopGenTimer();
-      isGeneratingImage.value = false;
-      imageGenState.value = {
-        type: 'error',
-        message: 'Fehler beim Einreihen'
-      };
-      showToast('Fehler beim Starten der Bild-KI', 'error');
+      // Fallback: enqueue via jobs API with fixed job ID resolution
+      const jobRes = await apiFetch(`${config.public.apiUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articleId: selectedArticle.value.id, type: 'image_generation' })
+      });
+      if (jobRes.ok) {
+        const jobData = await jobRes.json();
+        const effectiveId = jobData.id || jobData.jobId;
+        startGenTimer();
+        isGeneratingImage.value = true;
+        imageGenState.value = {
+          type: 'loading',
+          message: 'In Queue eingereiht...',
+          elapsed: genSeconds
+        };
+        pollJobStatus(effectiveId);
+      } else {
+        imageGenState.value = {
+          type: 'error',
+          message: 'Fehler beim Generieren'
+        };
+        showToast('Fehler bei der Bild-Generierung', 'error');
+      }
     }
   } catch (e) {
-    console.error(e);
     stopGenTimer();
     isGeneratingImage.value = false;
     imageGenState.value = {
       type: 'error',
       message: 'Netzwerkfehler'
     };
+    showToast('Netzwerkfehler', 'error');
   }
 };
 
@@ -1709,5 +1864,158 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: #64748b;
   margin: 0.25rem 0 0 0;
+}
+
+.flashtext-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.btn-magic-extract {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-magic-extract:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+}
+
+.btn-magic-extract:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.btn-small-extract {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0284c7;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.subtags-section-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #334155;
+  margin-bottom: 0.4rem;
+}
+
+.active-cat-name {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.subtags-category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.subtag-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.subtag-chip-btn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.subtag-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.custom-tags-bar {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+}
+
+.custom-tags-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+}
+
+.selected-tags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.active-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1d4ed8;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.remove-tag-cross {
+  background: transparent;
+  border: none;
+  color: #93c5fd;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.remove-tag-cross:hover {
+  color: #1e3a8a;
+}
+
+.no-tags-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
 }
 </style>
