@@ -152,7 +152,6 @@
           </tbody>
         </table>
       </div>
-    </div>
     </div> <!-- End dashboard-main -->
 
     <div class="preview-panel" v-if="selectedArticle">
@@ -191,10 +190,10 @@
         <div class="preview-takeaways" v-if="selectedArticle.keyTakeaways">
           <strong>Kernpunkte:</strong>
           <ul style="padding-left: 1.2rem; margin: 0.5rem 0 0 0;">
-            <li v-for="point in selectedArticle.keyTakeaways.split(/(?:\n|[,;]?\s*(?:•|-|\d+\.)\s+)/).filter(p => p.trim())" :key="point">{{ point.trim() }}</li>
+            <li v-for="point in parseKeyTakeaways(selectedArticle.keyTakeaways)" :key="point">{{ point }}</li>
           </ul>
         </div>
-        <div class="preview-meta">{{ selectedArticle.author }}</div>
+        <div class="preview-meta">{{ selectedArticle.author }} • {{ estimateReadingTime(selectedArticle.content) }}</div>
         <div class="preview-body">{{ selectedArticle.content }}</div>
       </div>
       <div class="preview-actions">
@@ -274,6 +273,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { parseKeyTakeaways, estimateReadingTime } from '@wb-news/shortform-news';
 
 const articles = ref([]);
 const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
