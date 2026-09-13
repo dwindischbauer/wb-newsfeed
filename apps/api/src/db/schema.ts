@@ -51,6 +51,14 @@ export const articleTags = pgTable('article_tags', {
   createdAt: timestamp('created_at').defaultNow()
 });
 
+export const comments = pgTable('comments', {
+  id: serial('id').primaryKey(),
+  articleId: integer('article_id').notNull().references(() => articles.id, { onDelete: 'cascade' }),
+  authorName: varchar('author_name', { length: 60 }).notNull().default('Anonym'),
+  text: text('text').notNull(),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
 export const analyticsEvents = pgTable('analytics_events', {
   id: serial('id').primaryKey(),
   eventType: varchar('event_type', { length: 50 }).notNull(),
