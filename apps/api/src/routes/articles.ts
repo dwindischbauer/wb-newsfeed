@@ -513,7 +513,12 @@ export default async function (server: FastifyInstance) {
       return { success: false, article: newArticle[0], jobId: jobIdStr, error: 'Job enqueuing failed' };
     }
   });
-}
+
+  // Synchronous article creation: takes raw content, runs it straight through
+  // AI summarization (title/category/tags/teaser/keyTakeaways) and, optionally,
+  // cover image generation, then returns everything in one response — no job
+  // polling required. Same inputs/behaviour as creating an article in the
+  // admin dashboard, just synchronous and API-first.
   server.post('/api/articles/generate', async (request, reply) => {
     const body = (request.body as any) || {};
     const content = body.content;
@@ -523,6 +528,8 @@ export default async function (server: FastifyInstance) {
       return { success: false, error: 'content (min. 10 Zeichen) wird benötigt' };
     }
 
+    const generateImage = body.generateImage === true || body.generateImage === 'true';
+    const imageMode: 'editorial' | 'ai' = body.imageMode === 'ai' ? 'ai' : 'editorial';
     const cleanContent = stripHtml(content);
     const requestedTitle = (body.title && body.title.trim()) || '[Auto-Titel ausstehend]';
     const requestedCategory = (body.category && body.category.trim()) || 'Auto';
@@ -530,16 +537,62 @@ export default async function (server: FastifyInstance) {
     const { summarizeArticle } = await import('../services/summarizer');
     const summary = await summarizeArticle(cleanContent, requestedTitle, requestedCategory);
 
-    const inserted = await db.insert(articles).values({
-      title: summary.title,
-      content: cleanContent,
-      teaser: summary.teaser,
-      keyTakeaways: summary.keyTakeaways,
-      author: body.author || 'API',
-      category: summary.category,
-      status: body.status || 'published'
-    }).returning();
+    const finalTags = (body.tags && Array.isArray(body.tags) && body.tags.length > 0)
+      ? body.tags
+      : summary.tags;
 
-    return { success: true, article: inserted[0], summary };
+    let createdArticle: any;
+    try {
+      const inserted = await db.insert(articles).values({
+        title: summary.title,
+        content: cleanContent,
+        teaser: summary.teaser,
+        keyTakeaways: summary.keyTakeaways,
+        author: body.author || 'API',
+        category: summary.category,
+        status: body.status || 'published'
+      }).returning();
+
+      createdArticle = inserted[0];
+      await syncArticleTags(createdArticle.id, finalTags);
+    } catch (e: any) {
+      reply.status(500);
+      return { success: false, error: `Konnte Artikel nicht anlegen: ${e.message}` };
+    }
+
+    let imagePath: string | null = null;
+    if (generateImage) {
+      const tagNames = finalTags.map((t: any) => typeof t === 'string' ? t : t.name);
+      imagePath = await generateArticleImage(
+        createdArticle.title,
+        createdArticle.category,
+        createdArticle.id,
+        createdArticle.teaser,
+        tagNames,
+        imageMode
+      );
+      if (imagePath) {
+        await db.update(articles).set({ imageUrl: imagePath }).where(eq(articles.id, createdArticle.id));
+      }
+    }
+
+    const tagsMap = await getTagsForArticles([createdArticle.id]);
+    const finalArticleTags = tagsMap.get(createdArticle.id) || [];
+    inMemoryArticles.set(createdArticle.id, { ...createdArticle, imageUrl: imagePath, tags: finalArticleTags });
+
+    return {
+      success: true,
+      article: {
+        ...createdArticle,
+        imageUrl: imagePath,
+        tags: finalArticleTags
+      },
+      imagePath,
+      summary: {
+        teaser: summary.teaser,
+        keyTakeaways: summary.keyTakeaways,
+        source: summary.source
+      }
+    };
   });
 }
