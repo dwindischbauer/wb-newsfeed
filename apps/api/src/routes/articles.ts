@@ -514,3 +514,32 @@ export default async function (server: FastifyInstance) {
     }
   });
 }
+  server.post('/api/articles/generate', async (request, reply) => {
+    const body = (request.body as any) || {};
+    const content = body.content;
+
+    if (!content || typeof content !== 'string' || content.trim().length < 10) {
+      reply.status(400);
+      return { success: false, error: 'content (min. 10 Zeichen) wird benötigt' };
+    }
+
+    const cleanContent = stripHtml(content);
+    const requestedTitle = (body.title && body.title.trim()) || '[Auto-Titel ausstehend]';
+    const requestedCategory = (body.category && body.category.trim()) || 'Auto';
+
+    const { summarizeArticle } = await import('../services/summarizer');
+    const summary = await summarizeArticle(cleanContent, requestedTitle, requestedCategory);
+
+    const inserted = await db.insert(articles).values({
+      title: summary.title,
+      content: cleanContent,
+      teaser: summary.teaser,
+      keyTakeaways: summary.keyTakeaways,
+      author: body.author || 'API',
+      category: summary.category,
+      status: body.status || 'published'
+    }).returning();
+
+    return { success: true, article: inserted[0], summary };
+  });
+}
