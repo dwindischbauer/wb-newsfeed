@@ -23,6 +23,25 @@ export default async function (server: FastifyInstance) {
     return { success: true, likeCount: updated[0].likeCount };
   });
 
+  // --- Shares ---
+  server.post('/api/articles/:id/share', async (request, reply) => {
+    const id = parseInt((request.params as any).id, 10);
+    if (Number.isNaN(id)) {
+      reply.status(400);
+      return { success: false, error: 'Invalid article ID' };
+    }
+    const updated = await db.update(articles)
+      .set({ shareCount: sql`${articles.shareCount} + 1` })
+      .where(eq(articles.id, id))
+      .returning({ shareCount: articles.shareCount });
+
+    if (updated.length === 0) {
+      reply.status(404);
+      return { success: false, error: 'Article not found' };
+    }
+    return { success: true, shareCount: updated[0].shareCount };
+  });
+
   server.post('/api/articles/:id/unlike', async (request, reply) => {
     const id = parseInt((request.params as any).id, 10);
     if (Number.isNaN(id)) {
