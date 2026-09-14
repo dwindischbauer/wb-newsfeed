@@ -362,7 +362,7 @@ async function generateSvgCard(title: string, category: string, articleId: numbe
     const escapedTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const escapedCategory = category.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="${c1}" />
@@ -373,8 +373,8 @@ async function generateSvgCard(title: string, category: string, articleId: numbe
       <stop offset="100%" stop-color="#000000" stop-opacity="0.6" />
     </radialGradient>
   </defs>
-  <rect width="1200" height="675" fill="url(#bgGrad)" />
-  <rect width="1200" height="675" fill="url(#highlight)" />
+  <rect width="1080" height="1920" fill="url(#bgGrad)" />
+  <rect width="1080" height="1920" fill="url(#highlight)" />
   <circle cx="1050" cy="180" r="300" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="80" />
   <rect x="80" y="80" width="180" height="42" rx="21" fill="rgba(255,255,255,0.2)" />
   <text x="170" y="107" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">${escapedCategory.toUpperCase()}</text>
