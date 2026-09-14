@@ -418,5 +418,5 @@ function buildEnhancedImagePrompt(
     sceneSubject = `${category} news event, authentic contemporary editorial news scene, high architectural quality`;
   }
 
-  return `Award-winning editorial news photography of ${sceneSubject}. Documentary photojournalism style, shot on Leica 35mm lens, natural lighting, highly detailed, photorealistic, 8k resolution.`;
+  return `Award-winning editorial news photography of ${sceneSubject}. Vertical portrait orientation, 9:16 aspect ratio, full-bleed mobile smartphone framing, subject composed for a tall vertical frame. Documentary photojournalism style, shot on Leica 35mm lens, natural lighting, highly detailed, photorealistic, 8k resolution.`;
 }
