@@ -2,7 +2,6 @@ import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { db } from '../db';
 import { jobs, articles, settings, tags, articleTags } from '../db/schema';
-import { getSettings } from '../utils/settings';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
@@ -51,76 +50,23 @@ export const worker = new Worker('generation_jobs', async job => {
     const article = articleRes[0];
 
     if (job.name === 'teaser_generation' || job.name === 'full_generation') {
-      // Query existing tags to provide to AI
-      const existingTags = await db.select().from(tags);
-      const existingTagNames = existingTags.map(t => t.name);
-      const tagsHint = existingTagNames.length > 0 ? `[${existingTagNames.join(', ')}]` : '[Innenpolitik, Außenpolitik, Wirtschaft, Technologie, Kultur, Sport, Chronik, Klima]';
+      const { summarizeArticle } = await import('../services/summarizer');
+      const resultObj = await summarizeArticle(article.content, article.title, article.category);
 
-      const promptText = `Du bist ein erfahrener Nachrichten-Redakteur. Analysiere den folgenden Artikel.
-Antworte exakt im JSON Format mit folgenden Feldern:
-- "title": Ein passender, kurzer, knackiger Titel für den Artikel (max. 60 Zeichen). Falls der aktuelle Titel nicht "[Auto-Titel ausstehend]" ist, kopiere den aktuellen Titel.
-- "category": Ordne den Artikel genau einer dieser Kategorien zu: [Politik, Wirtschaft, Sport, Technologie, Kultur]. Falls die aktuelle Kategorie nicht "Auto" ist, kopiere die aktuelle Kategorie.
-- "tags": Ein JSON-Array mit 1 bis 3 passenden Schlagwörtern (z.B. ["Innenpolitik", "Nationalrat"] oder ["Außenpolitik", "Diplomatie"]). Wähle nach Möglichkeit aus den bestehenden Tags: ${tagsHint}.
-- "teaser": Maximal 3 Sätze Zusammenfassung für einen Social-Media Newsfeed.
-- "keyTakeaways": 3 wichtigste Stichpunkte als ein String, getrennt durch Bullet-Points (•).
-
-Aktueller Titel: ${article.title}
-Aktuelle Kategorie: ${article.category}
-
-Hier ist der Artikel:
-${article.content}`;
-
-      const settingsMap = await getSettings();
-      
-      const ollamaUrl = settingsMap['ollamaUrl'] || 'http://localhost:11434';
-      const aiModel = settingsMap['aiModel'] || 'llama3.1:8b-instruct-q4_0';
-      const timeoutMs = parseInt(settingsMap['timeout'] || '120000', 10);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(`${ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: aiModel,
-          prompt: promptText,
-          stream: false,
-          format: 'json'
-        }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Ollama API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      let resultObj: any;
-      try {
-        resultObj = JSON.parse(data.response);
-      } catch (e) {
-        resultObj = { teaser: data.response, keyTakeaways: '' };
-      }
-      
-      const finalTitle = resultObj.title && resultObj.title !== '[Auto-Titel ausstehend]' ? resultObj.title : article.title;
-      const finalCategory = resultObj.category && resultObj.category !== 'Auto' ? resultObj.category : article.category;
-
-      await db.update(articles).set({ 
-        title: finalTitle,
-        category: finalCategory,
+      await db.update(articles).set({
+        title: resultObj.title,
+        category: resultObj.category,
         teaser: resultObj.teaser,
-        keyTakeaways: resultObj.keyTakeaways 
+        keyTakeaways: resultObj.keyTakeaways
       }).where(eq(articles.id, articleId));
 
       // Auto-assign tags returned by AI
-      if (resultObj.tags && Array.isArray(resultObj.tags) && resultObj.tags.length > 0) {
+      if (resultObj.tags.length > 0) {
+        const existingTags = await db.select().from(tags);
         for (const tagName of resultObj.tags) {
-          if (typeof tagName !== 'string' || !tagName.trim()) continue;
           const trimmed = tagName.trim();
-          
+          if (!trimmed) continue;
+
           let tagId: number;
           const existing = existingTags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
           if (existing) {
