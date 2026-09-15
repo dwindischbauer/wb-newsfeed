@@ -1,7 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { db } from '../db';
-import { jobs, articles, settings } from '../db/schema';
+import { jobs, articles, settings, tags, articleTags } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
@@ -43,10 +43,16 @@ export const worker = new Worker('generation_jobs', async job => {
     const article = articleRes[0];
 
     if (job.name === 'teaser_generation' || job.name === 'full_generation') {
+      // Query existing tags to provide to AI
+      const existingTags = await db.select().from(tags);
+      const existingTagNames = existingTags.map(t => t.name);
+      const tagsHint = existingTagNames.length > 0 ? `[${existingTagNames.join(', ')}]` : '[Innenpolitik, Außenpolitik, Wirtschaft, Technologie, Kultur, Sport, Chronik, Klima]';
+
       const promptText = `Du bist ein erfahrener Nachrichten-Redakteur. Analysiere den folgenden Artikel.
 Antworte exakt im JSON Format mit folgenden Feldern:
 - "title": Ein passender, kurzer, knackiger Titel für den Artikel (max. 60 Zeichen). Falls der aktuelle Titel nicht "[Auto-Titel ausstehend]" ist, kopiere den aktuellen Titel.
 - "category": Ordne den Artikel genau einer dieser Kategorien zu: [Politik, Wirtschaft, Sport, Technologie, Kultur]. Falls die aktuelle Kategorie nicht "Auto" ist, kopiere die aktuelle Kategorie.
+- "tags": Ein JSON-Array mit 1 bis 3 passenden Schlagwörtern (z.B. ["Innenpolitik", "Nationalrat"] oder ["Außenpolitik", "Diplomatie"]). Wähle nach Möglichkeit aus den bestehenden Tags: ${tagsHint}.
 - "teaser": Maximal 3 Sätze Zusammenfassung für einen Social-Media Newsfeed.
 - "keyTakeaways": 3 wichtigste Stichpunkte als ein String, getrennt durch Bullet-Points (•).
 
@@ -85,7 +91,7 @@ ${article.content}`;
       }
       
       const data = await response.json();
-      let resultObj;
+      let resultObj: any;
       try {
         resultObj = JSON.parse(data.response);
       } catch (e) {
@@ -101,6 +107,30 @@ ${article.content}`;
         teaser: resultObj.teaser,
         keyTakeaways: resultObj.keyTakeaways 
       }).where(eq(articles.id, articleId));
+
+      // Auto-assign tags returned by AI
+      if (resultObj.tags && Array.isArray(resultObj.tags) && resultObj.tags.length > 0) {
+        for (const tagName of resultObj.tags) {
+          if (typeof tagName !== 'string' || !tagName.trim()) continue;
+          const trimmed = tagName.trim();
+          
+          let tagId: number;
+          const existing = existingTags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
+          if (existing) {
+            tagId = existing.id;
+          } else {
+            const slug = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `tag-${Date.now()}`;
+            const inserted = await db.insert(tags).values({ name: trimmed, slug }).returning();
+            tagId = inserted[0].id;
+          }
+
+          try {
+            await db.insert(articleTags).values({ articleId, tagId });
+          } catch (e) {
+            // Already linked, ignore duplicate
+          }
+        }
+      }
     }
 
     // Refetch the updated article for image generation
@@ -112,8 +142,22 @@ ${article.content}`;
     
     if (job.name === 'full_generation' || job.name === 'image_generation') {
       try {
+        // Query assigned tags for the article to supply richer image context
+        const assignedTags = await db
+          .select({ name: tags.name })
+          .from(articleTags)
+          .innerJoin(tags, eq(articleTags.tagId, tags.id))
+          .where(eq(articleTags.articleId, articleId));
+        const tagNames = assignedTags.map(t => t.name);
+
         const { generateArticleImage } = await import('../services/imageGenerator');
-        imageUrl = await generateArticleImage(updatedArticle.title, updatedArticle.category, articleId);
+        imageUrl = await generateArticleImage(
+          updatedArticle.title, 
+          updatedArticle.category, 
+          articleId,
+          updatedArticle.teaser || undefined,
+          tagNames
+        );
         if (imageUrl) {
           await db.update(articles).set({ imageUrl }).where(eq(articles.id, articleId));
           logger.info(`Cover image generated for article ${articleId}`, { imageUrl });
