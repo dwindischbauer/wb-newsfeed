@@ -77,9 +77,6 @@
           <div class="carbon-card side-task-card">
             <div class="card-title-row">
               <div class="card-icon-title">
-                <div class="icon-bubble orange">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-                </div>
                 <div>
                   <h3 class="card-heading">Zu erledigen</h3>
                   <span class="card-subheading">Ausstehende Redaktionsaufgaben</span>
@@ -121,9 +118,6 @@
           <div class="carbon-card side-schedule-card">
             <div class="card-title-row">
               <div class="card-icon-title">
-                <div class="icon-bubble cyan">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                </div>
                 <div>
                   <h3 class="card-heading">Nächste Veröffentlichungen</h3>
                   <span class="card-subheading">Redaktions-Kalender 2026</span>
@@ -157,19 +151,12 @@
         </div>
       </div>
 
-      <!-- 2. MIDDLE SECTION: 4 KPI Cards with Waves -->
+      <!-- 2. MIDDLE SECTION: KPI Row, asymmetric -->
       <div class="kpi-grid">
-        <!-- KPI 1: Verwaltete Artikel -->
-        <div class="carbon-card kpi-card">
-          <div class="kpi-header">
-            <div>
-              <span class="kpi-label">Verwaltete Artikel</span>
-              <div class="kpi-value">{{ totalArticlesCount }}</div>
-            </div>
-            <div class="kpi-icon-pill blue">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-            </div>
-          </div>
+        <!-- KPI 1: Verwaltete Artikel — featured, larger -->
+        <div class="carbon-card kpi-card kpi-featured">
+          <span class="kpi-label">Verwaltete Artikel</span>
+          <div class="kpi-value kpi-value-xl">{{ totalArticlesCount }}</div>
           <div class="kpi-footer-text">
             <span class="text-highlight-cyan">{{ publishedArticlesCount }} im Live-Feed</span> • {{ draftCount }} Entwürfe
           </div>
@@ -177,17 +164,10 @@
 
         <!-- KPI 2: KI-Pipelines 2026 -->
         <div class="carbon-card kpi-card">
-          <div class="kpi-header">
-            <div>
-              <span class="kpi-label">KI-Pipelines 2026</span>
-              <div class="kpi-value kpi-status-text">
-                <span class="live-dot-green"></span>
-                <span>Aktiv</span>
-              </div>
-            </div>
-            <div class="kpi-icon-pill purple">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-            </div>
+          <span class="kpi-label">KI-Pipelines 2026</span>
+          <div class="kpi-value kpi-status-text">
+            <span class="live-dot-green"></span>
+            <span>Aktiv</span>
           </div>
           <div class="kpi-footer-text">
             <span>Fastify & qwen2.5:3b-instruct bereit</span>
@@ -196,15 +176,8 @@
 
         <!-- KPI 3: Nachrichten (Feed) with Cyan Wave -->
         <div class="carbon-card kpi-card has-wave">
-          <div class="kpi-header">
-            <div>
-              <span class="kpi-label">Nachrichten (Feed)</span>
-              <div class="kpi-value">{{ publishedArticlesCount }}</div>
-            </div>
-            <div class="kpi-icon-pill cyan">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            </div>
-          </div>
+          <span class="kpi-label">Nachrichten (Feed)</span>
+          <div class="kpi-value">{{ publishedArticlesCount }}</div>
           <div class="kpi-footer-text">
             <span class="text-highlight-cyan">+100%</span> Bereitstellung
           </div>
@@ -212,26 +185,19 @@
           <svg class="kpi-sparkline" viewBox="0 0 300 80" preserveAspectRatio="none">
             <defs>
               <linearGradient id="cyanSpark" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.35" />
-                <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.0" />
+                <stop offset="0%" stop-color="#6f8f1a" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="#6f8f1a" stop-opacity="0.0" />
               </linearGradient>
             </defs>
             <path d="M0,55 Q50,45 100,50 T200,28 T260,35 T300,12 L300,80 L0,80 Z" fill="url(#cyanSpark)" />
-            <path d="M0,55 Q50,45 100,50 T200,28 T260,35 T300,12" fill="none" stroke="#06b6d4" stroke-width="2.5" />
+            <path d="M0,55 Q50,45 100,50 T200,28 T260,35 T300,12" fill="none" stroke="#6f8f1a" stroke-width="2.5" />
           </svg>
         </div>
 
         <!-- KPI 4: Feed-Interaktionen with Amber Wave -->
         <div class="carbon-card kpi-card has-wave">
-          <div class="kpi-header">
-            <div>
-              <span class="kpi-label">Feed-Leserate</span>
-              <div class="kpi-value">{{ analyticsSummary.readThroughRate || '84.2%' }}</div>
-            </div>
-            <div class="kpi-icon-pill amber">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            </div>
-          </div>
+          <span class="kpi-label">Feed-Leserate</span>
+          <div class="kpi-value">{{ analyticsSummary.readThroughRate || '84.2%' }}</div>
           <div class="kpi-footer-text">
             <span>{{ analyticsSummary.totalReads }} Volltext • {{ analyticsSummary.totalImpressions }} Aufrufe</span>
           </div>
@@ -255,11 +221,8 @@
         <div class="carbon-card author-leaderboard-card">
           <div class="card-title-row">
             <div class="card-icon-title">
-              <div class="icon-bubble cyan">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1s-1-.45-1-1v-2.34c-1.87-.66-3.21-2.4-3.21-4.66V4h10v6c0 2.26-1.34 4-3.21 4.66Z"></path></svg>
-              </div>
               <div>
-                <h3 class="card-heading">Aktivste Autoren 2026</h3>
+                <h3 class="card-heading">Aktivste Autoren</h3>
                 <span class="card-subheading">Beiträge im Diplomarbeits-Semester</span>
               </div>
             </div>
@@ -291,11 +254,8 @@
         <div class="carbon-card category-distribution-card">
           <div class="card-title-row">
             <div class="card-icon-title">
-              <div class="icon-bubble purple">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-              </div>
               <div>
-                <h3 class="card-heading">Artikel nach Kategorie</h3>
+                <h3 class="card-heading">Nach Kategorie</h3>
                 <span class="card-subheading">Thematische Verteilung im Feed</span>
               </div>
             </div>
@@ -328,9 +288,6 @@
         <div class="carbon-card server-status-card">
           <div class="card-title-row">
             <div class="card-icon-title">
-              <div class="icon-bubble green">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-              </div>
               <div>
                 <h3 class="card-heading">Server & KI-Status</h3>
                 <span class="card-subheading">Infrastruktur-Metriken</span>
@@ -404,27 +361,45 @@
 
         <!-- Filter Chips (Categories) -->
         <div class="category-chips-row">
-          <button 
-            v-for="cat in categories" 
+          <button
+            v-for="cat in categories"
             :key="cat"
             :class="['carbon-chip', { active: activeCategory === cat }]"
-            @click="activeCategory = cat"
+            @click="activeCategory = cat; activeTag = null"
           >
             {{ cat }}
           </button>
         </div>
 
-        <!-- Subtag Filter Chips -->
-        <div class="subtag-chips-row" v-if="allTags && allTags.length > 0">
-          <span class="subtag-filter-label">Filter Subtags:</span>
-          <button 
+        <!-- Subtag Filter Chips: canonical subcategories for the active main category,
+             falls back to live tags from the data when "Alle" is selected -->
+        <div class="subtag-chips-row" v-if="canonicalSubtagsForActiveCategory.length > 0">
+          <span class="subtag-filter-label">Subkategorie:</span>
+          <button
             :class="['subtag-chip', { active: activeTag === null }]"
             @click="activeTag = null"
           >
             Alle
           </button>
-          <button 
-            v-for="t in allTags" 
+          <button
+            v-for="sub in canonicalSubtagsForActiveCategory"
+            :key="sub.slug"
+            :class="['subtag-chip', { active: activeTag === sub.name }]"
+            @click="activeTag = activeTag === sub.name ? null : sub.name"
+          >
+            {{ sub.name }}
+          </button>
+        </div>
+        <div class="subtag-chips-row" v-else-if="allTags && allTags.length > 0">
+          <span class="subtag-filter-label">Filter Subtags:</span>
+          <button
+            :class="['subtag-chip', { active: activeTag === null }]"
+            @click="activeTag = null"
+          >
+            Alle
+          </button>
+          <button
+            v-for="t in allTags"
             :key="t.id"
             :class="['subtag-chip', { active: activeTag === t.name }]"
             @click="activeTag = activeTag === t.name ? null : t.name"
@@ -796,12 +771,23 @@ const articles = ref([]);
 const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
 const activeCategory = ref('Alle');
 const allTags = ref([]);
+
+// Canonical subcategories (e.g. Politik -> Innenpolitik/Außenpolitik) for the active main category
+const canonicalSubtagsForActiveCategory = computed(() => CATEGORY_SUBTAGS[activeCategory.value] || []);
 const activeTag = ref(null);
 const newTagName = ref('');
 const searchQuery = ref('');
 const selectedArticle = ref(null);
 const pendingJobsCount = ref(0);
 const isExtracting = ref(false);
+
+const todayLabel = new Date().toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long' });
+const greeting = (() => {
+  const h = new Date().getHours();
+  if (h < 11) return 'Guten Morgen';
+  if (h < 18) return 'Guten Tag';
+  return 'Guten Abend';
+})();
 
 // Toast Notification
 const toastMessage = ref('');
@@ -875,7 +861,7 @@ const authorStats = computed(() => {
       role: 'Backend & KI-Architektur', 
       count: map['David Windischbauer'], 
       percent: Math.round((map['David Windischbauer'] / total) * 100), 
-      color: '#06b6d4' 
+      color: '#6f8f1a' 
     },
     { 
       name: 'Stefan Schachner', 
@@ -914,7 +900,7 @@ const categoryStats = computed(() => {
     { name: 'Politik', count: catCounts['Politik'], percent: Math.round((catCounts['Politik'] / total) * 100), color: '#ef4444' },
     { name: 'Wirtschaft', count: catCounts['Wirtschaft'], percent: Math.round((catCounts['Wirtschaft'] / total) * 100), color: '#10b981' },
     { name: 'Sport', count: catCounts['Sport'], percent: Math.round((catCounts['Sport'] / total) * 100), color: '#f59e0b' },
-    { name: 'Technologie', count: catCounts['Technologie'], percent: Math.round((catCounts['Technologie'] / total) * 100), color: '#06b6d4' },
+    { name: 'Technologie', count: catCounts['Technologie'], percent: Math.round((catCounts['Technologie'] / total) * 100), color: '#6f8f1a' },
     { name: 'Kultur', count: catCounts['Kultur'], percent: Math.round((catCounts['Kultur'] / total) * 100), color: '#d946ef' }
   ];
 });
@@ -1391,20 +1377,46 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
+/* Editorial Page Intro */
+.page-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.25rem 0.1rem 0.5rem;
+}
+
+.page-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-lime-deep);
+}
+
+.page-greeting {
+  margin: 0;
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
 /* Carbon Card Foundation */
 .carbon-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: 22px;
   padding: 1.35rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 20px rgba(20, 20, 20, 0.05);
   position: relative;
   overflow: hidden;
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
 .carbon-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(20, 20, 20, 0.14);
 }
 
 /* 1. TOP SHOWCASE GRID */
@@ -1422,7 +1434,7 @@ onMounted(() => {
 
 /* Hero Showcase Card */
 .hero-card {
-  border-radius: 16px;
+  border-radius: 28px;
   background-size: cover;
   background-position: center;
   position: relative;
@@ -1432,13 +1444,23 @@ onMounted(() => {
   justify-content: flex-end;
   border: 1px solid var(--border-subtle);
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 30px rgba(20, 20, 20, 0.12);
+}
+
+.hero-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(8, 11, 17, 0.95) 0%, rgba(8, 11, 17, 0.45) 50%, rgba(8, 11, 17, 0.2) 100%);
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0.15) 100%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1457,9 +1479,9 @@ onMounted(() => {
   gap: 0.4rem;
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
-  background: rgba(6, 182, 212, 0.15);
-  border: 1px solid rgba(6, 182, 212, 0.4);
-  color: #38bdf8;
+  background: rgba(111, 143, 26, 0.15);
+  border: 1px solid rgba(111, 143, 26, 0.4);
+  color: #5c7a14;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1470,30 +1492,30 @@ onMounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #06b6d4;
-  box-shadow: 0 0 8px #06b6d4;
+  background-color: #6f8f1a;
+  box-shadow: 0 0 8px #6f8f1a;
   animation: pulse 2s infinite;
 }
 
 .hero-category-chip {
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #f1f5f9;
+  background: rgba(20, 20, 20, 0.1);
+  border: 1px solid rgba(20, 20, 20, 0.15);
+  color: #24252a;
   font-size: 0.72rem;
   font-weight: 600;
   backdrop-filter: blur(8px);
 }
 
 .hero-content-box {
-  background: rgba(17, 22, 34, 0.85);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border: 1px solid rgba(20, 20, 20, 0.1);
+  border-radius: 20px;
   padding: 1.35rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 32px rgba(20, 20, 20, 0.10);
 }
 
 .hero-title {
@@ -1501,7 +1523,7 @@ onMounted(() => {
   font-size: 1.35rem;
   font-weight: 800;
   line-height: 1.3;
-  color: #ffffff;
+  color: #14151a;
   letter-spacing: -0.02em;
 }
 
@@ -1509,7 +1531,7 @@ onMounted(() => {
   margin: 0 0 0.85rem 0;
   font-size: 0.85rem;
   line-height: 1.5;
-  color: #cbd5e1;
+  color: #5a5b61;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1543,14 +1565,14 @@ onMounted(() => {
   align-items: center;
   gap: 0.45rem;
   padding: 0.5rem 1.1rem;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #06b6d4, #0284c7);
+  border-radius: 9999px;
+  background: #14151a;
   border: none;
-  color: #ffffff;
+  color: #d5f24e;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.35);
+  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.25);
   transition: opacity 0.2s;
 }
 
@@ -1563,10 +1585,10 @@ onMounted(() => {
   align-items: center;
   gap: 0.45rem;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f1f5f9;
+  border-radius: 9999px;
+  background: rgba(20, 20, 20, 0.08);
+  border: 1px solid rgba(20, 20, 20, 0.12);
+  color: #24252a;
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
@@ -1574,7 +1596,7 @@ onMounted(() => {
 }
 
 .hero-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(20, 20, 20, 0.14);
 }
 
 /* Top Side Column */
@@ -1607,8 +1629,8 @@ onMounted(() => {
 }
 
 .icon-bubble.cyan {
-  background: rgba(6, 182, 212, 0.15);
-  color: #22d3ee;
+  background: rgba(111, 143, 26, 0.15);
+  color: #6f8f1a;
 }
 
 .icon-bubble.orange {
@@ -1628,9 +1650,11 @@ onMounted(() => {
 
 .card-heading {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 500;
+  font-family: var(--font-accent);
+  font-style: italic;
+  color: #14151a;
 }
 
 .card-subheading {
@@ -1642,7 +1666,7 @@ onMounted(() => {
   font-size: 0.72rem;
   padding: 0.25rem 0.6rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 20, 0.05);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   font-weight: 600;
@@ -1666,7 +1690,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0.6rem 0.75rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(20, 20, 20, 0.03);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   cursor: pointer;
@@ -1674,7 +1698,7 @@ onMounted(() => {
 }
 
 .draft-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(20, 20, 20, 0.06);
   border-color: rgba(245, 158, 11, 0.3);
 }
 
@@ -1695,7 +1719,7 @@ onMounted(() => {
 
 .draft-title {
   font-size: 0.78rem;
-  color: #f1f5f9;
+  color: #24252a;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -1744,7 +1768,7 @@ onMounted(() => {
 .done-text strong {
   display: block;
   font-size: 0.82rem;
-  color: #f1f5f9;
+  color: #24252a;
 }
 
 .done-text p {
@@ -1765,7 +1789,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.85rem;
   padding: 0.55rem 0.65rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(20, 20, 20, 0.02);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   cursor: pointer;
@@ -1773,8 +1797,8 @@ onMounted(() => {
 }
 
 .schedule-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(6, 182, 212, 0.3);
+  background: rgba(20, 20, 20, 0.05);
+  border-color: rgba(111, 143, 26, 0.3);
 }
 
 .date-badge {
@@ -1785,22 +1809,22 @@ onMounted(() => {
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  background: #1a2234;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #f4f2ec;
+  border: 1px solid rgba(20, 20, 20, 0.08);
   flex-shrink: 0;
 }
 
 .date-day {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #14151a;
   line-height: 1;
 }
 
 .date-month {
   font-size: 0.58rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #6c6d73;
   margin-top: 1px;
 }
 
@@ -1812,7 +1836,7 @@ onMounted(() => {
 .schedule-title {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: #24252a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1829,11 +1853,11 @@ onMounted(() => {
 }
 
 .schedule-cat-badge {
-  color: #38bdf8;
+  color: #5c7a14;
   font-weight: 600;
 }
 
-/* 2. KPI METRICS GRID */
+/* 2. KPI METRICS GRID — asymmetric, one featured */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
@@ -1844,20 +1868,44 @@ onMounted(() => {
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .kpi-featured {
+    grid-column: span 2;
+  }
 }
 
 @media (min-width: 1024px) {
   .kpi-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  }
+  .kpi-featured {
+    grid-column: auto;
   }
 }
 
 .kpi-card {
-  padding: 1.25rem;
+  padding: 1.4rem 1.4rem 1.25rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   min-height: 120px;
+  gap: 0.6rem;
+}
+
+.kpi-featured {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+
+.kpi-featured .kpi-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.kpi-featured .kpi-footer-text {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.kpi-featured .text-highlight-cyan {
+  color: var(--accent-lime);
 }
 
 .kpi-card.has-wave {
@@ -1872,17 +1920,27 @@ onMounted(() => {
 }
 
 .kpi-label {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   font-weight: 500;
+  font-family: var(--font-accent);
+  font-style: italic;
 }
 
 .kpi-value {
   font-size: 1.75rem;
-  font-weight: 800;
-  color: #ffffff;
+  font-weight: 700;
+  color: #14151a;
   letter-spacing: -0.02em;
-  margin-top: 0.25rem;
+}
+
+.kpi-value-xl {
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 3.4rem;
+  line-height: 1;
+  color: #ffffff;
 }
 
 .kpi-status-text {
@@ -1910,8 +1968,8 @@ onMounted(() => {
 }
 
 .kpi-icon-pill.blue {
-  background: rgba(59, 130, 246, 0.12);
-  color: #60a5fa;
+  background: rgba(77, 101, 18, 0.12);
+  color: #4d6512;
 }
 
 .kpi-icon-pill.purple {
@@ -1920,8 +1978,8 @@ onMounted(() => {
 }
 
 .kpi-icon-pill.cyan {
-  background: rgba(6, 182, 212, 0.12);
-  color: #22d3ee;
+  background: rgba(111, 143, 26, 0.12);
+  color: #6f8f1a;
 }
 
 .kpi-icon-pill.amber {
@@ -1937,7 +1995,7 @@ onMounted(() => {
 }
 
 .text-highlight-cyan {
-  color: #38bdf8;
+  color: #5c7a14;
   font-weight: 600;
 }
 
@@ -1991,7 +2049,7 @@ onMounted(() => {
 .author-name {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: #24252a;
 }
 
 .author-role {
@@ -2008,7 +2066,7 @@ onMounted(() => {
 
 .author-count {
   font-weight: 600;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .author-share {
@@ -2018,7 +2076,7 @@ onMounted(() => {
 .progress-track {
   width: 100%;
   height: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 20, 0.05);
   border-radius: 9999px;
   overflow: hidden;
 }
@@ -2042,7 +2100,7 @@ onMounted(() => {
   border-radius: 9999px;
   display: flex;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
 }
 
 .segment {
@@ -2077,7 +2135,7 @@ onMounted(() => {
 
 .legend-val {
   font-weight: 600;
-  color: #ffffff;
+  color: #14151a;
 }
 
 /* Server Status */
@@ -2093,14 +2151,14 @@ onMounted(() => {
   align-items: center;
   padding: 0.75rem;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(20, 20, 20, 0.02);
   border: 1px solid var(--border-subtle);
 }
 
 .load-number {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .load-badge {
@@ -2133,13 +2191,13 @@ onMounted(() => {
 
 .hw-val {
   font-weight: 600;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .hw-track {
   width: 100%;
   height: 5px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 20, 0.05);
   border-radius: 9999px;
   overflow: hidden;
 }
@@ -2149,7 +2207,7 @@ onMounted(() => {
   border-radius: 9999px;
 }
 
-.hw-fill.cyan { background: #06b6d4; }
+.hw-fill.cyan { background: #6f8f1a; }
 .hw-fill.emerald { background: #10b981; }
 .hw-fill.purple { background: #a855f7; }
 
@@ -2177,7 +2235,7 @@ onMounted(() => {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .mgmt-subtitle {
@@ -2196,7 +2254,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(20, 20, 20, 0.03);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 0.45rem 0.85rem;
@@ -2211,7 +2269,7 @@ onMounted(() => {
   background: transparent;
   border: none;
   outline: none;
-  color: #ffffff;
+  color: #14151a;
   font-size: 0.8rem;
   width: 180px;
 }
@@ -2233,20 +2291,20 @@ onMounted(() => {
   align-items: center;
   gap: 0.45rem;
   padding: 0.55rem 1.1rem;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #06b6d4, #2563eb);
+  border-radius: 9999px;
+  background: #14151a;
   border: none;
-  color: #ffffff;
+  color: #d5f24e;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 0 14px rgba(6, 182, 212, 0.3);
+  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.2);
   transition: all 0.2s ease;
 }
 
 .carbon-btn-primary:hover {
   opacity: 0.92;
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.45);
+  box-shadow: 0 0 20px rgba(111, 143, 26, 0.45);
 }
 
 .btn-plus-icon {
@@ -2265,7 +2323,7 @@ onMounted(() => {
 .carbon-chip {
   padding: 0.35rem 0.85rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(20, 20, 20, 0.03);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   font-size: 0.76rem;
@@ -2275,16 +2333,16 @@ onMounted(() => {
 }
 
 .carbon-chip:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.07);
+  color: #14151a;
 }
 
 .carbon-chip.active {
-  background: #0284c7;
-  border-color: #38bdf8;
-  color: #ffffff;
+  background: #d5f24e;
+  border-color: #d5f24e;
+  color: #14151a;
   font-weight: 600;
-  box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 0 10px rgba(213, 242, 78, 0.5);
 }
 
 /* Subtag Chips */
@@ -2295,7 +2353,7 @@ onMounted(() => {
   flex-wrap: wrap;
   margin-bottom: 1.25rem;
   padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(20, 20, 20, 0.02);
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
 }
@@ -2307,25 +2365,26 @@ onMounted(() => {
 }
 
 .subtag-chip {
-  padding: 0.2rem 0.65rem;
-  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(20, 20, 20, 0.12);
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .subtag-chip:hover {
-  border-color: rgba(6, 182, 212, 0.4);
-  color: #ffffff;
+  border-color: rgba(111, 143, 26, 0.4);
+  color: #14151a;
 }
 
 .subtag-chip.active {
-  background: rgba(6, 182, 212, 0.15);
-  border-color: #06b6d4;
-  color: #22d3ee;
+  background: rgba(111, 143, 26, 0.15);
+  border-color: #6f8f1a;
+  color: #6f8f1a;
   font-weight: 600;
 }
 
@@ -2356,24 +2415,24 @@ onMounted(() => {
 }
 
 .carbon-table tbody tr {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(20, 20, 20, 0.02);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .carbon-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
 }
 
 .carbon-table tbody tr.row-selected {
-  background: rgba(6, 182, 212, 0.08);
-  border-left: 2px solid #06b6d4;
+  background: rgba(111, 143, 26, 0.08);
+  border-left: 2px solid #6f8f1a;
 }
 
 .carbon-table td {
   padding: 0.85rem 1rem;
   font-size: 0.82rem;
-  color: #f1f5f9;
+  color: #24252a;
   vertical-align: middle;
 }
 
@@ -2392,7 +2451,7 @@ onMounted(() => {
   height: 38px;
   border-radius: 6px;
   overflow: hidden;
-  background: #1a2234;
+  background: #f4f2ec;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2417,7 +2476,7 @@ onMounted(() => {
 
 .article-row-title {
   font-weight: 600;
-  color: #ffffff;
+  color: #14151a;
   line-height: 1.35;
 }
 
@@ -2431,7 +2490,7 @@ onMounted(() => {
   font-size: 0.65rem;
   padding: 0.1rem 0.45rem;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
   color: var(--text-secondary);
 }
 
@@ -2439,7 +2498,7 @@ onMounted(() => {
   font-size: 0.72rem;
   padding: 0.25rem 0.65rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(20, 20, 20, 0.06);
   font-weight: 600;
   display: inline-block;
 }
@@ -2447,7 +2506,7 @@ onMounted(() => {
 .table-cat-pill.cat-politik { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 .table-cat-pill.cat-wirtschaft { background: rgba(16, 185, 129, 0.15); color: #34d399; }
 .table-cat-pill.cat-sport { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.table-cat-pill.cat-technologie { background: rgba(6, 182, 212, 0.15); color: #38bdf8; }
+.table-cat-pill.cat-technologie { background: rgba(111, 143, 26, 0.15); color: #5c7a14; }
 .table-cat-pill.cat-kultur { background: rgba(217, 70, 239, 0.15); color: #e879f9; }
 
 .table-author-text {
@@ -2476,7 +2535,7 @@ onMounted(() => {
 }
 
 .table-status-badge.draft {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 20, 0.05);
   color: var(--text-muted);
 }
 
@@ -2497,7 +2556,7 @@ onMounted(() => {
 }
 
 .btn-table-action {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   color: var(--text-secondary);
@@ -2509,8 +2568,8 @@ onMounted(() => {
 }
 
 .btn-table-action:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.08);
+  color: #14151a;
 }
 
 .btn-table-action.danger {
@@ -2541,7 +2600,7 @@ onMounted(() => {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .empty-state-desc {
@@ -2558,11 +2617,11 @@ onMounted(() => {
   width: 440px;
   max-width: 90vw;
   height: 100vh;
-  background: rgba(14, 18, 29, 0.96);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-left: 1px solid var(--border-subtle);
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+  box-shadow: -10px 0 40px rgba(20, 20, 20, 0.14);
   z-index: 200;
   display: flex;
   flex-direction: column;
@@ -2586,7 +2645,7 @@ onMounted(() => {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .drawer-sync-pill {
@@ -2595,9 +2654,9 @@ onMounted(() => {
   gap: 0.35rem;
   padding: 0.2rem 0.55rem;
   border-radius: 9999px;
-  background: rgba(6, 182, 212, 0.12);
-  border: 1px solid rgba(6, 182, 212, 0.3);
-  color: #38bdf8;
+  background: rgba(111, 143, 26, 0.12);
+  border: 1px solid rgba(111, 143, 26, 0.3);
+  color: #5c7a14;
   font-size: 0.68rem;
   font-weight: 600;
 }
@@ -2612,7 +2671,7 @@ onMounted(() => {
 }
 
 .btn-drawer-close:hover {
-  color: #ffffff;
+  color: #14151a;
 }
 
 .drawer-scroll-body {
@@ -2638,7 +2697,7 @@ onMounted(() => {
 .drawer-image-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.2) 60%);
+  background: linear-gradient(to top, rgba(20, 20, 20, 0.22) 0%, rgba(20, 20, 20, 0.05) 60%);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -2657,9 +2716,9 @@ onMounted(() => {
   align-items: center;
   gap: 0.35rem;
   padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  background: rgba(17, 24, 39, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  background: rgba(20, 20, 20, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #ffffff;
   font-size: 0.72rem;
   font-weight: 600;
@@ -2668,7 +2727,7 @@ onMounted(() => {
 }
 
 .btn-glass-action:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(20, 20, 20, 0.55);
 }
 
 .btn-remove-image {
@@ -2685,7 +2744,7 @@ onMounted(() => {
   width: 100%;
   height: 180px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(20, 20, 20, 0.02);
   border: 2px dashed var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -2714,10 +2773,10 @@ onMounted(() => {
   align-items: center;
   gap: 0.35rem;
   padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  background: #0284c7;
+  border-radius: 9999px;
+  background: #14151a;
   border: none;
-  color: #ffffff;
+  color: #d5f24e;
   font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
@@ -2740,7 +2799,7 @@ onMounted(() => {
 .btn-upload-cover {
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 20, 0.05);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   font-size: 0.74rem;
@@ -2753,13 +2812,13 @@ onMounted(() => {
   gap: 0.4rem;
   font-size: 0.72rem;
   padding: 0.3rem 0.6rem;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.6);
+  border-radius: 9999px;
+  background: rgba(20, 20, 20, 0.7);
   color: #ffffff;
 }
 
 .live-image-status.status-loading {
-  color: #38bdf8;
+  color: #d5f24e;
 }
 
 .live-image-status.status-success {
@@ -2773,7 +2832,7 @@ onMounted(() => {
 .status-spinner, .mini-spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(20, 20, 20, 0.2);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -2795,9 +2854,9 @@ onMounted(() => {
   font-weight: 700;
   padding: 0.25rem 0.65rem;
   border-radius: 9999px;
-  background: #1e293b;
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: #efece3;
+  color: #5c7a14;
+  border: 1px solid rgba(92, 122, 20, 0.3);
 }
 
 .drawer-tags-wrap {
@@ -2810,7 +2869,7 @@ onMounted(() => {
   font-size: 0.7rem;
   padding: 0.2rem 0.55rem;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
 }
@@ -2819,7 +2878,7 @@ onMounted(() => {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #14151a;
   line-height: 1.35;
 }
 
@@ -2829,8 +2888,8 @@ onMounted(() => {
 }
 
 .summary-box {
-  background: rgba(6, 182, 212, 0.06);
-  border: 1px solid rgba(6, 182, 212, 0.2);
+  background: rgba(111, 143, 26, 0.06);
+  border: 1px solid rgba(111, 143, 26, 0.2);
 }
 
 .takeaways-box {
@@ -2843,7 +2902,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.78rem;
-  color: #f1f5f9;
+  color: #24252a;
   margin-bottom: 0.5rem;
 }
 
@@ -2851,7 +2910,7 @@ onMounted(() => {
   margin: 0;
   font-size: 0.8rem;
   line-height: 1.5;
-  color: #cbd5e1;
+  color: #5a5b61;
 }
 
 .takeaways-list {
@@ -2859,7 +2918,7 @@ onMounted(() => {
   padding-left: 1.2rem;
   font-size: 0.8rem;
   line-height: 1.5;
-  color: #cbd5e1;
+  color: #5a5b61;
 }
 
 .takeaways-list li {
@@ -2874,7 +2933,7 @@ onMounted(() => {
 .drawer-body-text {
   font-size: 0.82rem;
   line-height: 1.6;
-  color: #e2e8f0;
+  color: #3f4046;
   white-space: pre-line;
 }
 
@@ -2884,15 +2943,15 @@ onMounted(() => {
   gap: 0.6rem;
   padding: 1.25rem 1.5rem;
   border-top: 1px solid var(--border-subtle);
-  background: rgba(11, 15, 25, 0.95);
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .drawer-btn-secondary {
   padding: 0.5rem;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 20, 0.05);
   border: 1px solid var(--border-subtle);
-  color: #f1f5f9;
+  color: #24252a;
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -2900,7 +2959,7 @@ onMounted(() => {
 }
 
 .drawer-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 20, 20, 0.1);
 }
 
 .drawer-btn-danger {
@@ -2922,7 +2981,7 @@ onMounted(() => {
 .carbon-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(20, 20, 20, 0.18);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
@@ -2937,10 +2996,10 @@ onMounted(() => {
   max-width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  background: #111622;
+  background: #f4f2ec;
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 16px 50px rgba(20, 20, 20, 0.16);
   padding: 1.75rem;
 }
 
@@ -2955,7 +3014,7 @@ onMounted(() => {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .modal-subtitle {
@@ -2974,7 +3033,7 @@ onMounted(() => {
 }
 
 .modal-close-btn:hover {
-  color: #ffffff;
+  color: #14151a;
 }
 
 .modal-form {
@@ -3007,7 +3066,7 @@ onMounted(() => {
 }
 
 .btn-tool-sm {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   color: var(--text-secondary);
@@ -3018,22 +3077,22 @@ onMounted(() => {
 }
 
 .btn-tool-sm:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.08);
+  color: #14151a;
 }
 
 .btn-tool-ai {
-  background: rgba(6, 182, 212, 0.12);
-  border-color: rgba(6, 182, 212, 0.3);
-  color: #22d3ee;
+  background: rgba(111, 143, 26, 0.12);
+  border-color: rgba(111, 143, 26, 0.3);
+  color: #6f8f1a;
 }
 
 .form-section input, .form-section textarea, .form-section select {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(20, 20, 20, 0.03);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 0.65rem 0.85rem;
-  color: #ffffff;
+  color: #14151a;
   font-size: 0.82rem;
   font-family: inherit;
   outline: none;
@@ -3063,7 +3122,7 @@ onMounted(() => {
   gap: 0.4rem;
   padding: 0.35rem 0.7rem;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(20, 20, 20, 0.03);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   font-size: 0.74rem;
@@ -3072,13 +3131,13 @@ onMounted(() => {
 }
 
 .subtag-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(20, 20, 20, 0.07);
 }
 
 .subtag-toggle-btn.selected {
-  background: rgba(6, 182, 212, 0.15);
-  border-color: #06b6d4;
-  color: #22d3ee;
+  background: rgba(111, 143, 26, 0.15);
+  border-color: #6f8f1a;
+  color: #6f8f1a;
   font-weight: 600;
 }
 
@@ -3108,8 +3167,8 @@ onMounted(() => {
 }
 
 .modal-btn-cancel:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.05);
+  color: #14151a;
 }
 
 /* Toast Notifications */
@@ -3125,25 +3184,25 @@ onMounted(() => {
   border-radius: 10px;
   font-size: 0.82rem;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(20, 20, 20, 0.12);
   backdrop-filter: blur(12px);
 }
 
 .toast-notification.success {
   background: rgba(16, 185, 129, 0.9);
-  color: #ffffff;
+  color: #14151a;
 }
 
 .toast-notification.error {
   background: rgba(239, 68, 68, 0.9);
-  color: #ffffff;
+  color: #14151a;
 }
 
 .toast-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #ffffff;
+  background-color: #14151a;
 }
 
 /* Transitions */
