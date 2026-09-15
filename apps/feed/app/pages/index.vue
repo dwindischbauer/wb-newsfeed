@@ -118,6 +118,34 @@ const activeReaderArticle = ref(null);
 const activeCategory = ref('⭐ Für dich');
 const activeTagFilter = ref('');
 const likedArticleIds = ref<number[]>([]);
+const shareToast = ref<string | null>(null);
+let shareToastTimer: any = null;
+
+const showToast = (msg: string) => {
+  shareToast.value = msg;
+  if (shareToastTimer) clearTimeout(shareToastTimer);
+  shareToastTimer = setTimeout(() => { shareToast.value = null; }, 2600);
+};
+
+const handleShare = async (article: any) => {
+  if (!article) return;
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareData = {
+    title: article.title,
+    text: article.teaser || article.title,
+    url: shareUrl
+  };
+  if (typeof navigator !== 'undefined' && (navigator as any).share) {
+    try {
+      await (navigator as any).share(shareData);
+      showToast('Erfolgreich geteilt!');
+    } catch (e: any) {
+      if (e.name !== 'AbortError') showToast('Link in Zwischenablage kopiert');
+    }
+  } else {
+    showToast('Link in Zwischenablage kopiert');
+  }
+};
 
 const handleLike = async (article: any) => {
   if (!article || !article.id) return;
