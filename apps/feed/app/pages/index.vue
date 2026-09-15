@@ -117,6 +117,23 @@ const articles = ref([]);
 const activeReaderArticle = ref(null);
 const activeCategory = ref('⭐ Für dich');
 const activeTagFilter = ref('');
+const likedArticleIds = ref<number[]>([]);
+
+const handleLike = async (article: any) => {
+  if (!article || !article.id) return;
+  if (!likedArticleIds.value.includes(article.id)) {
+    likedArticleIds.value.push(article.id);
+    article.likeCount = (article.likeCount || 0) + 1;
+    await fetch(`${config.public.apiUrl}/api/articles/${article.id}/like`, { method: 'POST' }).catch(() => {});
+  }
+};
+
+const handleUnlike = async (article: any) => {
+  if (!article || !article.id) return;
+  likedArticleIds.value = likedArticleIds.value.filter(id => id !== article.id);
+  article.likeCount = Math.max(0, (article.likeCount || 0) - 1);
+  await fetch(`${config.public.apiUrl}/api/articles/${article.id}/unlike`, { method: 'POST' }).catch(() => {});
+};
 const categories = ['⭐ Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
 
 // User Interest Model (Stored locally, privacy-first)
