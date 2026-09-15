@@ -47,21 +47,26 @@
 </template>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap');
+
 :root {
-  --bg-main: #080b11;
-  --bg-card: #111622;
-  --bg-card-subtle: #141a29;
-  --bg-card-hover: #171f30;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(6, 182, 212, 0.4);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-cyan: #06b6d4;
-  --accent-cyan-glow: rgba(6, 182, 212, 0.25);
+  --bg-main: #f3f1ea;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f7f5ee;
+  --bg-card-hover: #f0eee4;
+  --border-subtle: rgba(20, 20, 20, 0.08);
+  --border-focus: rgba(111, 143, 26, 0.45);
+  --text-primary: #14151a;
+  --text-secondary: #6c6d73;
+  --text-muted: #9a9b93;
+  --accent-lime: #d5f24e;
+  --accent-lime-deep: #6f8f1a;
+  --accent-lime-glow: rgba(111, 143, 26, 0.25);
+  --accent-ink: #14151a;
   --accent-emerald: #10b981;
   --accent-amber: #f59e0b;
   --accent-purple: #a855f7;
+  --font-accent: 'Fraunces', Georgia, serif;
 }
 
 * {
@@ -73,7 +78,7 @@ body {
   padding: 0;
   background-color: var(--bg-main);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -86,7 +91,7 @@ body {
 }
 
 .app-header {
-  background: rgba(12, 16, 26, 0.85);
+  background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-subtle);
@@ -109,12 +114,12 @@ body {
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  background: var(--accent-ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35);
+  color: var(--accent-lime);
+  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.18);
 }
 
 .brand-text {
@@ -126,7 +131,7 @@ body {
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .brand-subtitle {
@@ -139,7 +144,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-card-subtle);
   padding: 0.3rem;
   border-radius: 9999px;
   border: 1px solid var(--border-subtle);
@@ -159,14 +164,14 @@ body {
 }
 
 .nav-pill:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  background: rgba(20, 20, 20, 0.05);
 }
 
 .nav-pill.router-link-active {
-  background: #1e293b;
-  color: #38bdf8;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: var(--accent-ink);
+  color: var(--accent-lime);
+  box-shadow: 0 2px 8px rgba(20, 20, 20, 0.2);
   font-weight: 600;
 }
 
@@ -182,9 +187,9 @@ body {
   gap: 0.45rem;
   padding: 0.45rem 0.95rem;
   border-radius: 8px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #34d399;
+  background: rgba(111, 143, 26, 0.1);
+  border: 1px solid rgba(111, 143, 26, 0.3);
+  color: var(--accent-lime-deep);
   font-size: 0.78rem;
   font-weight: 600;
   text-decoration: none;
@@ -192,9 +197,9 @@ body {
 }
 
 .live-feed-btn:hover {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: rgba(16, 185, 129, 0.5);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+  background: rgba(111, 143, 26, 0.18);
+  border-color: rgba(111, 143, 26, 0.5);
+  box-shadow: 0 0 12px rgba(111, 143, 26, 0.2);
 }
 
 .pulse-dot {
