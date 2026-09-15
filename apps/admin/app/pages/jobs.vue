@@ -153,9 +153,9 @@ onUnmounted(() => {
 .jobs-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: 22px;
   padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 20px rgba(20, 20, 20, 0.08);
 }
 
 .header {
@@ -171,7 +171,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #14151a;
 }
 
 .page-subtitle {
@@ -190,8 +190,8 @@ onUnmounted(() => {
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.04);
+  color: #14151a;
   font-size: 0.82rem;
   outline: none;
 }
@@ -205,20 +205,20 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #06b6d4, #2563eb);
+  border-radius: 9999px;
+  background: #14151a;
   border: none;
-  color: #ffffff;
+  color: #d5f24e;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.2);
   transition: all 0.2s;
 }
 
 .carbon-btn-primary:hover {
   opacity: 0.92;
-  box-shadow: 0 0 18px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 6px 18px rgba(20, 20, 20, 0.28);
 }
 
 .table-responsive {
@@ -245,19 +245,19 @@ onUnmounted(() => {
 .carbon-table td {
   padding: 0.85rem 1rem;
   font-size: 0.82rem;
-  color: #f1f5f9;
-  background: rgba(255, 255, 255, 0.02);
+  color: #24252a;
+  background: rgba(20, 20, 20, 0.02);
   vertical-align: middle;
 }
 
 .carbon-table tbody tr:hover td {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
 }
 
 .font-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.8rem;
-  color: #38bdf8;
+  color: #5c7a14;
 }
 
 .job-type-pill {
@@ -265,8 +265,8 @@ onUnmounted(() => {
   font-weight: 600;
   padding: 0.2rem 0.55rem;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #e2e8f0;
+  background: rgba(20, 20, 20, 0.05);
+  color: #3f4046;
 }
 
 .article-id-pill {
@@ -299,10 +299,10 @@ onUnmounted(() => {
 .status-badge.pending .badge-dot { background: #fbbf24; }
 
 .status-badge.processing {
-  background: rgba(6, 182, 212, 0.15);
-  color: #38bdf8;
+  background: rgba(111, 143, 26, 0.15);
+  color: #5c7a14;
 }
-.status-badge.processing .badge-dot { background: #38bdf8; }
+.status-badge.processing .badge-dot { background: #5c7a14; }
 
 .status-badge.completed {
   background: rgba(16, 185, 129, 0.15);
@@ -329,7 +329,7 @@ onUnmounted(() => {
 }
 
 .carbon-action-btn {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(20, 20, 20, 0.04);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   color: var(--text-secondary);
@@ -341,8 +341,8 @@ onUnmounted(() => {
 }
 
 .carbon-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.08);
+  color: #14151a;
 }
 
 .carbon-action-btn.danger {
