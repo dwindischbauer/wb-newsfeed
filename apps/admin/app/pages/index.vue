@@ -9,6 +9,12 @@
     </transition>
 
     <div class="dashboard-container">
+      <!-- 0. EDITORIAL PAGE HEADER -->
+      <div class="page-intro">
+        <span class="page-eyebrow">{{ todayLabel }}</span>
+        <h1 class="page-greeting">{{ greeting }}, Redaktion.</h1>
+      </div>
+
       <!-- 1. TOP SECTION: Hero Story Showcase + Tasks & Schedule -->
       <div class="top-showcase-grid">
         <!-- Hero Story Card (Left 2/3) -->
