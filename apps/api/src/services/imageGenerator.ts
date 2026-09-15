@@ -21,117 +21,133 @@ interface EditorialImageEntry {
 const EDITORIAL_PHOTO_LIBRARY: Record<string, EditorialImageEntry[]> = {
   // Politik
   'innenpolitik': [
-    { id: 'parliament-1', url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=85', caption: 'Parlament Plenarsaal' },
-    { id: 'parliament-2', url: 'https://images.unsplash.com/photo-1575320181282-9afab399332c?auto=format&fit=crop&w=1200&q=85', caption: 'Rednerpult Pressekonferenz' },
-    { id: 'parliament-3', url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=85', caption: 'Regierungsgebäude' }
+    { id: 'parliament-1', url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Parlament Plenarsaal' },
+    { id: 'parliament-2', url: 'https://images.unsplash.com/photo-1575320181282-9afab399332c?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Rednerpult Pressekonferenz' },
+    { id: 'parliament-3', url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Regierungsgebäude' }
   ],
   'aussenpolitik': [
-    { id: 'summit-1', url: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=85', caption: 'Internationale Staatengemeinschaft' },
-    { id: 'summit-2', url: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=85', caption: 'Diplomatisches Gipfeltreffen' }
+    { id: 'summit-1', url: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Internationale Staatengemeinschaft' },
+    { id: 'summit-2', url: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Diplomatisches Gipfeltreffen' }
   ],
   'eu-politik': [
-    { id: 'eu-1', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=85', caption: 'Europäische Institutionen' },
-    { id: 'eu-2', url: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=85', caption: 'Europapolitik Brüssel' }
+    { id: 'eu-1', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Europäische Institutionen' },
+    { id: 'eu-2', url: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Europapolitik Brüssel' }
   ],
   'wahlen': [
-    { id: 'vote-1', url: 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=1200&q=85', caption: 'Wahlurne und Stimmabgabe' }
+    { id: 'vote-1', url: 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Wahlurne und Stimmabgabe' }
   ],
   'justiz-recht': [
-    { id: 'law-1', url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=85', caption: 'Justizpalast & Gerichtsbarkeit' }
+    { id: 'law-1', url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Justizpalast & Gerichtsbarkeit' }
   ],
   'Politik': [
-    { id: 'pol-default-1', url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=85', caption: 'Politische Berichterstattung' },
-    { id: 'pol-default-2', url: 'https://images.unsplash.com/photo-1575320181282-9afab399332c?auto=format&fit=crop&w=1200&q=85', caption: 'Pressekonferenz Bundespolitik' }
+    { id: 'pol-default-1', url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Politische Berichterstattung' },
+    { id: 'pol-default-2', url: 'https://images.unsplash.com/photo-1575320181282-9afab399332c?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Pressekonferenz Bundespolitik' }
   ],
 
   // Wirtschaft
   'finanzen': [
-    { id: 'fin-1', url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=85', caption: 'Bankenviertel & Finanzzentrum' },
-    { id: 'fin-2', url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=85', caption: 'Finanzmärkte & Währung' }
+    { id: 'fin-1', url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Bankenviertel & Finanzzentrum' },
+    { id: 'fin-2', url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Finanzmärkte & Währung' }
   ],
   'boerse-maerkte': [
-    { id: 'market-1', url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=85', caption: 'Börsenkurse und Handelsplätze' }
+    { id: 'market-1', url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Börsenkurse und Handelsplätze' }
   ],
   'unternehmen': [
-    { id: 'corp-1', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=85', caption: 'Unternehmenszentrale & Management' }
+    { id: 'corp-1', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Unternehmenszentrale & Management' }
   ],
   'inflation-preise': [
-    { id: 'inf-1', url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=85', caption: 'Preisstabilität und Inflation' }
+    { id: 'inf-1', url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Preisstabilität und Inflation' }
   ],
   'arbeitsmarkt': [
-    { id: 'work-1', url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1200&q=85', caption: 'Moderne Arbeitswelt & Fachkräfte' }
+    { id: 'work-1', url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Moderne Arbeitswelt & Fachkräfte' }
   ],
   'energie-rohstoffe': [
-    { id: 'energy-1', url: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=1200&q=85', caption: 'Erneuerbare Energien & Windkraft' }
+    { id: 'energy-1', url: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Erneuerbare Energien & Windkraft' }
   ],
   'Wirtschaft': [
-    { id: 'ec-default-1', url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=85', caption: 'Wirtschaftsmetropole' },
-    { id: 'ec-default-2', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=85', caption: 'Industrie & Handel' }
+    { id: 'ec-default-1', url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Wirtschaftsmetropole' },
+    { id: 'ec-default-2', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Industrie & Handel' }
   ],
 
   // Sport
   'fussball': [
-    { id: 'football-1', url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=85', caption: 'Fußballstadion Flutlicht' },
-    { id: 'football-2', url: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=1200&q=85', caption: 'Stadionarena Rasenplatz' },
-    { id: 'football-3', url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1200&q=85', caption: 'Fußball Meisterschaft' }
+    { id: 'football-1', url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Fußballstadion Flutlicht' },
+    { id: 'football-2', url: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Stadionarena Rasenplatz' },
+    { id: 'football-3', url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Fußball Meisterschaft' }
   ],
   'wintersport': [
-    { id: 'ski-1', url: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&w=1200&q=85', caption: 'Alpiner Skisport & Schneelandschaft' },
-    { id: 'ski-2', url: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1200&q=85', caption: 'Winter-Bergpanorama' }
+    { id: 'ski-1', url: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Alpiner Skisport & Schneelandschaft' },
+    { id: 'ski-2', url: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Winter-Bergpanorama' }
   ],
   'formel-1': [
-    { id: 'f1-1', url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=85', caption: 'Motorsport Rennstrecke' },
-    { id: 'f1-2', url: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=85', caption: 'Grand Prix Rennkurs' }
+    { id: 'f1-1', url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Motorsport Rennstrecke' },
+    { id: 'f1-2', url: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Grand Prix Rennkurs' }
   ],
   'tennis': [
-    { id: 'tennis-1', url: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1200&q=85', caption: 'Tennis Center Court' }
+    { id: 'tennis-1', url: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Tennis Center Court' }
+  ],
+  'schwimmen': [
+    { id: 'swim-1', url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Schwimmwettkampf Schmetterlingsstil' },
+    { id: 'swim-2', url: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Freistilschwimmerin im Becken' }
   ],
   'Sport': [
-    { id: 'sp-default-1', url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=85', caption: 'Sportarena & Wettkampf' },
-    { id: 'sp-default-2', url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=85', caption: 'Stadion Atmosphäre' }
+    { id: 'sp-default-1', url: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Leichtathletik Startblock' },
+    { id: 'sp-default-2', url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Stadion Atmosphäre' }
   ],
 
   // Technologie
   'ki-algorithmen': [
-    { id: 'ai-1', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=85', caption: 'Künstliche Intelligenz & Datenmatrix' },
-    { id: 'ai-2', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=85', caption: 'Neuronale Netzwerke & Cloud-Verbund' }
+    { id: 'ai-1', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Künstliche Intelligenz & Datenmatrix' },
+    { id: 'ai-2', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Neuronale Netzwerke & Cloud-Verbund' }
   ],
   'software-cloud': [
-    { id: 'sw-1', url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=85', caption: 'Softwareentwicklung & Quellcode' },
-    { id: 'sw-2', url: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=1200&q=85', caption: 'Cloud-Infrastruktur & Monitore' }
+    { id: 'sw-1', url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Softwareentwicklung & Quellcode' },
+    { id: 'sw-2', url: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Cloud-Infrastruktur & Monitore' }
   ],
   'cybersecurity': [
-    { id: 'sec-1', url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=85', caption: 'Cyber-Security & Datensicherheit' }
+    { id: 'sec-1', url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Cyber-Security & Datensicherheit' }
   ],
   'hardware-chips': [
-    { id: 'hw-1', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=85', caption: 'Halbleiter & Mikroprozessor' }
+    { id: 'hw-1', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Halbleiter & Mikroprozessor' }
   ],
   'Technologie': [
-    { id: 'tech-default-1', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=85', caption: 'High-Tech Hardware' },
-    { id: 'tech-default-2', url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=85', caption: 'Digitale Technologien' }
+    { id: 'tech-default-1', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'High-Tech Hardware' },
+    { id: 'tech-default-2', url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Digitale Technologien' }
   ],
 
   // Kultur
   'film-kino': [
-    { id: 'film-1', url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=85', caption: 'Kinosessel & Premierenbühne' }
+    { id: 'film-1', url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Kinosessel & Premierenbühne' }
   ],
   'musik': [
-    { id: 'music-1', url: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=1200&q=85', caption: 'Klassisches Konzert & Orchester' },
-    { id: 'music-2', url: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=1200&q=85', caption: 'Konzerthalle Scheinwerfer' },
-    { id: 'music-3', url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=85', caption: 'Live-Bühnenperformance' }
+    { id: 'music-1', url: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Klassisches Konzert & Orchester' },
+    { id: 'music-2', url: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Konzerthalle Scheinwerfer' },
+    { id: 'music-3', url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Live-Bühnenperformance' }
   ],
   'theater-buehne': [
-    { id: 'theater-1', url: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=1200&q=85', caption: 'Opernhaus und Festspielbühne' }
+    { id: 'theater-1', url: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Opernhaus und Festspielbühne' }
   ],
   'literatur-kunst': [
-    { id: 'art-1', url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=85', caption: 'Kunstgalerie und Ausstellung' },
-    { id: 'art-2', url: 'https://images.unsplash.com/photo-1518998053901-5348d3961a04?auto=format&fit=crop&w=1200&q=85', caption: 'Museum & Historisches Erbe' }
+    { id: 'art-1', url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Kunstgalerie und Ausstellung' },
+    { id: 'art-2', url: 'https://images.unsplash.com/photo-1518998053901-5348d3961a04?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Museum & Historisches Erbe' }
   ],
   'Kultur': [
-    { id: 'cult-default-1', url: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=1200&q=85', caption: 'Kulturinstitution & Bühne' },
-    { id: 'cult-default-2', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85', caption: 'Kulturelles Ereignis' }
+    { id: 'cult-default-1', url: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Kulturinstitution & Bühne' },
+    { id: 'cult-default-2', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1080&h=1920&q=90', caption: 'Kulturelles Ereignis' }
   ]
 };
+
+// German-aware whole-word matcher — plain .includes() false-positives on substrings
+// buried inside unrelated words (e.g. "eu" inside "Europameisterschaft", "tor" inside "Autor").
+const WORD_CHARS = 'a-zA-Z0-9äöüÄÖÜß';
+function hasWord(text: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?<![${WORD_CHARS}])${escaped}(?![${WORD_CHARS}])`, 'i');
+  return re.test(text);
+}
+function hasAny(text: string, words: string[]): boolean {
+  return words.some(w => hasWord(text, w));
+}
 
 export async function generateArticleImage(
   articleTitle: string,
@@ -188,39 +204,44 @@ async function resolveAndDownloadEditorialPhoto(
       }
     }
 
-    // Check keywords if no tag matched
+    // Check keywords if no tag matched — whole-word matching to avoid false
+    // positives like "eu" inside "Europameisterschaft" or "tor" inside "Autor".
     if (candidatePool.length === 0) {
-      if (fullText.includes('parlament') || fullText.includes('regierung') || fullText.includes('nationalrat') || fullText.includes('koalition')) {
+      if (hasAny(fullText, ['parlament', 'regierung', 'nationalrat', 'koalition'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['innenpolitik'] || [];
-      } else if (fullText.includes('diplomatie') || fullText.includes('eu') || fullText.includes('brüssel') || fullText.includes('gipfel')) {
+      } else if (hasAny(fullText, ['diplomatie', 'eu', 'brüssel', 'gipfel'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['eu-politik'] || EDITORIAL_PHOTO_LIBRARY['aussenpolitik'] || [];
-      } else if (fullText.includes('wahl') || fullText.includes('stimme')) {
+      } else if (hasAny(fullText, ['wahl', 'wahlen', 'stimme'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['wahlen'] || [];
-      } else if (fullText.includes('bank') || fullText.includes('finanz') || fullText.includes('ezb') || fullText.includes('zinsen')) {
+      } else if (hasAny(fullText, ['bank', 'finanz', 'finanzen', 'ezb', 'zinsen'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['finanzen'] || [];
-      } else if (fullText.includes('börse') || fullText.includes('aktie') || fullText.includes('dax') || fullText.includes('atx')) {
+      } else if (hasAny(fullText, ['börse', 'aktie', 'aktien', 'dax', 'atx'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['boerse-maerkte'] || [];
-      } else if (fullText.includes('energie') || fullText.includes('klima') || fullText.includes('wind') || fullText.includes('solar')) {
+      } else if (hasAny(fullText, ['energie', 'klima', 'wind', 'solar'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['energie-rohstoffe'] || [];
-      } else if (fullText.includes('fußball') || fullText.includes('fussball') || fullText.includes('bundesliga') || fullText.includes('tor')) {
+      } else if (hasAny(fullText, ['fußball', 'fussball', 'bundesliga', 'tor', 'elfmeter'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['fussball'] || [];
-      } else if (fullText.includes('ski') || fullText.includes('schnee') || fullText.includes('alpen') || fullText.includes('kitzbühel')) {
+      } else if (hasAny(fullText, ['schwimmen', 'schwimmerin', 'schwimmer', 'freistil', 'becken', 'schwimmbad'])) {
+        candidatePool = EDITORIAL_PHOTO_LIBRARY['schwimmen'] || [];
+      } else if (hasAny(fullText, ['handball', 'basketball', 'volleyball'])) {
+        candidatePool = EDITORIAL_PHOTO_LIBRARY['Sport'] || [];
+      } else if (hasAny(fullText, ['ski', 'schnee', 'alpen', 'kitzbühel'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['wintersport'] || [];
-      } else if (fullText.includes('formel 1') || fullText.includes('f1') || fullText.includes('rennen')) {
+      } else if (hasAny(fullText, ['formel', 'f1', 'rennen'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['formel-1'] || [];
-      } else if (fullText.includes('ki') || fullText.includes('künstliche intelligenz') || fullText.includes('algor') || fullText.includes('llm')) {
+      } else if (hasAny(fullText, ['ki', 'algorithmus', 'algorithmen', 'llm', 'quantencomputer'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['ki-algorithmen'] || [];
-      } else if (fullText.includes('software') || fullText.includes('cloud') || fullText.includes('app') || fullText.includes('code')) {
+      } else if (hasAny(fullText, ['software', 'cloud', 'app', 'code'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['software-cloud'] || [];
-      } else if (fullText.includes('cyber') || fullText.includes('sicherheit') || fullText.includes('hacker')) {
+      } else if (hasAny(fullText, ['cyber', 'sicherheit', 'hacker'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['cybersecurity'] || [];
-      } else if (fullText.includes('chip') || fullText.includes('hardware') || fullText.includes('halbleiter')) {
+      } else if (hasAny(fullText, ['chip', 'hardware', 'halbleiter'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['hardware-chips'] || [];
-      } else if (fullText.includes('oper') || fullText.includes('theater') || fullText.includes('festspiel') || fullText.includes('bühne')) {
+      } else if (hasAny(fullText, ['oper', 'theater', 'festspiel', 'bühne'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['theater-buehne'] || [];
-      } else if (fullText.includes('konzert') || fullText.includes('musik') || fullText.includes('orchester')) {
+      } else if (hasAny(fullText, ['konzert', 'musik', 'orchester'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['musik'] || [];
-      } else if (fullText.includes('museum') || fullText.includes('kunst') || fullText.includes('ausstellung')) {
+      } else if (hasAny(fullText, ['museum', 'kunst', 'ausstellung'])) {
         candidatePool = EDITORIAL_PHOTO_LIBRARY['literatur-kunst'] || [];
       }
     }
@@ -288,7 +309,7 @@ async function tryAiImageGeneration(
         model: imageModel,
         prompt: prompt,
         negative_prompt: negativePrompt,
-        size: "1024x1024",
+        size: "768x1344",
         response_format: "b64_json"
       }),
       signal: controller.signal
@@ -322,26 +343,39 @@ async function tryAiImageGeneration(
     logger.info(`LocalAI not reachable: ${localAiErr.message}`);
   }
 
-  // 2. Pollinations AI generation with photographic styling
-  try {
-    const cleanSubject = encodeURIComponent(`${articleCategory} news, ${articleTitle.slice(0, 50)}, editorial photography, clean lighting, 4k`);
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${cleanSubject}?width=1024&height=768&nologo=true&seed=${articleId * 37 + 11}`;
-    
-    const pollController = new AbortController();
-    const pollTimeout = setTimeout(() => pollController.abort(), 20000);
-    const pollRes = await fetch(pollinationsUrl, { signal: pollController.signal });
-    clearTimeout(pollTimeout);
+  // 2. Pollinations AI generation with photographic styling — the free public
+  // endpoint rate-limits (429) or stalls under back-to-back requests, so retry
+  // with backoff before giving up to the SVG placeholder.
+  const cleanSubject = encodeURIComponent(`${articleCategory} news, ${articleTitle.slice(0, 50)}, editorial photography, vertical portrait composition, clean lighting, 4k`);
+  const pollinationsUrl = `https://image.pollinations.ai/prompt/${cleanSubject}?width=1080&height=1920&nologo=true&seed=${articleId * 37 + 11}`;
+  const maxAttempts = 3;
 
-    if (pollRes.ok) {
-      const buffer = Buffer.from(await pollRes.arrayBuffer());
-      const filename = `article_${articleId}_${Date.now()}.jpg`;
-      const filepath = path.join(IMAGES_DIR, filename);
-      await fs.promises.writeFile(filepath, buffer);
-      logger.info(`Pollinations AI image generated and saved: ${filename}`);
-      return `/images/${filename}`;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const pollController = new AbortController();
+      const pollTimeout = setTimeout(() => pollController.abort(), 25000);
+      const pollRes = await fetch(pollinationsUrl, { signal: pollController.signal });
+      clearTimeout(pollTimeout);
+
+      if (pollRes.ok) {
+        const buffer = Buffer.from(await pollRes.arrayBuffer());
+        const filename = `article_${articleId}_${Date.now()}.jpg`;
+        const filepath = path.join(IMAGES_DIR, filename);
+        await fs.promises.writeFile(filepath, buffer);
+        logger.info(`Pollinations AI image generated and saved: ${filename} (attempt ${attempt})`);
+        return `/images/${filename}`;
+      }
+
+      logger.warn(`Pollinations AI returned non-OK status: ${pollRes.status} ${pollRes.statusText} (attempt ${attempt}/${maxAttempts})`);
+      if (pollRes.status === 429 && attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, attempt * 6000));
+      }
+    } catch (pollErr: any) {
+      logger.warn(`Pollinations AI error: ${pollErr.message} (attempt ${attempt}/${maxAttempts})`);
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, attempt * 4000));
+      }
     }
-  } catch (pollErr: any) {
-    logger.warn(`Pollinations AI error: ${pollErr.message}`);
   }
 
   return null;
@@ -362,24 +396,41 @@ async function generateSvgCard(title: string, category: string, articleId: numbe
     const escapedTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const escapedCategory = category.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+    const titleLines: string[] = [];
+    const words = escapedTitle.split(' ');
+    let currentLine = '';
+    for (const word of words) {
+      const test = currentLine ? `${currentLine} ${word}` : word;
+      if (test.length > 20 && currentLine) {
+        titleLines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = test;
+      }
+    }
+    if (currentLine) titleLines.push(currentLine);
+    const titleTspans = titleLines.slice(0, 5)
+      .map((line, i) => `<tspan x="80" dy="${i === 0 ? 0 : 58}">${line}</tspan>`)
+      .join('');
+
     const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="${c1}" />
       <stop offset="100%" stop-color="${c2}" />
     </linearGradient>
-    <radialGradient id="highlight" cx="20%" cy="20%" r="70%">
+    <radialGradient id="highlight" cx="25%" cy="15%" r="60%">
       <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15" />
       <stop offset="100%" stop-color="#000000" stop-opacity="0.6" />
     </radialGradient>
   </defs>
   <rect width="1080" height="1920" fill="url(#bgGrad)" />
   <rect width="1080" height="1920" fill="url(#highlight)" />
-  <circle cx="1050" cy="180" r="300" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="80" />
-  <rect x="80" y="80" width="180" height="42" rx="21" fill="rgba(255,255,255,0.2)" />
-  <text x="170" y="107" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">${escapedCategory.toUpperCase()}</text>
-  <text x="80" y="1500" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#ffffff">${escapedTitle}</text>
-  <text x="80" y="590" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="500" fill="rgba(255,255,255,0.75)">
+  <circle cx="900" cy="260" r="340" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="80" />
+  <rect x="80" y="120" width="200" height="46" rx="23" fill="rgba(255,255,255,0.2)" />
+  <text x="180" y="150" font-family="system-ui, -apple-system, sans-serif" font-size="17" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">${escapedCategory.toUpperCase()}</text>
+  <text x="80" y="1500" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#ffffff">${titleTspans}</text>
+  <text x="80" y="1820" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="rgba(255,255,255,0.75)">
     ORF.at Redaktion • KI Newsfeed
   </text>
 </svg>`;
@@ -399,21 +450,29 @@ function buildEnhancedImagePrompt(
   tags: string[] = []
 ): string {
   const contextWords = `${title} ${teaser || ''} ${tags.join(' ')}`.toLowerCase();
-  
+
   let sceneSubject = '';
 
-  if (contextWords.includes('parlament') || contextWords.includes('nationalrat') || contextWords.includes('regierung') || contextWords.includes('minister') || contextWords.includes('politik')) {
+  if (hasAny(contextWords, ['parlament', 'nationalrat', 'regierung', 'minister', 'politik'])) {
     sceneSubject = 'grand democratic parliament chamber, wooden speaker podium with microphones, soft daylight, formal government hall';
-  } else if (contextWords.includes('wahl') || contextWords.includes('stimme') || contextWords.includes('umfrage')) {
+  } else if (hasAny(contextWords, ['wahl', 'stimme', 'umfrage'])) {
     sceneSubject = 'election voting room with ballot boxes, paper ballots, atmospheric journalistic documentary setting';
-  } else if (contextWords.includes('inflation') || contextWords.includes('wirtschaft') || contextWords.includes('bank') || contextWords.includes('ezb') || contextWords.includes('zinsen')) {
+  } else if (hasAny(contextWords, ['inflation', 'wirtschaft', 'bank', 'ezb', 'zinsen', 'export', 'handel'])) {
     sceneSubject = 'modern financial district glass skyscrapers, busy banking headquarters, stock exchange trading floor';
-  } else if (contextWords.includes('ki') || contextWords.includes('künstliche intelligenz') || contextWords.includes('tech') || contextWords.includes('software')) {
+  } else if (hasAny(contextWords, ['ki', 'algorithmus', 'algorithmen', 'quantencomputer', 'software', 'technologie'])) {
     sceneSubject = 'advanced technology research laboratory, glowing fiber optic server racks, sleek computer workstations';
-  } else if (contextWords.includes('sport') || contextWords.includes('fussball') || contextWords.includes('fußball')) {
+  } else if (hasAny(contextWords, ['schwimmen', 'schwimmerin', 'schwimmer', 'freistil', 'becken'])) {
+    sceneSubject = 'competitive swimmer racing in an Olympic pool lane, dynamic splash of water, underwater lane markers, athletic motion';
+  } else if (hasAny(contextWords, ['handball', 'basketball', 'volleyball'])) {
+    sceneSubject = 'packed indoor sports arena, polished hardwood court, dramatic overhead floodlights, cheering crowd stands';
+  } else if (hasAny(contextWords, ['fussball', 'fußball', 'sport'])) {
     sceneSubject = 'grand illuminated football stadium pitch, evening floodlights, pristine green grass';
-  } else if (contextWords.includes('ski') || contextWords.includes('schnee') || contextWords.includes('alpen')) {
+  } else if (hasAny(contextWords, ['ski', 'schnee', 'alpen'])) {
     sceneSubject = 'alpine mountain peaks covered in fresh white powder snow, high alpine ski slope in bright morning sunlight';
+  } else if (hasAny(contextWords, ['musik', 'konzert', 'orchester', 'festival'])) {
+    sceneSubject = 'atmospheric concert hall stage, dramatic stage lighting, live performance energy';
+  } else if (hasAny(contextWords, ['gesundheit', 'pflege', 'medizin', 'krankenhaus', 'klinik'])) {
+    sceneSubject = 'modern hospital or care facility, clean clinical environment, compassionate healthcare setting';
   } else {
     sceneSubject = `${category} news event, authentic contemporary editorial news scene, high architectural quality`;
   }
