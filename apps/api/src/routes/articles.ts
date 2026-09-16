@@ -4,6 +4,8 @@ import { articles, jobs, tags, articleTags } from '../db/schema';
 import { eq, desc, inArray, and } from 'drizzle-orm';
 import { stripHtml } from '../utils/format';
 import { generationQueue } from '../queue';
+import { autoExtractArticleMetadata } from '../utils/metadata';
+import { generateArticleImage } from '../services/imageGenerator';
 
 async function getTagsForArticles(articleIds: number[]): Promise<Map<number, Array<{ id: number; name: string; slug: string; color: string | null }>>> {
   const map = new Map<number, Array<{ id: number; name: string; slug: string; color: string | null }>>();
@@ -330,6 +332,64 @@ export default async function (server: FastifyInstance) {
     return { success: true };
   });
 
+  server.post('/api/articles/auto-extract', async (request, reply) => {
+    const body = request.body as { content?: string; category?: string };
+    if (!body || !body.content || body.content.length < 5) {
+      return reply.status(400).send({ error: 'Content is required' });
+    }
+    const meta = autoExtractArticleMetadata(body.content, body.category);
+    return { success: true, ...meta };
+  });
+
+  server.post('/api/articles/:id/generate-image', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsedId = parseInt(id, 10);
+    if (Number.isNaN(parsedId)) {
+      return reply.status(400).send({ error: 'Invalid article ID' });
+    }
+
+    let article: any = null;
+    try {
+      const dbRes = await db.select().from(articles).where(eq(articles.id, parsedId));
+      if (dbRes.length > 0) {
+        article = dbRes[0];
+        const tagsMap = await getTagsForArticles([parsedId]);
+        article.tags = tagsMap.get(parsedId) || [];
+      }
+    } catch {}
+
+    if (!article) {
+      article = inMemoryArticles.get(parsedId);
+    }
+
+    if (!article) {
+      return reply.status(404).send({ error: 'Article not found' });
+    }
+
+    const tagNames = (article.tags || []).map((t: any) => typeof t === 'string' ? t : t.name);
+    const imageUrl = await generateArticleImage(
+      article.title,
+      article.category,
+      parsedId,
+      article.teaser,
+      tagNames
+    );
+
+    if (!imageUrl) {
+      return reply.status(500).send({ success: false, error: 'Failed to generate image' });
+    }
+
+    try {
+      await db.update(articles).set({ imageUrl }).where(eq(articles.id, parsedId));
+    } catch {}
+
+    const mem = inMemoryArticles.get(parsedId) || article;
+    const updatedMem = { ...mem, imageUrl, updatedAt: new Date() };
+    inMemoryArticles.set(parsedId, updatedMem);
+
+    return { success: true, imageUrl, article: updatedMem };
+  });
+
   server.post('/api/articles', async (request, reply) => {
     const body = request.body as any;
     
@@ -339,22 +399,37 @@ export default async function (server: FastifyInstance) {
     }
 
     const cleanContent = stripHtml(body.content);
-    const finalTitle = body.title ? body.title : '[Auto-Titel ausstehend]';
+
+    // Auto-extract metadata if title, category or tags are missing
+    const extracted = autoExtractArticleMetadata(cleanContent, body.category);
+    const finalTitle = (body.title && body.title.trim() && body.title !== '[Auto-Titel ausstehend]') 
+      ? body.title.trim() 
+      : extracted.title;
+    const finalCategory = (body.category && body.category !== 'Auto' && body.category !== 'Allgemein')
+      ? body.category
+      : extracted.category;
+    const finalTeaser = body.teaser || extracted.teaser;
+    const finalTakeaways = body.keyTakeaways || extracted.keyTakeaways;
+    const finalTags = (body.tags && Array.isArray(body.tags) && body.tags.length > 0)
+      ? body.tags
+      : extracted.tags.map((t: any) => t.name);
 
     let createdArticle: any;
     try {
       const newArticle = await db.insert(articles).values({
         title: finalTitle,
         content: cleanContent,
+        teaser: finalTeaser,
+        keyTakeaways: finalTakeaways,
         author: body.author || 'Unbekannt',
-        category: body.category || 'Allgemein',
+        category: finalCategory,
         status: body.status || 'draft'
       }).returning();
 
       createdArticle = newArticle[0];
 
-      if (body.tags && Array.isArray(body.tags)) {
-        await syncArticleTags(createdArticle.id, body.tags);
+      if (finalTags && Array.isArray(finalTags)) {
+        await syncArticleTags(createdArticle.id, finalTags);
       } else if (body.tagIds && Array.isArray(body.tagIds)) {
         await syncArticleTags(createdArticle.id, body.tagIds);
       }
@@ -364,17 +439,17 @@ export default async function (server: FastifyInstance) {
     } catch (e: any) {
       server.log.warn('DB insert failed, saving article in in-memory store');
       fallbackIdCounter++;
-      const tagList = Array.isArray(body.tags)
-        ? body.tags.map((t: any, idx: number) => typeof t === 'string' ? { id: idx + 1, name: t, slug: t.toLowerCase() } : t)
+      const tagList = Array.isArray(finalTags)
+        ? finalTags.map((t: any, idx: number) => typeof t === 'string' ? { id: idx + 1, name: t, slug: t.toLowerCase() } : t)
         : [];
       createdArticle = {
         id: fallbackIdCounter,
         title: finalTitle,
         content: cleanContent,
-        teaser: body.teaser || (cleanContent.slice(0, 120) + '...'),
-        keyTakeaways: body.keyTakeaways || null,
+        teaser: finalTeaser,
+        keyTakeaways: finalTakeaways,
         author: body.author || 'Unbekannt',
-        category: body.category || 'Allgemein',
+        category: finalCategory,
         status: body.status || 'draft',
         imageUrl: body.imageUrl || null,
         createdAt: new Date(),
