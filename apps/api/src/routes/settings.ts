@@ -34,13 +34,19 @@ export default async function (server: FastifyInstance) {
   });
 
   server.get('/api/settings/models', async (request, reply) => {
-    const allSettings = await db.select().from(settings);
-    const configMap: Record<string, string> = {};
-    for (const row of allSettings) {
-      configMap[row.key] = row.value;
+    let ollamaUrl = 'http://localhost:11434';
+    let localAiUrl = 'http://localhost:8080';
+    try {
+      const allSettings = await db.select().from(settings);
+      const configMap: Record<string, string> = {};
+      for (const row of allSettings) {
+        configMap[row.key] = row.value;
+      }
+      if (configMap.ollamaUrl) ollamaUrl = configMap.ollamaUrl;
+      if (configMap.localAiUrl) localAiUrl = configMap.localAiUrl;
+    } catch {
+      // DB offline or starting, use defaults
     }
-    const ollamaUrl = configMap.ollamaUrl || 'http://localhost:11434';
-    const localAiUrl = configMap.localAiUrl || 'http://localhost:8080';
 
     const defaultTextModels = [
       'llama3.1:8b-instruct-q4_0',
