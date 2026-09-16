@@ -6,7 +6,7 @@ import { eq, sql, desc } from 'drizzle-orm';
 export default async function (server: FastifyInstance) {
   // --- Likes ---
   server.post('/api/articles/:id/like', async (request, reply) => {
-    const id = parseInt((request.params as any).id, 10);
+    const id = parseInt((request.params as { id: string }).id, 10);
     if (Number.isNaN(id)) {
       reply.status(400);
       return { success: false, error: 'Invalid article ID' };
@@ -24,7 +24,7 @@ export default async function (server: FastifyInstance) {
   });
 
   server.post('/api/articles/:id/unlike', async (request, reply) => {
-    const id = parseInt((request.params as any).id, 10);
+    const id = parseInt((request.params as { id: string }).id, 10);
     if (Number.isNaN(id)) {
       reply.status(400);
       return { success: false, error: 'Invalid article ID' };
@@ -43,7 +43,7 @@ export default async function (server: FastifyInstance) {
 
   // --- Shares ---
   server.post('/api/articles/:id/share', async (request, reply) => {
-    const id = parseInt((request.params as any).id, 10);
+    const id = parseInt((request.params as { id: string }).id, 10);
     if (Number.isNaN(id)) {
       reply.status(400);
       return { success: false, error: 'Invalid article ID' };
@@ -62,7 +62,7 @@ export default async function (server: FastifyInstance) {
 
   // --- Comments ---
   server.get('/api/articles/:id/comments', async (request, reply) => {
-    const id = parseInt((request.params as any).id, 10);
+    const id = parseInt((request.params as { id: string }).id, 10);
     if (Number.isNaN(id)) {
       reply.status(400);
       return { success: false, error: 'Invalid article ID' };
@@ -74,12 +74,12 @@ export default async function (server: FastifyInstance) {
   });
 
   server.post('/api/articles/:id/comments', async (request, reply) => {
-    const id = parseInt((request.params as any).id, 10);
+    const id = parseInt((request.params as { id: string }).id, 10);
     if (Number.isNaN(id)) {
       reply.status(400);
       return { success: false, error: 'Invalid article ID' };
     }
-    const body = (request.body as any) || {};
+    const body = (request.body as { text?: string; authorName?: string }) || {};
     const text = typeof body.text === 'string' ? body.text.trim() : '';
     if (!text || text.length < 1 || text.length > 1000) {
       reply.status(400);
@@ -103,5 +103,3 @@ export default async function (server: FastifyInstance) {
     return { success: true, comment: inserted[0] };
   });
 }
-
-<!-- fix(api): add missing content-type headers on feed endpoint -->
