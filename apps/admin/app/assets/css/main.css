@@ -1,22 +1,95 @@
-/* Global Admin CSS */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f3f4f6;
-  color: #111827;
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+/* The shared shortform-news component package lives outside this app's Vite
+   root, so Tailwind's automatic content scan won't see its class names
+   without this explicit @source. */
+@source '../../../../../packages/shortform-news/src';
+
+@theme {
+  --color-bg-main: #f3f1ea;
+  --color-bg-card: #ffffff;
+  --color-bg-card-subtle: #f7f5ee;
+  --color-bg-card-hover: #f0eee4;
+  --color-border-subtle: rgba(20, 20, 20, 0.08);
+  --color-border-focus: rgba(111, 143, 26, 0.45);
+  --color-text-primary: #14151a;
+  --color-text-secondary: #6c6d73;
+  --color-text-muted: #9a9b93;
+  --color-accent-lime: #d5f24e;
+  --color-accent-lime-deep: #6f8f1a;
+  --color-accent-lime-glow: rgba(111, 143, 26, 0.25);
+  --color-accent-ink: #14151a;
+  --color-accent-emerald: #10b981;
+  --color-accent-amber: #f59e0b;
+  --color-accent-purple: #a855f7;
+
+  --font-accent: 'Fraunces', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  --animate-pulse-dot: pulse-dot 2s infinite;
+  --animate-btn-spin: btn-spin 0.8s linear infinite;
+  --animate-fade-in: fade-in 0.2s ease;
+  --animate-slide-toast: slide-toast 0.25s ease;
+  --animate-sf-pulse: sf-pulse 2s infinite;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+@keyframes sf-pulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.3; }
 }
-::-webkit-scrollbar-track {
-  background: #f1f1f1; 
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1; 
-  border-radius: 4px;
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; 
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-toast {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Legacy custom-property aliases — the shared shortform-news package and any
+   remaining hand-written CSS reference these var() names directly. */
+:root {
+  --bg-main: var(--color-bg-main);
+  --bg-card: var(--color-bg-card);
+  --bg-card-subtle: var(--color-bg-card-subtle);
+  --bg-card-hover: var(--color-bg-card-hover);
+  --border-subtle: var(--color-border-subtle);
+  --border-focus: var(--color-border-focus);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --accent-lime: var(--color-accent-lime);
+  --accent-lime-deep: var(--color-accent-lime-deep);
+  --accent-lime-glow: var(--color-accent-lime-glow);
+  --accent-ink: var(--color-accent-ink);
+  --accent-emerald: var(--color-accent-emerald);
+  --accent-amber: var(--color-accent-amber);
+  --accent-purple: var(--color-accent-purple);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg-main);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
