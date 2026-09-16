@@ -1,7 +1,11 @@
 import type { FastifyInstance } from 'fastify';
+import type { InferSelectModel } from 'drizzle-orm';
 import { db } from '../db';
 import { analyticsEvents, articles } from '../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
+
+type AnalyticsEvent = InferSelectModel<typeof analyticsEvents>;
+type ArticleRecord = InferSelectModel<typeof articles>;
 
 export default async function (server: FastifyInstance) {
   // Ingest tracking events (Public endpoint called by mobile feed / readers)
@@ -10,7 +14,7 @@ export default async function (server: FastifyInstance) {
       const body = request.body as {
         eventType?: string;
         articleId?: number;
-        metadata?: any;
+        metadata?: unknown;
       };
 
       if (!body || !body.eventType) {
@@ -31,7 +35,7 @@ export default async function (server: FastifyInstance) {
       });
 
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       server.log.warn({ err: e }, 'Failed to insert analytics event');
       // Return 200/accepted even if DB is temporarily busy so clients are never blocked
       return { success: false, error: 'Event noted' };
@@ -39,21 +43,21 @@ export default async function (server: FastifyInstance) {
   });
 
   // Aggregated analytics metrics for Admin CMS Dashboard
-  server.get('/api/analytics', async (request, reply) => {
+  server.get('/api/analytics', async () => {
     try {
-      let events: any[] = [];
+      let events: AnalyticsEvent[] = [];
       try {
         events = await db.select().from(analyticsEvents).orderBy(desc(analyticsEvents.createdAt)).limit(500);
       } catch {
         events = [];
       }
 
-      const totalImpressions = events.filter(e => e.eventType === 'impression').length;
-      const totalReads = events.filter(e => e.eventType === 'read').length;
-      const totalTtsPlays = events.filter(e => e.eventType === 'tts_play').length;
-      
-      const readThroughRate = totalImpressions > 0 
-        ? `${((totalReads / totalImpressions) * 100).toFixed(1)}%` 
+      const totalImpressions = events.filter((e) => e.eventType === 'impression').length;
+      const totalReads = events.filter((e) => e.eventType === 'read').length;
+      const totalTtsPlays = events.filter((e) => e.eventType === 'tts_play').length;
+
+      const readThroughRate = totalImpressions > 0
+        ? `${((totalReads / totalImpressions) * 100).toFixed(1)}%`
         : '0.0%';
 
       // Popular articles calculation
@@ -67,7 +71,7 @@ export default async function (server: FastifyInstance) {
       }
 
       // Fetch top article details
-      let allArticles: any[] = [];
+      let allArticles: ArticleRecord[] = [];
       try {
         allArticles = await db.select().from(articles);
       } catch {
@@ -76,7 +80,7 @@ export default async function (server: FastifyInstance) {
 
       const popularArticles = Array.from(articleReadCounts.entries())
         .map(([id, counts]) => {
-          const art = allArticles.find(a => a.id === id);
+          const art = allArticles.find((a) => a.id === id);
           return {
             id,
             title: art ? art.title : `Artikel #${id}`,
@@ -96,14 +100,14 @@ export default async function (server: FastifyInstance) {
         readThroughRate,
         popularArticles,
         recentEventsCount: events.length,
-        recentEvents: events.slice(0, 10).map(e => ({
+        recentEvents: events.slice(0, 10).map((e) => ({
           id: e.id,
           eventType: e.eventType,
           articleId: e.articleId,
           createdAt: e.createdAt
         }))
       };
-    } catch (e: any) {
+    } catch (e) {
       server.log.error(e);
       return {
         totalImpressions: 0,
