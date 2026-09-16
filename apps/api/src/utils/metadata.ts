@@ -34,7 +34,7 @@ export interface ScorableArticle {
   category?: string;
   tags?: Array<{ name: string; slug?: string }>;
   createdAt?: string | Date | null;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const calculatePersonalizedScore = (

@@ -32,6 +32,28 @@ export const formatEngagementCount = (n: number | undefined | null): string => {
 };
 
 
+export interface ArticleTag {
+  id?: number | string;
+  name: string;
+  slug?: string;
+  color?: string;
+}
+
+export interface Article {
+  id: number;
+  title: string;
+  teaser?: string | null;
+  content?: string | null;
+  author?: string | null;
+  imageUrl?: string | null;
+  category?: string;
+  tags?: ArticleTag[];
+  likeCount?: number | null;
+  commentCount?: number | null;
+  shareCount?: number | null;
+  createdAt?: string | Date | null;
+}
+
 export interface UserInterests {
   categories?: Record<string, number>;
   tags?: Record<string, number>;
@@ -42,7 +64,7 @@ export interface ScorableArticle {
   category?: string;
   tags?: Array<{ name: string; slug?: string }>;
   createdAt?: string | Date | null;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const calculatePersonalizedScore = (
@@ -184,7 +206,7 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
   // If first line is very long, extract the first sentence (avoiding decimals like 0.25)
   if (headlineCandidate.length > 100 || /[.?!]/.test(headlineCandidate)) {
     const firstSentenceMatch = headlineCandidate.match(/^((?:[0-9]+\.[0-9]+|[^.?!])+[.?!]?)/);
-    if (firstSentenceMatch) {
+    if (firstSentenceMatch?.[1]) {
       headlineCandidate = firstSentenceMatch[1].trim();
     }
   }
@@ -280,12 +302,9 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
   }
 
   // Always ensure at least one primary tag
-  if (matchedTags.length === 0 && relevantSubtags.length > 0) {
-    matchedTags.push({
-      name: relevantSubtags[0].name,
-      slug: relevantSubtags[0].slug,
-      color: relevantSubtags[0].color
-    });
+  const firstSubtag = relevantSubtags[0];
+  if (matchedTags.length === 0 && firstSubtag) {
+    matchedTags.push({ name: firstSubtag.name, slug: firstSubtag.slug, color: firstSubtag.color });
   }
 
   // 4. Concise Teaser and Key Takeaways
@@ -304,6 +323,3 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
     keyTakeaways
   };
 }
-
-
-<!-- fix(pkg): resolve tailwind purge path for monorepo shared package -->

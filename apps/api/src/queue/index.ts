@@ -1,7 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { db } from '../db';
-import { jobs, articles, settings, tags, articleTags } from '../db/schema';
+import { jobs, articles, tags, articleTags } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
@@ -29,10 +29,11 @@ generationQueue.waitUntilReady().then(async () => {
       }
     }
   } catch (err) {
-    logger.error('Failed to clean up orphaned jobs', err);
+    logger.error('Failed to clean up orphaned jobs', { error: err instanceof Error ? err.message : String(err) });
   }
-}).catch(err => {
-  logger.warn('Queue readiness check error:', err.message);
+}).catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  logger.warn(`Queue readiness check error: ${message}`);
 });
 
 export const worker = new Worker('generation_jobs', async job => {
@@ -79,7 +80,7 @@ export const worker = new Worker('generation_jobs', async job => {
 
           try {
             await db.insert(articleTags).values({ articleId, tagId });
-          } catch (e) {
+          } catch {
             // Already linked, ignore duplicate
           }
         }
@@ -115,8 +116,9 @@ export const worker = new Worker('generation_jobs', async job => {
           await db.update(articles).set({ imageUrl }).where(eq(articles.id, articleId));
           logger.info(`Cover image generated for article ${articleId}`, { imageUrl });
         }
-      } catch (imgError: any) {
-        logger.warn(`Image generation skipped: ${imgError.message}`);
+      } catch (imgError) {
+        const message = imgError instanceof Error ? imgError.message : String(imgError);
+        logger.warn(`Image generation skipped: ${message}`);
       }
     }
     
@@ -133,11 +135,12 @@ export const worker = new Worker('generation_jobs', async job => {
       result: resultMsg,
       processingTimeMs: processingTimeMs
     }).where(eq(jobs.id, jobId));
-  } catch (error: any) {
-    logger.error(`Job ${job.id} failed: ${error.message}`);
-    await db.update(jobs).set({ 
-      status: 'failed', 
-      error: error.message 
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`Job ${job.id} failed: ${message}`);
+    await db.update(jobs).set({
+      status: 'failed',
+      error: message
     }).where(eq(jobs.id, jobId));
     throw error; // Rethrow to let BullMQ handle retries
   }

@@ -33,8 +33,8 @@ export default async function (server: FastifyInstance) {
         .orderBy(desc(sql`count(${articleTags.articleId})`), tags.name);
 
       return allTags;
-    } catch (error: any) {
-      reply.status(500).send({ error: 'Failed to fetch tags', details: error.message });
+    } catch (error) {
+      reply.status(500).send({ error: 'Failed to fetch tags', details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -61,8 +61,8 @@ export default async function (server: FastifyInstance) {
       }).returning();
 
       return newTag[0];
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'Failed to create tag', details: error.message });
+    } catch (error) {
+      return reply.status(500).send({ error: 'Failed to create tag', details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -76,8 +76,8 @@ export default async function (server: FastifyInstance) {
     try {
       await db.delete(tags).where(eq(tags.id, parsedId));
       return { success: true };
-    } catch (error: any) {
-      return reply.status(500).send({ error: 'Failed to delete tag', details: error.message });
+    } catch (error) {
+      return reply.status(500).send({ error: 'Failed to delete tag', details: error instanceof Error ? error.message : String(error) });
     }
   });
 }

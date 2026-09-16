@@ -321,7 +321,14 @@ const sendAnalytics = (eventType: string, articleId: number | null = null, metad
   }
 };
 
-const openReader = (article: FeedArticle) => {
+// The module only ever signals an article ID (never the full article) when a
+// user wants to read the full text — resolving that ID to actual content is
+// this host app's own responsibility, matching the module's "module never
+// navigates itself" contract from the briefing.
+const openReader = (articleId: number) => {
+  const article = articles.value.find((a) => a.id === articleId);
+  if (!article) return;
+
   activeReaderArticle.value = article;
   recordInterestInteraction(article, 2);
   sendAnalytics('read', article.id, { category: article.category });
@@ -552,8 +559,7 @@ onMounted(() => {
     const articleParam = params.get('article');
     if (articleParam) {
       const sharedId = parseInt(articleParam, 10);
-      const found = articles.value.find((a) => a.id === sharedId);
-      if (found) openReader(found);
+      openReader(sharedId);
     }
   });
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {

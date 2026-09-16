@@ -8,7 +8,8 @@
     "start": "node --env-file=../../.env dist/server.js",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
@@ -25,7 +26,9 @@
     "@types/node": "^20.11.30",
     "@types/pg": "^8.11.2",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^10.10.0",
     "tsx": "^4.7.1",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.3",
+    "typescript-eslint": "^8.70.0"
   }
 }

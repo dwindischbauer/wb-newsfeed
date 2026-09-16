@@ -2,21 +2,21 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { articles, tags, articleTags } from '../db/schema';
 import { eq, desc, inArray } from 'drizzle-orm';
-import { inMemoryArticles } from './articles';
+import { inMemoryArticles, type StoredArticle } from './articles';
 
 export default async function (server: FastifyInstance) {
-  server.get('/api/feed', async (request, reply) => {
+  server.get('/api/feed', async (request) => {
     const query = request.query as { tag?: string; category?: string; limit?: string; offset?: string };
 
-    let result: any[] = [];
+    let result: StoredArticle[] = [];
     try {
-      let publishedArticles = await db
+      const publishedArticles = await db
         .select()
         .from(articles)
         .where(eq(articles.status, 'published'))
         .orderBy(desc(articles.createdAt));
 
-      const articleIds = publishedArticles.map(a => a.id);
+      const articleIds = publishedArticles.map((a) => a.id);
       const tagsMap = new Map<number, Array<{ id: number; name: string; slug: string; color: string | null }>>();
 
       if (articleIds.length > 0) {
@@ -39,20 +39,20 @@ export default async function (server: FastifyInstance) {
         }
       }
 
-      result = publishedArticles.map(a => ({
+      result = publishedArticles.map((a) => ({
         ...a,
         tags: tagsMap.get(a.id) || []
       }));
-    } catch (e) {
+    } catch {
       server.log.warn('DB offline, serving published feed from in-memory store');
       result = Array.from(inMemoryArticles.values())
-        .filter((a: any) => a.status === 'published')
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .filter((a) => a.status === 'published')
+        .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
     }
 
     if (query.tag) {
       const filterTag = query.tag.toLowerCase();
-      result = result.filter(a => a.tags && a.tags.some((t: any) => (t.slug || t.name || '').toLowerCase() === filterTag));
+      result = result.filter((a) => a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === filterTag));
     }
 
     if (query.category && query.category !== 'Alle') {

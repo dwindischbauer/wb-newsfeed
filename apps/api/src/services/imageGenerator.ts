@@ -1,5 +1,3 @@
-import { db } from '../db';
-import { settings } from '../db/schema';
 import { getSettings } from '../utils/settings';
 import { logger } from '../utils/logger';
 import * as fs from 'fs';
@@ -177,8 +175,9 @@ export async function generateArticleImage(
 
     // Fallback: Editorial SVG Visual Card
     return await generateSvgCard(articleTitle, articleCategory, articleId);
-  } catch (error: any) {
-    logger.warn(`Image generation encountered unexpected error: ${error.message}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(`Image generation encountered unexpected error: ${message}`);
     return await generateSvgCard(articleTitle, articleCategory, articleId);
   }
 }
@@ -276,8 +275,9 @@ async function resolveAndDownloadEditorialPhoto(
       return `/images/${filename}`;
     }
     return null;
-  } catch (err: any) {
-    logger.warn(`Editorial photo download failed (${err.message}). Proceeding to fallback...`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn(`Editorial photo download failed (${message}). Proceeding to fallback...`);
     return null;
   }
 }
@@ -339,8 +339,9 @@ async function tryAiImageGeneration(
         }
       }
     }
-  } catch (localAiErr: any) {
-    logger.info(`LocalAI not reachable: ${localAiErr.message}`);
+  } catch (localAiErr) {
+    const message = localAiErr instanceof Error ? localAiErr.message : String(localAiErr);
+    logger.info(`LocalAI not reachable: ${message}`);
   }
 
   // 2. Pollinations AI generation with photographic styling — the free public
@@ -370,8 +371,9 @@ async function tryAiImageGeneration(
       if (pollRes.status === 429 && attempt < maxAttempts) {
         await new Promise(r => setTimeout(r, attempt * 6000));
       }
-    } catch (pollErr: any) {
-      logger.warn(`Pollinations AI error: ${pollErr.message} (attempt ${attempt}/${maxAttempts})`);
+    } catch (pollErr) {
+      const message = pollErr instanceof Error ? pollErr.message : String(pollErr);
+      logger.warn(`Pollinations AI error: ${message} (attempt ${attempt}/${maxAttempts})`);
       if (attempt < maxAttempts) {
         await new Promise(r => setTimeout(r, attempt * 4000));
       }
@@ -437,8 +439,9 @@ async function generateSvgCard(title: string, category: string, articleId: numbe
     await fs.promises.writeFile(svgFilepath, svgContent, 'utf-8');
     logger.info(`Offline editorial SVG image saved: ${svgFilename}`);
     return `/images/${svgFilename}`;
-  } catch (svgErr: any) {
-    logger.error(`SVG generator error: ${svgErr.message}`);
+  } catch (svgErr) {
+    const message = svgErr instanceof Error ? svgErr.message : String(svgErr);
+    logger.error(`SVG generator error: ${message}`);
     return null;
   }
 }

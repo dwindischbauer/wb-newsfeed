@@ -83,8 +83,8 @@ ${content}`;
       ? resultObj.category
       : currentCategory;
 
-    const tagList = Array.isArray(resultObj.tags)
-      ? resultObj.tags.filter((t: any) => typeof t === 'string' && t.trim()).map((t: string) => t.trim())
+    const tagList: string[] = Array.isArray(resultObj.tags)
+      ? resultObj.tags.filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0).map((t: string) => t.trim())
       : [];
 
     return {
@@ -95,8 +95,9 @@ ${content}`;
       keyTakeaways: resultObj.keyTakeaways || '',
       source: 'ai'
     };
-  } catch (err: any) {
-    logger.warn(`AI summarization failed, using offline fallback: ${err.message}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn(`AI summarization failed, using offline fallback: ${message}`);
     const extracted = autoExtractArticleMetadata(content, currentCategory);
     return {
       title: currentTitle !== '[Auto-Titel ausstehend]' ? currentTitle : extracted.title,
