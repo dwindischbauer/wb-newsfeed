@@ -1,14 +1,46 @@
 import type { FastifyInstance } from 'fastify';
+import type { InferSelectModel } from 'drizzle-orm';
 import { db } from '../db';
 import { articles, jobs, tags, articleTags } from '../db/schema';
-import { eq, desc, inArray, and } from 'drizzle-orm';
+import { eq, desc, inArray } from 'drizzle-orm';
 import { stripHtml } from '../utils/format';
 import { generationQueue } from '../queue';
 import { autoExtractArticleMetadata } from '../utils/metadata';
 import { generateArticleImage } from '../services/imageGenerator';
 
-async function getTagsForArticles(articleIds: number[]): Promise<Map<number, Array<{ id: number; name: string; slug: string; color: string | null }>>> {
-  const map = new Map<number, Array<{ id: number; name: string; slug: string; color: string | null }>>();
+type ArticleRecord = InferSelectModel<typeof articles>;
+
+export interface ArticleTagRef {
+  id: number;
+  name: string;
+  slug: string;
+  color?: string | null;
+}
+
+export interface StoredArticle extends ArticleRecord {
+  tags: ArticleTagRef[];
+}
+
+type TagInput = string | ArticleTagRef | { name: string };
+
+const tagInputName = (t: TagInput): string => (typeof t === 'string' ? t : t.name);
+
+interface ArticleBody {
+  id?: number;
+  title?: string;
+  content?: string;
+  teaser?: string;
+  keyTakeaways?: string;
+  author?: string;
+  category?: string;
+  status?: string;
+  imageUrl?: string | null;
+  tags?: TagInput[];
+  tagIds?: number[];
+}
+
+async function getTagsForArticles(articleIds: number[]): Promise<Map<number, ArticleTagRef[]>> {
+  const map = new Map<number, ArticleTagRef[]>();
   if (articleIds.length === 0) return map;
 
   const records = await db
@@ -44,17 +76,21 @@ async function syncArticleTags(articleId: number, tagList: Array<number | string
     } else if (typeof item === 'string' && item.trim()) {
       const trimmed = item.trim();
       const existing = await db.select().from(tags).where(eq(tags.name, trimmed));
-      if (existing.length > 0) {
+      if (existing.length > 0 && existing[0]) {
         tagId = existing[0].id;
       } else {
         const slug = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `tag-${Date.now()}`;
         const created = await db.insert(tags).values({ name: trimmed, slug }).returning();
-        tagId = created[0].id;
+        tagId = created[0]?.id ?? null;
       }
     }
 
     if (tagId) {
-      await db.insert(articleTags).values({ articleId, tagId }).onConflictDoNothing?.() || await db.insert(articleTags).values({ articleId, tagId }).catch(() => {});
+      try {
+        await db.insert(articleTags).values({ articleId, tagId }).onConflictDoNothing();
+      } catch {
+        // duplicate article-tag pair — already linked, ignore
+      }
     }
   }
 }
@@ -67,16 +103,16 @@ async function deletePhysicalImage(imageUrl: string | null | undefined) {
     const filename = path.basename(imageUrl);
     const filepath = path.join(process.cwd(), 'public', 'images', filename);
     await fs.unlink(filepath);
-  } catch (err: any) {
+  } catch {
     // Ignore if file doesn't exist or already removed
   }
 }
 
 // Resilient In-Memory store for offline/demo reliability
 let fallbackIdCounter = 100;
-export const inMemoryArticles: Map<number, any> = new Map();
+export const inMemoryArticles: Map<number, StoredArticle> = new Map();
 
-const defaultSeedArticles = [
+const defaultSeedArticles: StoredArticle[] = [
   {
     id: 1,
     title: 'EU beschließt neues Regulierungspaket für Medienplattformen',
@@ -87,6 +123,9 @@ const defaultSeedArticles = [
     author: 'ORF.at Redaktion',
     status: 'published',
     imageUrl: null,
+    likeCount: 0,
+    commentCount: 0,
+    shareCount: 0,
     createdAt: new Date('2026-09-16T10:00:00Z'),
     updatedAt: new Date('2026-09-16T10:00:00Z'),
     tags: [{ id: 1, name: 'Politik', slug: 'politik' }, { id: 2, name: 'EU', slug: 'eu' }, { id: 3, name: 'Digital', slug: 'digital' }]
@@ -101,6 +140,9 @@ const defaultSeedArticles = [
     author: 'David Windischbauer & Stefan Schachner',
     status: 'published',
     imageUrl: null,
+    likeCount: 0,
+    commentCount: 0,
+    shareCount: 0,
     createdAt: new Date('2026-09-16T11:15:00Z'),
     updatedAt: new Date('2026-09-16T11:15:00Z'),
     tags: [{ id: 4, name: 'Künstliche Intelligenz', slug: 'ki' }, { id: 5, name: 'Innovation', slug: 'innovation' }]
@@ -115,6 +157,9 @@ const defaultSeedArticles = [
     author: 'Wirtschaftsredaktion',
     status: 'published',
     imageUrl: null,
+    likeCount: 0,
+    commentCount: 0,
+    shareCount: 0,
     createdAt: new Date('2026-09-16T09:30:00Z'),
     updatedAt: new Date('2026-09-16T09:30:00Z'),
     tags: [{ id: 6, name: 'Wirtschaft', slug: 'wirtschaft' }, { id: 7, name: 'Finanzen', slug: 'finanzen' }]
@@ -126,16 +171,16 @@ for (const a of defaultSeedArticles) {
 }
 
 export default async function (server: FastifyInstance) {
-  server.get('/api/articles', async (request, reply) => {
+  server.get('/api/articles', async (request) => {
     const query = request.query as { tag?: string; category?: string };
-    
-    let result: any[] = [];
+
+    let result: StoredArticle[] = [];
     try {
       const allArticles = await db.select().from(articles).orderBy(desc(articles.createdAt));
-      const articleIds = allArticles.map(a => a.id);
+      const articleIds = allArticles.map((a) => a.id);
       const tagsMap = await getTagsForArticles(articleIds);
 
-      result = allArticles.map(a => ({
+      result = allArticles.map((a) => ({
         ...a,
         content: stripHtml(a.content),
         tags: tagsMap.get(a.id) || []
@@ -143,19 +188,19 @@ export default async function (server: FastifyInstance) {
       for (const item of result) {
         inMemoryArticles.set(item.id, item);
       }
-    } catch (e: any) {
+    } catch {
       server.log.warn('Database offline, reading from in-memory fallback store');
       result = Array.from(inMemoryArticles.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
       );
     }
 
     if (query.tag) {
       const filterTag = query.tag.toLowerCase();
-      result = result.filter(a => a.tags && a.tags.some((t: any) => (t.slug || t.name || '').toLowerCase() === filterTag));
+      result = result.filter((a) => a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === filterTag));
     }
     if (query.category && query.category !== 'Alle') {
-      result = result.filter(a => a.category && a.category.toLowerCase() === query.category?.toLowerCase());
+      result = result.filter((a) => a.category && a.category.toLowerCase() === query.category?.toLowerCase());
     }
 
     return result;
@@ -171,9 +216,9 @@ export default async function (server: FastifyInstance) {
 
     try {
       const articleRes = await db.select().from(articles).where(eq(articles.id, parsedId));
-      if (articleRes.length > 0) {
+      if (articleRes.length > 0 && articleRes[0]) {
         const tagsMap = await getTagsForArticles([parsedId]);
-        const res = {
+        const res: StoredArticle = {
           ...articleRes[0],
           tags: tagsMap.get(parsedId) || []
         };
@@ -192,18 +237,17 @@ export default async function (server: FastifyInstance) {
 
   server.put('/api/articles/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as any;
+    const body = request.body as ArticleBody;
     const parsedId = parseInt(id);
     if (Number.isNaN(parsedId)) {
       reply.status(400).send({ error: 'Invalid article ID' });
       return;
     }
-    
-    let dbSuccess = false;
+
     try {
       const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
       if (existing.length > 0) {
-        const updateData: any = {};
+        const updateData: Partial<Pick<ArticleRecord, 'status' | 'title' | 'category' | 'content' | 'teaser' | 'keyTakeaways' | 'author'>> = {};
         if (body.status !== undefined) updateData.status = body.status;
         if (body.title !== undefined) updateData.title = body.title;
         if (body.category !== undefined) updateData.category = body.category;
@@ -211,37 +255,39 @@ export default async function (server: FastifyInstance) {
         if (body.teaser !== undefined) updateData.teaser = body.teaser;
         if (body.keyTakeaways !== undefined) updateData.keyTakeaways = body.keyTakeaways;
         if (body.author !== undefined) updateData.author = body.author;
-        
+
         if (Object.keys(updateData).length > 0) {
           await db.update(articles).set(updateData).where(eq(articles.id, parsedId));
         }
 
         if (body.tags !== undefined && Array.isArray(body.tags)) {
-          await syncArticleTags(parsedId, body.tags);
+          await syncArticleTags(parsedId, body.tags.map(tagInputName));
         } else if (body.tagIds !== undefined && Array.isArray(body.tagIds)) {
           await syncArticleTags(parsedId, body.tagIds);
         }
-        dbSuccess = true;
       }
-    } catch (e) {
+    } catch {
       server.log.warn('DB update failed, updating in-memory store');
     }
 
     // Always update in-memory store
-    const mem = inMemoryArticles.get(parsedId) || {};
-    const updatedMem = {
-      ...mem,
+    const mem = inMemoryArticles.get(parsedId);
+    const updatedMem: StoredArticle = {
+      ...(mem as StoredArticle),
       ...body,
       id: parsedId,
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      tags: mem?.tags || []
     };
     if (body.tags && Array.isArray(body.tags)) {
-      updatedMem.tags = body.tags.map((t: any, idx: number) => typeof t === 'string' ? { id: idx + 1, name: t, slug: t.toLowerCase() } : t);
+      updatedMem.tags = body.tags.map((t, idx) =>
+        typeof t === 'string' ? { id: idx + 1, name: t, slug: t.toLowerCase() } : { id: idx + 1, slug: t.name.toLowerCase(), ...t }
+      );
     }
     inMemoryArticles.set(parsedId, updatedMem);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       article: updatedMem,
       tags: updatedMem.tags || []
     };
@@ -254,14 +300,14 @@ export default async function (server: FastifyInstance) {
       reply.status(400).send({ error: 'Invalid article ID' });
       return;
     }
-    
+
     try {
       const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
-      if (existing.length > 0 && existing[0].imageUrl) {
+      if (existing.length > 0 && existing[0]?.imageUrl) {
         await deletePhysicalImage(existing[0].imageUrl);
       }
       await db.delete(articles).where(eq(articles.id, parsedId));
-    } catch (e) {
+    } catch {
       server.log.warn('DB delete failed, removing from in-memory store');
     }
 
@@ -290,14 +336,14 @@ export default async function (server: FastifyInstance) {
 
     // Clean up old image if replacing
     const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
-    if (existing.length > 0 && existing[0].imageUrl) {
+    if (existing.length > 0 && existing[0]?.imageUrl) {
       await deletePhysicalImage(existing[0].imageUrl);
     }
 
     const { pipeline } = await import('stream/promises');
     const fs = await import('fs');
     const path = await import('path');
-    
+
     const ext = path.extname(data.filename) || '.jpg';
     const filename = `article_${parsedId}_${Date.now()}${ext}`;
     const IMAGES_DIR = path.join(process.cwd(), 'public', 'images');
@@ -322,9 +368,9 @@ export default async function (server: FastifyInstance) {
       reply.status(400).send({ error: 'Invalid article ID' });
       return;
     }
-    
+
     const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
-    if (existing.length > 0 && existing[0].imageUrl) {
+    if (existing.length > 0 && existing[0]?.imageUrl) {
       await deletePhysicalImage(existing[0].imageUrl);
     }
 
@@ -348,34 +394,35 @@ export default async function (server: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid article ID' });
     }
 
-    let article: any = null;
+    let article: StoredArticle | null = null;
     try {
       const dbRes = await db.select().from(articles).where(eq(articles.id, parsedId));
-      if (dbRes.length > 0) {
-        article = dbRes[0];
+      if (dbRes.length > 0 && dbRes[0]) {
         const tagsMap = await getTagsForArticles([parsedId]);
-        article.tags = tagsMap.get(parsedId) || [];
+        article = { ...dbRes[0], tags: tagsMap.get(parsedId) || [] };
       }
-    } catch {}
+    } catch {
+      // fall through to in-memory lookup
+    }
 
     if (!article) {
-      article = inMemoryArticles.get(parsedId);
+      article = inMemoryArticles.get(parsedId) || null;
     }
 
     if (!article) {
       return reply.status(404).send({ error: 'Article not found' });
     }
 
-    const reqBody = (request.body as any) || {};
-    const reqQuery = (request.query as any) || {};
-    const mode = (reqBody.mode || reqQuery.mode || 'editorial') as 'editorial' | 'ai';
+    const reqBody = (request.body as { mode?: string }) || {};
+    const reqQuery = (request.query as { mode?: string }) || {};
+    const mode: 'editorial' | 'ai' = (reqBody.mode || reqQuery.mode) === 'ai' ? 'ai' : 'editorial';
 
-    const tagNames = (article.tags || []).map((t: any) => typeof t === 'string' ? t : t.name);
+    const tagNames = (article.tags || []).map(tagInputName);
     const imageUrl = await generateArticleImage(
       article.title,
       article.category,
       parsedId,
-      article.teaser,
+      article.teaser ?? undefined,
       tagNames,
       mode
     );
@@ -386,18 +433,20 @@ export default async function (server: FastifyInstance) {
 
     try {
       await db.update(articles).set({ imageUrl }).where(eq(articles.id, parsedId));
-    } catch {}
+    } catch {
+      // best-effort — in-memory store below still gets the new image
+    }
 
     const mem = inMemoryArticles.get(parsedId) || article;
-    const updatedMem = { ...mem, imageUrl, updatedAt: new Date() };
+    const updatedMem: StoredArticle = { ...mem, imageUrl, updatedAt: new Date() };
     inMemoryArticles.set(parsedId, updatedMem);
 
     return { success: true, imageUrl, article: updatedMem };
   });
 
   server.post('/api/articles', async (request, reply) => {
-    const body = request.body as any;
-    
+    const body = request.body as ArticleBody;
+
     if (!body.content || body.content.length < 10) {
       reply.status(400);
       return { success: false, error: 'Content (min 10 Zeichen) wird benötigt' };
@@ -407,19 +456,19 @@ export default async function (server: FastifyInstance) {
 
     // Auto-extract metadata if title, category or tags are missing
     const extracted = autoExtractArticleMetadata(cleanContent, body.category);
-    const finalTitle = (body.title && body.title.trim() && body.title !== '[Auto-Titel ausstehend]') 
-      ? body.title.trim() 
+    const finalTitle = (body.title && body.title.trim() && body.title !== '[Auto-Titel ausstehend]')
+      ? body.title.trim()
       : extracted.title;
     const finalCategory = (body.category && body.category !== 'Auto' && body.category !== 'Allgemein')
       ? body.category
       : extracted.category;
     const finalTeaser = body.teaser || extracted.teaser;
     const finalTakeaways = body.keyTakeaways || extracted.keyTakeaways;
-    const finalTags = (body.tags && Array.isArray(body.tags) && body.tags.length > 0)
+    const finalTags: TagInput[] = (body.tags && Array.isArray(body.tags) && body.tags.length > 0)
       ? body.tags
-      : extracted.tags.map((t: any) => t.name);
+      : extracted.tags.map((t) => t.name);
 
-    let createdArticle: any;
+    let createdArticle: StoredArticle;
     try {
       const newArticle = await db.insert(articles).values({
         title: finalTitle,
@@ -431,22 +480,23 @@ export default async function (server: FastifyInstance) {
         status: body.status || 'draft'
       }).returning();
 
-      createdArticle = newArticle[0];
+      const inserted = newArticle[0];
+      if (!inserted) throw new Error('Insert returned no row');
 
-      if (finalTags && Array.isArray(finalTags)) {
-        await syncArticleTags(createdArticle.id, finalTags);
+      if (finalTags.length > 0) {
+        await syncArticleTags(inserted.id, finalTags.map(tagInputName));
       } else if (body.tagIds && Array.isArray(body.tagIds)) {
-        await syncArticleTags(createdArticle.id, body.tagIds);
+        await syncArticleTags(inserted.id, body.tagIds);
       }
 
-      const tagsMap = await getTagsForArticles([createdArticle.id]);
-      createdArticle.tags = tagsMap.get(createdArticle.id) || [];
-    } catch (e: any) {
+      const tagsMap = await getTagsForArticles([inserted.id]);
+      createdArticle = { ...inserted, tags: tagsMap.get(inserted.id) || [] };
+    } catch {
       server.log.warn('DB insert failed, saving article in in-memory store');
       fallbackIdCounter++;
-      const tagList = Array.isArray(finalTags)
-        ? finalTags.map((t: any, idx: number) => typeof t === 'string' ? { id: idx + 1, name: t, slug: t.toLowerCase() } : t)
-        : [];
+      const tagList: ArticleTagRef[] = finalTags.map((t, idx) =>
+        typeof t === 'string' ? { id: idx + 1, name: t, slug: t.toLowerCase() } : { id: idx + 1, slug: t.name.toLowerCase(), ...t }
+      );
       createdArticle = {
         id: fallbackIdCounter,
         title: finalTitle,
@@ -457,6 +507,9 @@ export default async function (server: FastifyInstance) {
         category: finalCategory,
         status: body.status || 'draft',
         imageUrl: body.imageUrl || null,
+        likeCount: 0,
+        commentCount: 0,
+        shareCount: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
         tags: tagList
@@ -468,9 +521,9 @@ export default async function (server: FastifyInstance) {
   });
 
   server.post('/api/articles/quick', async (request, reply) => {
-    const body = request.body as any;
+    const body = request.body as { text?: string; content?: string };
     const text = body.text || body.content;
-    
+
     if (!text || text.length < 10) {
       reply.status(400);
       return { success: false, error: 'Text min 10 Zeichen wird benötigt' };
@@ -486,31 +539,40 @@ export default async function (server: FastifyInstance) {
       category: 'Allgemein',
       status: 'published'
     }).returning();
-    
-    const articleId = newArticle[0].id;
-    
+
+    const inserted = newArticle[0];
+    if (!inserted) {
+      reply.status(500);
+      return { success: false, error: 'Insert fehlgeschlagen' };
+    }
+    const articleId = inserted.id;
+
     // Create job record in db first to get the auto-increment ID
     const newJob = await db.insert(jobs).values({
       articleId,
       type: 'teaser_generation',
       status: 'pending'
     }).returning();
-    
-    const dbJobId = newJob[0].id;
-    
+
+    const dbJobId = newJob[0]?.id;
+    if (dbJobId === undefined) {
+      reply.status(500);
+      return { success: false, error: 'Job-Erstellung fehlgeschlagen' };
+    }
+
     // Automatically queue generation job
-    let jobIdStr = `job-${dbJobId}`;
+    const jobIdStr = `job-${dbJobId}`;
     try {
       const job = await generationQueue.add('teaser_generation', {
         articleId,
         jobId: dbJobId,
         type: 'teaser_generation'
       }, { jobId: jobIdStr });
-      
-      return { success: true, article: newArticle[0], jobId: job.id };
+
+      return { success: true, article: inserted, jobId: job.id };
     } catch (error) {
       await db.update(jobs).set({ status: 'failed', error: String(error) }).where(eq(jobs.id, dbJobId));
-      return { success: false, article: newArticle[0], jobId: jobIdStr, error: 'Job enqueuing failed' };
+      return { success: false, article: inserted, jobId: jobIdStr, error: 'Job enqueuing failed' };
     }
   });
 
@@ -520,7 +582,7 @@ export default async function (server: FastifyInstance) {
   // polling required. Same inputs/behaviour as creating an article in the
   // admin dashboard, just synchronous and API-first.
   server.post('/api/articles/generate', async (request, reply) => {
-    const body = (request.body as any) || {};
+    const body = (request.body as ArticleBody & { generateImage?: boolean | string; imageMode?: string }) || {};
     const content = body.content;
 
     if (!content || typeof content !== 'string' || content.trim().length < 10) {
@@ -537,11 +599,11 @@ export default async function (server: FastifyInstance) {
     const { summarizeArticle } = await import('../services/summarizer');
     const summary = await summarizeArticle(cleanContent, requestedTitle, requestedCategory);
 
-    const finalTags = (body.tags && Array.isArray(body.tags) && body.tags.length > 0)
+    const finalTags: TagInput[] = (body.tags && Array.isArray(body.tags) && body.tags.length > 0)
       ? body.tags
       : summary.tags;
 
-    let createdArticle: any;
+    let createdArticle: StoredArticle;
     try {
       const inserted = await db.insert(articles).values({
         title: summary.title,
@@ -553,21 +615,24 @@ export default async function (server: FastifyInstance) {
         status: body.status || 'published'
       }).returning();
 
-      createdArticle = inserted[0];
-      await syncArticleTags(createdArticle.id, finalTags);
-    } catch (e: any) {
+      const row = inserted[0];
+      if (!row) throw new Error('Insert returned no row');
+      await syncArticleTags(row.id, finalTags.map(tagInputName));
+      createdArticle = { ...row, tags: [] };
+    } catch (e) {
       reply.status(500);
-      return { success: false, error: `Konnte Artikel nicht anlegen: ${e.message}` };
+      const message = e instanceof Error ? e.message : String(e);
+      return { success: false, error: `Konnte Artikel nicht anlegen: ${message}` };
     }
 
     let imagePath: string | null = null;
     if (generateImage) {
-      const tagNames = finalTags.map((t: any) => typeof t === 'string' ? t : t.name);
+      const tagNames = finalTags.map(tagInputName);
       imagePath = await generateArticleImage(
         createdArticle.title,
         createdArticle.category,
         createdArticle.id,
-        createdArticle.teaser,
+        createdArticle.teaser ?? undefined,
         tagNames,
         imageMode
       );
