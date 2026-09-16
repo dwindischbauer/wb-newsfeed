@@ -1,14 +1,18 @@
 <template>
   <div class="vertical-feed-app">
-    <div class="category-filters">
-      <button 
-        v-for="cat in categories" 
-        :key="cat"
-        :class="['chip', { active: activeCategory === cat }]"
-        @click="activeCategory = cat"
-      >
-        {{ cat }}
-      </button>
+    <div class="top-nav-area">
+      <div class="category-filters">
+        <div class="category-pill-group">
+          <button
+            v-for="cat in categories"
+            :key="cat"
+            :class="['nav-chip', { active: activeCategory === cat }]"
+            @click="activeCategory = cat; activeTagFilter = ''"
+          >
+            {{ cat }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Active Tag Filter Badge -->
