@@ -13,6 +13,20 @@
           </button>
         </div>
       </div>
+
+      <!-- Subcategory chips for the active main category -->
+      <div class="subcategory-filters" v-if="activeSubtags.length > 0">
+        <div class="category-pill-group subtle">
+          <button
+            v-for="sub in activeSubtags"
+            :key="sub.slug"
+            :class="['nav-chip', 'sub', { active: activeTagFilter === sub.name }]"
+            @click="activeTagFilter = activeTagFilter === sub.name ? '' : sub.name"
+          >
+            {{ sub.name }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Active Tag Filter Badge -->
