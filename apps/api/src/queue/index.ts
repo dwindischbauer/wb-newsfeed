@@ -2,6 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { db } from '../db';
 import { jobs, articles, settings, tags, articleTags } from '../db/schema';
+import { getSettings } from '../utils/settings';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
@@ -13,20 +14,27 @@ export const generationQueue = new Queue('generation_jobs', { connection });
 logger.info('Generation queue initialized');
 
 
-setTimeout(async () => {
+generationQueue.waitUntilReady().then(async () => {
   try {
     const orphaned = await db.select().from(jobs).where(eq(jobs.status, 'pending'));
+    const now = Date.now();
     for (const job of orphaned) {
-      const qJob = await generationQueue.getJob(`job-${job.id}`);
-      if (!qJob) {
-        logger.info(`Cleaning up orphaned pending job ${job.id}`);
-        await db.update(jobs).set({ status: 'failed', error: 'Orphaned pending job' }).where(eq(jobs.id, job.id));
+      // Only clean up jobs that were created at least 30 seconds ago
+      const createdAtMs = job.createdAt ? new Date(job.createdAt).getTime() : 0;
+      if (now - createdAtMs > 30000) {
+        const qJob = await generationQueue.getJob(`job-${job.id}`);
+        if (!qJob) {
+          logger.info(`Cleaning up orphaned pending job ${job.id}`);
+          await db.update(jobs).set({ status: 'failed', error: 'Orphaned pending job' }).where(eq(jobs.id, job.id));
+        }
       }
     }
   } catch (err) {
     logger.error('Failed to clean up orphaned jobs', err);
   }
-}, 2000);
+}).catch(err => {
+  logger.warn('Queue readiness check error:', err.message);
+});
 
 export const worker = new Worker('generation_jobs', async job => {
   logger.info(`Processing job ${job.id} of type ${job.name}`, { jobId: job.id, type: job.name });
@@ -62,8 +70,7 @@ Aktuelle Kategorie: ${article.category}
 Hier ist der Artikel:
 ${article.content}`;
 
-      const allSettings = await db.select().from(settings);
-      const settingsMap = allSettings.reduce((acc, curr) => { acc[curr.key] = curr.value; return acc; }, {} as Record<string, string>);
+      const settingsMap = await getSettings();
       
       const ollamaUrl = settingsMap['ollamaUrl'] || 'http://localhost:11434';
       const aiModel = settingsMap['aiModel'] || 'llama3.1:8b-instruct-q4_0';

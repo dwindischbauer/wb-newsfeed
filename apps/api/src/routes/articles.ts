@@ -57,6 +57,19 @@ async function syncArticleTags(articleId: number, tagList: Array<number | string
   }
 }
 
+async function deletePhysicalImage(imageUrl: string | null | undefined) {
+  if (!imageUrl || !imageUrl.startsWith('/images/')) return;
+  try {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const filename = path.basename(imageUrl);
+    const filepath = path.join(process.cwd(), 'public', 'images', filename);
+    await fs.unlink(filepath);
+  } catch (err: any) {
+    // Ignore if file doesn't exist or already removed
+  }
+}
+
 export default async function (server: FastifyInstance) {
   server.get('/api/articles', async (request, reply) => {
     const query = request.query as { tag?: string; category?: string };
@@ -151,6 +164,12 @@ export default async function (server: FastifyInstance) {
       return;
     }
     
+    // Clean up physical image file if present
+    const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
+    if (existing.length > 0 && existing[0].imageUrl) {
+      await deletePhysicalImage(existing[0].imageUrl);
+    }
+
     await db.delete(articles).where(eq(articles.id, parsedId));
     
     return { success: true };
@@ -173,6 +192,12 @@ export default async function (server: FastifyInstance) {
     if (!data.mimetype.startsWith('image/')) {
       reply.status(400).send({ error: 'Only images are allowed' });
       return;
+    }
+
+    // Clean up old image if replacing
+    const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
+    if (existing.length > 0 && existing[0].imageUrl) {
+      await deletePhysicalImage(existing[0].imageUrl);
     }
 
     const { pipeline } = await import('stream/promises');
@@ -204,6 +229,11 @@ export default async function (server: FastifyInstance) {
       return;
     }
     
+    const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
+    if (existing.length > 0 && existing[0].imageUrl) {
+      await deletePhysicalImage(existing[0].imageUrl);
+    }
+
     await db.update(articles).set({ imageUrl: null }).where(eq(articles.id, parsedId));
     return { success: true };
   });

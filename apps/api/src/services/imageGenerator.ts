@@ -1,5 +1,6 @@
 import { db } from '../db';
 import { settings } from '../db/schema';
+import { getSettings } from '../utils/settings';
 import { logger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -24,8 +25,7 @@ export async function generateArticleImage(
     
     logger.info(`Synthesized visual prompt: "${prompt}"`);
 
-    const allSettings = await db.select().from(settings);
-    const settingsMap = allSettings.reduce((acc, curr) => { acc[curr.key] = curr.value; return acc; }, {} as Record<string, string>);
+    const settingsMap = await getSettings();
     
     const localAiUrl = settingsMap['localAiUrl'] || process.env.LOCALAI_URL || 'http://localhost:8080';
     const imageModel = settingsMap['imageModel'] || 'stable-diffusion-3-medium';
