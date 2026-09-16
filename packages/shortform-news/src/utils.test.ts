@@ -4,11 +4,13 @@ import {
   truncate, 
   parseKeyTakeaways, 
   estimateReadingTime,
+  formatEngagementCount,
   calculatePersonalizedScore,
   rankPersonalizedArticles,
   CATEGORY_SUBTAGS,
   autoExtractArticleMetadata
 } from './utils';
+
 
 describe('utils', () => {
   describe('stripHtml', () => {
@@ -79,6 +81,31 @@ describe('utils', () => {
       expect(estimateReadingTime(null)).toBe('< 1 Min Lesezeit');
     });
   });
+
+  describe('formatEngagementCount', () => {
+    it('should format small numbers as plain strings', () => {
+      expect(formatEngagementCount(0)).toBe('0');
+      expect(formatEngagementCount(42)).toBe('42');
+      expect(formatEngagementCount(999)).toBe('999');
+    });
+
+    it('should abbreviate thousands with K', () => {
+      expect(formatEngagementCount(1000)).toBe('1K');
+      expect(formatEngagementCount(1500)).toBe('1.5K');
+      expect(formatEngagementCount(12400)).toBe('12.4K');
+    });
+
+    it('should abbreviate millions with M', () => {
+      expect(formatEngagementCount(1000000)).toBe('1M');
+      expect(formatEngagementCount(2500000)).toBe('2.5M');
+    });
+
+    it('should handle undefined and null gracefully', () => {
+      expect(formatEngagementCount(undefined)).toBe('0');
+      expect(formatEngagementCount(null)).toBe('0');
+    });
+  });
+
 
   describe('personalization', () => {
     const mockArticles = [
