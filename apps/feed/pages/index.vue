@@ -42,9 +42,12 @@
           <h1 class="reader-title">{{ activeReaderArticle.title }}</h1>
           
           <div v-if="activeReaderArticle.keyTakeaways" class="takeaways">
-            <h3>KI-Kernpunkte</h3>
+            <div class="takeaways-header">
+              <h3>KI-Kernpunkte</h3>
+              <span class="reading-time">{{ estimateReadingTime(activeReaderArticle.content) }}</span>
+            </div>
             <ul style="padding-left: 1.2rem; margin: 0;">
-              <li v-for="point in activeReaderArticle.keyTakeaways.split(/(?:\n|[,;]?\s*(?:•|-|\d+\.)\s+)/).filter(p => p.trim())" :key="point">{{ point.trim() }}</li>
+              <li v-for="point in parseKeyTakeaways(activeReaderArticle.keyTakeaways)" :key="point">{{ point }}</li>
             </ul>
           </div>
           
@@ -57,7 +60,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { ShortformFeed } from '@wb-news/shortform-news';
+import { ShortformFeed, parseKeyTakeaways, estimateReadingTime } from '@wb-news/shortform-news';
 
 const articles = ref([]);
 const activeReaderArticle = ref(null);
@@ -213,7 +216,20 @@ onMounted(() => {
   margin-bottom: 2rem;
   border-left: 4px solid #4ade80;
 }
-.takeaways h3 { margin: 0 0 0.5rem 0; color: #4ade80; font-size: 1.1rem; }
+.takeaways-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.takeaways h3 { margin: 0; color: #4ade80; font-size: 1.1rem; }
+.reading-time {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+}
 .reader-body {
   line-height: 1.8;
   font-size: 1.1rem;
