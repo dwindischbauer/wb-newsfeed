@@ -5,6 +5,7 @@ import feedRoutes from './routes/feed';
 import settingsRoutes from './routes/settings';
 import tagRoutes from './routes/tags';
 import analyticsRoutes from './routes/analytics';
+import engagementRoutes from './routes/engagement';
 import './queue'; // Initialize worker
 
 import cors from '@fastify/cors';
@@ -27,14 +28,19 @@ server.register(cors, {
   origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : (process.env.NODE_ENV === 'production' ? 'https://admin.wb-news.local' : '*')
 });
 
+// Public read-only/engagement sub-routes on articles — likes, shares and
+// comments are called directly from the anonymous, account-less feed app.
+const PUBLIC_ARTICLE_ACTION = /^\/api\/articles\/\d+\/(like|unlike|share|comments)(\/|\?|$)/;
+
 // Simple API Key authentication for admin routes
 server.addHook('preHandler', async (request, reply) => {
   // Public routes accessible without API key
   if (
-    request.url.startsWith('/api/feed') || 
-    request.url.startsWith('/api/sysinfo') || 
+    request.url.startsWith('/api/feed') ||
+    request.url.startsWith('/api/sysinfo') ||
     request.url.startsWith('/images/') ||
-    request.url.startsWith('/api/analytics/events')
+    request.url.startsWith('/api/analytics/events') ||
+    PUBLIC_ARTICLE_ACTION.test(request.url)
   ) {
     return;
   }
@@ -64,6 +70,7 @@ server.register(feedRoutes);
 server.register(settingsRoutes);
 server.register(tagRoutes);
 server.register(analyticsRoutes);
+server.register(engagementRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return {
