@@ -7,9 +7,14 @@
         :article="article"
         :apiUrl="apiUrl"
         :trackingEnabled="trackingEnabled"
+        :liked="likedIds && likedIds.includes(article.id)"
         @read="(a) => $emit('article-read', a)"
         @impression="(a) => $emit('article-impression', a)"
         @filter-tag="(t) => $emit('filter-tag', t)"
+        @like="(a) => $emit('like', a)"
+        @unlike="(a) => $emit('unlike', a)"
+        @share="(a) => $emit('share', a)"
+        @open-comments="(a) => $emit('open-comments', a)"
       >
         <template #card-media="{ article }">
           <slot name="media" :article="article"></slot>
@@ -41,9 +46,10 @@ const props = defineProps<{
   apiUrl?: string;
   loading?: boolean;
   trackingEnabled?: boolean;
+  likedIds?: number[];
 }>();
 
-const emit = defineEmits(['article-read', 'article-impression', 'scroll-depth', 'filter-tag']);
+const emit = defineEmits(['article-read', 'article-impression', 'scroll-depth', 'filter-tag', 'like', 'unlike', 'share', 'open-comments']);
 
 const feedRef = ref<HTMLElement | null>(null);
 
