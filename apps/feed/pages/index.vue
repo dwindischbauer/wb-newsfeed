@@ -24,6 +24,7 @@
       @article-read="openReader"
       @article-impression="onArticleImpression"
       @scroll-depth="onScrollDepth"
+      @filter-tag="filterByTag"
     >
       <template #empty>
         Keine aktiven Nachrichten für '{{ activeTagFilter ? '#' + activeTagFilter : activeCategory }}'.

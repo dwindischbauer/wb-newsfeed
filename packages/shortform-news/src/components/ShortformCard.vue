@@ -5,13 +5,17 @@
         <div class="sf-badges-wrapper">
           <span class="sf-category-badge">{{ article.category }}</span>
           <div class="sf-tags-container" v-if="article.tags && article.tags.length > 0">
-            <span 
+            <button 
+              type="button"
               v-for="tag in article.tags" 
               :key="tag.id || tag.name" 
               class="sf-tag-badge"
+              :style="tag.color ? { borderColor: tag.color, color: tag.color, backgroundColor: tag.color + '22' } : {}"
+              @click.stop="$emit('filter-tag', tag.name)"
+              title="Nach diesem Subtag filtern"
             >
               #{{ tag.name }}
-            </span>
+            </button>
           </div>
         </div>
       </slot>
@@ -39,7 +43,7 @@ const props = defineProps<{
   trackingEnabled?: boolean;
 }>();
 
-const emit = defineEmits(['read', 'impression']);
+const emit = defineEmits(['read', 'impression', 'filter-tag']);
 
 const cardRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
