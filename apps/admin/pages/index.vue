@@ -161,19 +161,63 @@
       </div>
       <div class="preview-content">
         <div v-if="selectedArticle.imageUrl" class="preview-image" :style="{ backgroundImage: `url(${config.public.apiUrl}${selectedArticle.imageUrl})` }">
-          <button class="action-btn danger-btn remove-image-btn" @click="removeImage(selectedArticle.id)">Bild löschen</button>
+          <div class="image-action-overlay">
+            <div class="image-action-cluster">
+              <button 
+                class="action-btn-overlay" 
+                :disabled="isGeneratingImage"
+                @click="generateImageForArticle"
+                title="Neues KI-Bild über LocalAI/Stable Diffusion berechnen"
+              >
+                <span v-if="isGeneratingImage" class="mini-spinner"></span>
+                <span v-else>✨</span>
+                KI-Bild neu generieren
+              </button>
+
+              <!-- Live update right next to the button -->
+              <div v-if="imageGenState" class="live-image-status" :class="`status-${imageGenState.type}`">
+                <span v-if="imageGenState.type === 'loading'" class="status-spinner"></span>
+                <span v-else-if="imageGenState.type === 'error'" class="status-icon">⚠️</span>
+                <span v-else-if="imageGenState.type === 'success'" class="status-icon">✓</span>
+                <span class="status-text">{{ imageGenState.message }}</span>
+                <span v-if="imageGenState.elapsed" class="status-time">({{ imageGenState.elapsed }}s)</span>
+                <button v-if="imageGenState.type === 'error'" class="btn-retry-inline" @click="generateImageForArticle">Wiederholen</button>
+              </div>
+            </div>
+            <button class="action-btn danger-btn remove-image-btn" @click="removeImage(selectedArticle.id)">Bild löschen</button>
+          </div>
         </div>
         <div v-else class="preview-image-placeholder" @dragover.prevent @drop.prevent="handleImageDrop">
-          <p>Kein Bild vorhanden</p>
+          <p class="placeholder-text">Kein Bild vorhanden</p>
           <div class="placeholder-actions">
-            <button class="action-btn" @click="generateImageForArticle">KI-Bild generieren</button>
+            <div class="image-action-cluster">
+              <button 
+                class="action-btn primary-action-btn" 
+                :disabled="isGeneratingImage"
+                @click="generateImageForArticle"
+              >
+                <span v-if="isGeneratingImage" class="mini-spinner"></span>
+                <span v-else>✨</span>
+                KI-Bild generieren
+              </button>
+
+              <!-- Live update right next to the button -->
+              <div v-if="imageGenState" class="live-image-status" :class="`status-${imageGenState.type}`">
+                <span v-if="imageGenState.type === 'loading'" class="status-spinner"></span>
+                <span v-else-if="imageGenState.type === 'error'" class="status-icon">⚠️</span>
+                <span v-else-if="imageGenState.type === 'success'" class="status-icon">✓</span>
+                <span class="status-text">{{ imageGenState.message }}</span>
+                <span v-if="imageGenState.elapsed" class="status-time">({{ imageGenState.elapsed }}s)</span>
+                <button v-if="imageGenState.type === 'error'" class="btn-retry-inline" @click="generateImageForArticle">Wiederholen</button>
+              </div>
+            </div>
+
             <label class="action-btn upload-btn">
               Bild hochladen
               <input type="file" accept="image/*" @change="handleImageUpload" style="display: none;" />
             </label>
           </div>
-          <p class="drop-hint" v-if="!imageGenStatus">Oder Bild hierher ziehen</p>
-          <p v-if="imageGenStatus" class="gen-status">{{ imageGenStatus }}</p>
+          <p class="drop-hint" v-if="!imageGenState">Oder Bild hierher ziehen</p>
         </div>
         <div class="preview-meta-row">
           <span class="preview-category">{{ selectedArticle.category }}</span>
@@ -443,7 +487,28 @@ const newArticle = ref({
   tags: []
 });
 
-const imageGenStatus = ref('');
+const isGeneratingImage = ref(false);
+const imageGenState = ref(null);
+let genTimer = null;
+let genSeconds = 0;
+
+const startGenTimer = () => {
+  if (genTimer) clearInterval(genTimer);
+  genSeconds = 0;
+  genTimer = setInterval(() => {
+    genSeconds++;
+    if (imageGenState.value && imageGenState.value.type === 'loading') {
+      imageGenState.value.elapsed = genSeconds;
+    }
+  }, 1000);
+};
+
+const stopGenTimer = () => {
+  if (genTimer) {
+    clearInterval(genTimer);
+    genTimer = null;
+  }
+};
 
 const sysinfo = ref(null);
 
@@ -547,17 +612,41 @@ const pollJobStatus = async (jobId) => {
       const res = await apiFetch(`${config.public.apiUrl}/api/jobs/${jobId}`);
       if (res.ok) {
         const job = await res.json();
+        
+        if (job.type === 'image_generation') {
+          if (job.status === 'processing') {
+            if (imageGenState.value) {
+              imageGenState.value.message = 'LocalAI generiert Bild...';
+            }
+          }
+        }
+
         if (job.status === 'completed' || job.status === 'failed') {
           clearInterval(pollInterval);
           pollInterval = null;
           
           if (job.type === 'image_generation') {
+            stopGenTimer();
+            isGeneratingImage.value = false;
             if (job.status === 'failed') {
-              imageGenStatus.value = `Fehler: ${job.error || 'Unbekannt'}`;
+              const err = job.error || 'Fehler beim Generieren';
+              imageGenState.value = {
+                type: 'error',
+                message: err.length > 35 ? err.slice(0, 35) + '...' : err,
+                errorDetail: err
+              };
               showToast('Bild-Generierung fehlgeschlagen', 'error');
             } else {
-              imageGenStatus.value = ''; // Success
+              imageGenState.value = {
+                type: 'success',
+                message: `Bild fertiggestellt (${genSeconds}s)!`
+              };
               showToast('KI-Bild erfolgreich generiert!', 'success');
+              setTimeout(() => {
+                if (imageGenState.value?.type === 'success') {
+                  imageGenState.value = null;
+                }
+              }, 6000);
             }
           } else if (job.type === 'teaser_generation' && job.status === 'completed') {
             showToast('KI-Aufbereitung erfolgreich abgeschlossen!', 'success');
@@ -586,7 +675,13 @@ const pollJobStatus = async (jobId) => {
 
 const generateImageForArticle = async () => {
   if (!selectedArticle.value) return;
-  imageGenStatus.value = 'Reihe Job ein...';
+  isGeneratingImage.value = true;
+  startGenTimer();
+  imageGenState.value = {
+    type: 'loading',
+    message: 'Job wird vorbereitet...',
+    elapsed: 0
+  };
   try {
     const res = await apiFetch(`${config.public.apiUrl}/api/jobs`, {
       method: 'POST',
@@ -595,15 +690,29 @@ const generateImageForArticle = async () => {
     });
     if (res.ok) {
       const data = await res.json();
-      imageGenStatus.value = 'Generiere (Warte auf KI)...';
+      imageGenState.value = {
+        type: 'loading',
+        message: 'In Queue eingereiht (Warte auf KI)...',
+        elapsed: genSeconds
+      };
       pollJobStatus(data.jobId);
     } else {
-      imageGenStatus.value = 'Fehler beim Einreihen';
+      stopGenTimer();
+      isGeneratingImage.value = false;
+      imageGenState.value = {
+        type: 'error',
+        message: 'Fehler beim Einreihen'
+      };
       showToast('Fehler beim Starten der Bild-KI', 'error');
     }
   } catch (e) {
     console.error(e);
-    imageGenStatus.value = 'Fehler beim Einreihen';
+    stopGenTimer();
+    isGeneratingImage.value = false;
+    imageGenState.value = {
+      type: 'error',
+      message: 'Netzwerkfehler'
+    };
   }
 };
 
@@ -734,46 +843,231 @@ onUnmounted(() => {
 }
 .preview-image {
   width: 100%;
-  height: 200px;
+  height: 220px;
   background-size: cover;
   background-position: center;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 1rem;
   position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
-.remove-image-btn {
+
+.image-action-overlay {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: rgba(255, 255, 255, 0.9);
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(8px);
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
 }
+
+.action-btn-overlay {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+.action-btn-overlay:hover:not(:disabled) {
+  background: white;
+  transform: translateY(-1px);
+}
+.action-btn-overlay:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.remove-image-btn {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.remove-image-btn:hover {
+  background: #dc2626;
+}
+
 .preview-image-placeholder {
   width: 100%;
-  height: 200px;
-  background-color: #f1f5f9;
+  min-height: 200px;
+  background-color: #f8fafc;
   border: 2px dashed #cbd5e1;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #64748b;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
 }
+
+.placeholder-text {
+  margin: 0;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
 .placeholder-actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
 }
-.upload-btn {
+
+.image-action-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.primary-action-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.primary-action-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+.primary-action-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.live-image-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  animation: fadeInStatus 0.2s ease forwards;
+}
+
+@keyframes fadeInStatus {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.live-image-status.status-loading {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.live-image-status.status-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.live-image-status.status-success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.status-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid #93c5fd;
+  border-top-color: #1d4ed8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
   display: inline-block;
+  flex-shrink: 0;
+}
+
+.mini-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-time {
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.btn-retry-inline {
+  background: #b91c1c;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 2px;
+  transition: background 0.1s ease;
+}
+.btn-retry-inline:hover {
+  background: #991b1b;
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
   background: white;
+  border: 1px solid #cbd5e1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #475569;
 }
+.upload-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
 .drop-hint {
   font-size: 0.75rem;
   margin: 0;
-  opacity: 0.7;
+  color: #94a3b8;
 }
 .preview-category {
   display: inline-block;
