@@ -24,3 +24,5 @@ available-models.json
 test-article.json
 test-job.json
 AGENTS.md
+.claude/
+
