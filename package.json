@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "pnpm --recursive --parallel run dev",
     "build": "pnpm --recursive run build",
-    "start": "pnpm --filter api run start"
+    "start": "pnpm --filter api run start",
+    "test": "pnpm --filter @wb-news/shortform-news run test"
   }
 }
