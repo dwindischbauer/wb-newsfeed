@@ -40,7 +40,7 @@ export const tags = pgTable('tags', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 50 }).notNull().unique(),
   slug: varchar('slug', { length: 60 }).notNull().unique(),
-  color: varchar('color', { length: 20 }).default('#3b82f6'),
+  color: varchar('color', { length: 20 }).default('#6f8f1a'),
   createdAt: timestamp('created_at').defaultNow()
 });
 
@@ -66,3 +66,5 @@ export const analyticsEvents = pgTable('analytics_events', {
   metadata: text('metadata'),
   createdAt: timestamp('created_at').defaultNow()
 });
+
+
