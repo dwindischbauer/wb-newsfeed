@@ -24,6 +24,14 @@ export const estimateReadingTime = (text: string | null | undefined, wordsPerMin
   return `${minutes} Min Lesezeit`;
 };
 
+export const formatEngagementCount = (n: number | undefined | null): string => {
+  const val = n || 0;
+  if (val >= 1000000) return (val / 1000000).toFixed(1).replace('.0', '') + 'M';
+  if (val >= 1000) return (val / 1000).toFixed(1).replace('.0', '') + 'K';
+  return String(val);
+};
+
+
 export interface UserInterests {
   categories?: Record<string, number>;
   tags?: Record<string, number>;
