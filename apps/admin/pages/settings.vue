@@ -233,22 +233,22 @@ onMounted(() => {
 .header h2 {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #14151a;
   margin: 0;
 }
 .settings-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   padding: 1.75rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  border-radius: 22px;
+  box-shadow: 0 4px 20px rgba(20, 20, 20, 0.08);
   margin-bottom: 1.5rem;
 }
 .settings-card h3 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #14151a;
 }
 .form-group {
   display: flex;
@@ -273,8 +273,8 @@ input, select {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   font-size: 0.85rem;
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.03);
+  color: #14151a;
   outline: none;
   font-family: inherit;
 }
@@ -282,24 +282,24 @@ input:focus, select:focus {
   border-color: var(--border-focus);
 }
 input:disabled {
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(20, 20, 20, 0.01);
   color: var(--text-muted);
 }
 .primary-btn {
-  background: linear-gradient(135deg, #06b6d4, #2563eb);
-  color: white;
+  background: #14151a;
+  color: #d5f24e;
   border: none;
   padding: 0.65rem 1.35rem;
-  border-radius: 8px;
+  border-radius: 9999px;
   cursor: pointer;
   font-weight: 600;
   font-size: 0.85rem;
   transition: all 0.2s ease;
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.2);
 }
 .primary-btn:hover {
   opacity: 0.92;
-  box-shadow: 0 0 18px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 6px 18px rgba(20, 20, 20, 0.28);
 }
 
 .card-header-flex {
@@ -317,8 +317,8 @@ input:disabled {
 }
 
 .secondary-btn {
-  background: rgba(255, 255, 255, 0.04);
-  color: #e2e8f0;
+  background: rgba(20, 20, 20, 0.04);
+  color: #3f4046;
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 0.35rem 0.75rem;
@@ -331,8 +331,8 @@ input:disabled {
   transition: all 0.15s ease;
 }
 .secondary-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(20, 20, 20, 0.08);
+  color: #14151a;
 }
 .secondary-btn:disabled {
   opacity: 0.5;
@@ -346,14 +346,14 @@ input:disabled {
 }
 
 .active-model-badge {
-  background: rgba(6, 182, 212, 0.15);
-  color: #38bdf8;
+  background: rgba(111, 143, 26, 0.15);
+  color: #5c7a14;
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 0.72rem;
   font-family: ui-monospace, monospace;
   font-weight: 600;
-  border: 1px solid rgba(6, 182, 212, 0.3);
+  border: 1px solid rgba(111, 143, 26, 0.3);
 }
 
 .custom-model-input {
@@ -379,8 +379,8 @@ input:disabled {
 .btn-spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #38bdf8;
+  border: 2px solid rgba(20, 20, 20, 0.2);
+  border-top-color: #5c7a14;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   display: inline-block;
@@ -399,11 +399,11 @@ input:disabled {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: #111622;
-  color: white;
+  background: #ffffff;
+  color: #14151a;
   padding: 12px 18px;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  border-radius: 14px;
+  box-shadow: 0 10px 25px rgba(20, 20, 20, 0.12);
   border: 1px solid var(--border-subtle);
   font-size: 0.85rem;
   font-weight: 500;
