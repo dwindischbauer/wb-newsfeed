@@ -5,7 +5,9 @@ import {
   parseKeyTakeaways, 
   estimateReadingTime,
   calculatePersonalizedScore,
-  rankPersonalizedArticles
+  rankPersonalizedArticles,
+  CATEGORY_SUBTAGS,
+  autoExtractArticleMetadata
 } from './utils';
 
 describe('utils', () => {
@@ -134,6 +136,45 @@ describe('utils', () => {
       // Score = 2*3 (category) + 3*5 (tag) + recency boost
       const score = calculatePersonalizedScore(mockArticles[1], userInterests);
       expect(score).toBeGreaterThan(20);
+    });
+  });
+
+  describe('autoExtractArticleMetadata and category subtags', () => {
+    it('should have predefined subtags for all main categories', () => {
+      expect(CATEGORY_SUBTAGS['Politik']).toBeDefined();
+      expect(CATEGORY_SUBTAGS['Politik'].some(s => s.name === 'Innenpolitik')).toBe(true);
+      expect(CATEGORY_SUBTAGS['Politik'].some(s => s.name === 'Außenpolitik')).toBe(true);
+      expect(CATEGORY_SUBTAGS['Wirtschaft'].some(s => s.name === 'Finanzen')).toBe(true);
+      expect(CATEGORY_SUBTAGS['Technologie'].some(s => s.name === 'KI & Algorithmen')).toBe(true);
+    });
+
+    it('should extract a clean auto-title and strip agency prefixes', () => {
+      const text = 'WIEN (APA) - Nationalrat beschließt neues Transparenzgesetz nach stundenlanger Debatte im Plenum.';
+      const meta = autoExtractArticleMetadata(text);
+      expect(meta.title).toBe('Nationalrat beschließt neues Transparenzgesetz nach stundenlanger Debatte im Plenum');
+      expect(meta.category).toBe('Politik');
+      expect(meta.tags.some(t => t.name === 'Innenpolitik')).toBe(true);
+    });
+
+    it('should automatically assign Wirtschaft and Finanzen subtags for financial content', () => {
+      const text = 'Die Europäische Zentralbank erhöht überraschend den Leitzins, um die anhaltende Inflation im Euroraum zu dämpfen.';
+      const meta = autoExtractArticleMetadata(text);
+      expect(meta.category).toBe('Wirtschaft');
+      expect(meta.tags.some(t => t.name === 'Finanzen' || t.name === 'Inflation & Preise')).toBe(true);
+    });
+
+    it('should automatically assign Technologie and KI subtags for AI content', () => {
+      const text = 'Neues Open-Source Sprachmodell übertrifft bisherige Algorithmen bei der automatischen Codegenerierung.';
+      const meta = autoExtractArticleMetadata(text);
+      expect(meta.category).toBe('Technologie');
+      expect(meta.tags.some(t => t.name === 'KI & Algorithmen' || t.name === 'Software & Cloud')).toBe(true);
+    });
+
+    it('should respect explicit categoryHint when provided', () => {
+      const text = 'Das neue Budget des Kulturministers sieht höhere Förderungen für freie Theater und Festspiele vor.';
+      const meta = autoExtractArticleMetadata(text, 'Kultur');
+      expect(meta.category).toBe('Kultur');
+      expect(meta.tags.some(t => t.name === 'Theater & Bühne')).toBe(true);
     });
   });
 });
