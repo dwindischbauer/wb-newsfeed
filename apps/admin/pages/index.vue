@@ -33,12 +33,31 @@
           {{ cat }}
         </button>
       </div>
+
+      <div class="tag-filters" v-if="allTags && allTags.length > 0">
+        <span class="filter-label">Filter Tags:</span>
+        <button 
+          :class="['tag-chip-filter', { active: activeTag === null }]"
+          @click="activeTag = null"
+        >
+          Alle
+        </button>
+        <button 
+          v-for="t in allTags" 
+          :key="t.id"
+          :class="['tag-chip-filter', { active: activeTag === t.name }]"
+          @click="activeTag = activeTag === t.name ? null : t.name"
+        >
+          #{{ t.name }} <span v-if="t.articleCount > 0" class="badge-count">({{ t.articleCount }})</span>
+        </button>
+      </div>
       
       <table class="data-table">
         <thead>
           <tr>
             <th>Titel</th>
             <th>Kategorie</th>
+            <th>Tags</th>
             <th>Autor</th>
             <th>Status</th>
             <th>Aktionen</th>
@@ -47,7 +66,15 @@
         <tbody>
           <tr v-for="article in filteredArticles" :key="article.id">
             <td>{{ article.title }}</td>
-            <td>{{ article.category }}</td>
+            <td><span class="category-cell-badge">{{ article.category }}</span></td>
+            <td>
+              <div class="table-tags-list">
+                <span v-for="tag in (article.tags || [])" :key="tag.id || tag.name" class="table-tag-chip">
+                  #{{ tag.name }}
+                </span>
+                <span v-if="!article.tags || article.tags.length === 0" class="no-tags">-</span>
+              </div>
+            </td>
             <td>{{ article.author }}</td>
             <td>
               <span :class="['status-badge', article.status]">{{ article.status === 'published' ? 'Veröffentlicht' : 'Entwurf' }}</span>
@@ -57,7 +84,7 @@
             </td>
           </tr>
           <tr v-if="filteredArticles.length === 0">
-            <td colspan="5" class="empty">Keine Artikel gefunden.</td>
+            <td colspan="6" class="empty">Keine Artikel gefunden.</td>
           </tr>
         </tbody>
       </table>
@@ -85,7 +112,14 @@
           <p class="drop-hint" v-if="!imageGenStatus">Oder Bild hierher ziehen</p>
           <p v-if="imageGenStatus" class="gen-status">{{ imageGenStatus }}</p>
         </div>
-        <span class="preview-category">{{ selectedArticle.category }}</span>
+        <div class="preview-meta-row">
+          <span class="preview-category">{{ selectedArticle.category }}</span>
+          <div class="preview-tags-container" v-if="selectedArticle.tags && selectedArticle.tags.length > 0">
+            <span v-for="tag in selectedArticle.tags" :key="tag.id || tag.name" class="preview-tag-chip">
+              #{{ tag.name }}
+            </span>
+          </div>
+        </div>
         <h2 class="preview-title">{{ selectedArticle.title }}</h2>
         <div class="preview-teaser" v-if="selectedArticle.teaser">
           <strong>KI-Zusammenfassung:</strong> {{ selectedArticle.teaser }}
@@ -113,7 +147,7 @@
     <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>Artikel einpflegen</h3>
+          <h3>{{ newArticle.id ? 'Artikel bearbeiten' : 'Artikel einpflegen' }}</h3>
           <button class="close-btn" @click="closeModal">&times;</button>
         </div>
         <div class="modal-body">
@@ -127,6 +161,30 @@
               <option value="Auto">KI-Erkennung (Auto)</option>
               <option v-for="cat in categories.slice(1)" :key="cat" :value="cat">{{ cat }}</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label>Tags / Schlagwörter (mehrere möglich)</label>
+            <div class="modal-tags-selection" v-if="allTags && allTags.length > 0">
+              <button 
+                type="button"
+                v-for="t in allTags" 
+                :key="t.id"
+                :class="['tag-toggle-btn', { selected: isTagSelected(t.name) }]"
+                @click="toggleTag(t.name)"
+              >
+                #{{ t.name }}
+              </button>
+            </div>
+            <div class="add-tag-inline">
+              <input 
+                type="text" 
+                v-model="newTagName" 
+                placeholder="Neuen Tag erstellen (z.B. Innenpolitik)..." 
+                @keydown.enter.prevent="addNewTag"
+              />
+              <button type="button" class="action-btn" @click="addNewTag">+ Tag</button>
+            </div>
+            <p class="field-hint">Tipp: Bei neuem Artikel weist die KI passende Tags auch automatisch zu.</p>
           </div>
           <div class="form-group">
             <label>Autor / Quelle</label>
@@ -156,6 +214,9 @@ import { ref, onMounted, computed } from 'vue';
 const articles = ref([]);
 const categories = ['Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
 const activeCategory = ref('Alle');
+const allTags = ref([]);
+const activeTag = ref(null);
+const newTagName = ref('');
 const selectedArticle = ref(null);
 const pendingJobsCount = ref(0);
 
@@ -165,8 +226,14 @@ const publishedArticlesCount = computed(() => {
 });
 
 const filteredArticles = computed(() => {
-  if (activeCategory.value === 'Alle') return articles.value;
-  return articles.value.filter(a => a.category === activeCategory.value);
+  let list = articles.value;
+  if (activeCategory.value !== 'Alle') {
+    list = list.filter(a => a.category === activeCategory.value);
+  }
+  if (activeTag.value) {
+    list = list.filter(a => (a.tags || []).some(t => t.name === activeTag.value || t.slug === activeTag.value));
+  }
+  return list;
 });
 
 const selectArticle = (article) => {
@@ -174,6 +241,56 @@ const selectArticle = (article) => {
 };
 
 const config = useRuntimeConfig();
+
+const fetchTags = async () => {
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/tags`);
+    if (res.ok) {
+      allTags.value = await res.json();
+    }
+  } catch (e) {
+    console.error('Failed to fetch tags', e);
+  }
+};
+
+const isTagSelected = (name) => {
+  return (newArticle.value.tags || []).some(t => (typeof t === 'string' ? t : t.name) === name);
+};
+
+const toggleTag = (name) => {
+  if (!newArticle.value.tags) newArticle.value.tags = [];
+  const idx = newArticle.value.tags.findIndex(t => (typeof t === 'string' ? t : t.name) === name);
+  if (idx >= 0) {
+    newArticle.value.tags.splice(idx, 1);
+  } else {
+    newArticle.value.tags.push(name);
+  }
+};
+
+const addNewTag = async () => {
+  if (!newTagName.value || !newTagName.value.trim()) return;
+  const name = newTagName.value.trim();
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    if (res.ok) {
+      const created = await res.json();
+      if (!allTags.value.some(t => t.name.toLowerCase() === created.name.toLowerCase())) {
+        allTags.value.push(created);
+      }
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  if (!newArticle.value.tags) newArticle.value.tags = [];
+  if (!newArticle.value.tags.some(t => (typeof t === 'string' ? t : t.name) === name)) {
+    newArticle.value.tags.push(name);
+  }
+  newTagName.value = '';
+};
 
 const toggleStatus = async (article) => {
   const newStatus = article.status === 'published' ? 'draft' : 'published';
@@ -203,6 +320,7 @@ const deleteArticle = async (id) => {
     });
     selectedArticle.value = null;
     fetchArticles();
+    fetchTags();
   } catch (e) {
     console.error(e);
   }
@@ -233,7 +351,8 @@ const newArticle = ref({
   title: '', 
   category: 'Auto', 
   author: 'Redaktion', 
-  content: '' 
+  content: '',
+  tags: []
 });
 
 const imageGenStatus = ref('');
@@ -261,13 +380,19 @@ const openModal = () => {
     title: '', 
     category: 'Auto', 
     author: 'Redaktion', 
-    content: '' 
+    content: '',
+    tags: []
   };
+  newTagName.value = '';
   isModalOpen.value = true;
 };
 
 const editArticle = (article) => {
-  newArticle.value = { ...article };
+  newArticle.value = { 
+    ...article,
+    tags: (article.tags || []).map(t => (typeof t === 'string' ? t : t.name))
+  };
+  newTagName.value = '';
   isModalOpen.value = true;
 };
 
@@ -339,17 +464,18 @@ const pollJobStatus = async (jobId) => {
               imageGenStatus.value = `Fehler: ${job.error || 'Unbekannt'}`;
             } else {
               imageGenStatus.value = ''; // Success
-              // refetch article to get image
-              if (selectedArticle.value) {
-                const updatedArticleRes = await apiFetch(`${config.public.apiUrl}/api/articles/${selectedArticle.value.id}`);
-                if (updatedArticleRes.ok) {
-                  selectedArticle.value = await updatedArticleRes.json();
-                }
-              }
+            }
+          }
+          
+          if (selectedArticle.value && selectedArticle.value.id === job.articleId) {
+            const updatedArticleRes = await apiFetch(`${config.public.apiUrl}/api/articles/${selectedArticle.value.id}`);
+            if (updatedArticleRes.ok) {
+              selectedArticle.value = await updatedArticleRes.json();
             }
           }
           
           fetchArticles();
+          fetchTags();
           fetchJobsStat();
         }
       }
@@ -443,6 +569,7 @@ let articlesInterval = null;
 onMounted(() => {
   fetchArticles();
   fetchJobsStat();
+  fetchTags();
   fetchSysinfo();
   
   statsInterval = setInterval(fetchJobsStat, 5000);
@@ -764,5 +891,140 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
+}
+
+/* Tags Styling */
+.tag-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.filter-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 0.25rem;
+}
+.tag-chip-filter {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 0.25rem 0.6rem;
+  border-radius: 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tag-chip-filter:hover {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+.tag-chip-filter.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+  font-weight: 600;
+}
+.badge-count {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.table-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  max-width: 200px;
+}
+.table-tag-chip {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 0.15rem 0.45rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.no-tags {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+.category-cell-badge {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.preview-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.preview-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.preview-tag-chip {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.modal-tags-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 0.4rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+.tag-toggle-btn {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 0.3rem 0.65rem;
+  border-radius: 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tag-toggle-btn.selected {
+  background: #2563eb;
+  color: white;
+  border-color: #1d4ed8;
+  font-weight: 600;
+}
+.add-tag-inline {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+.add-tag-inline input {
+  flex: 1;
+  font-size: 0.85rem;
+}
+.field-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0.25rem 0 0 0;
 }
 </style>
