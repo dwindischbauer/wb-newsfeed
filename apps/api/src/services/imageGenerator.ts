@@ -378,9 +378,7 @@ async function generateSvgCard(title: string, category: string, articleId: numbe
   <circle cx="1050" cy="180" r="300" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="80" />
   <rect x="80" y="80" width="180" height="42" rx="21" fill="rgba(255,255,255,0.2)" />
   <text x="170" y="107" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="1">${escapedCategory.toUpperCase()}</text>
-  <text x="80" y="240" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="800" fill="#ffffff">
-    ${escapedTitle.length > 40 ? escapedTitle.slice(0, 38) + '...' : escapedTitle}
-  </text>
+  <text x="80" y="1500" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#ffffff">${escapedTitle}</text>
   <text x="80" y="590" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="500" fill="rgba(255,255,255,0.75)">
     ORF.at Redaktion • KI Newsfeed
   </text>
