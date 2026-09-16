@@ -5,7 +5,7 @@ import { eq, desc, inArray } from 'drizzle-orm';
 
 export default async function (server: FastifyInstance) {
   server.get('/api/feed', async (request, reply) => {
-    const query = request.query as { tag?: string; category?: string };
+    const query = request.query as { tag?: string; category?: string; limit?: string; offset?: string };
 
     let publishedArticles = await db
       .select()
@@ -48,6 +48,14 @@ export default async function (server: FastifyInstance) {
 
     if (query.category && query.category !== 'Alle') {
       result = result.filter(a => a.category.toLowerCase() === query.category?.toLowerCase());
+    }
+
+    // Support limit and offset for scalable snap-scrolling
+    const limit = query.limit ? Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100) : null;
+    const offset = query.offset ? Math.max(parseInt(query.offset, 10) || 0, 0) : 0;
+
+    if (limit !== null) {
+      result = result.slice(offset, offset + limit);
     }
       
     return result;

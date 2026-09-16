@@ -48,3 +48,12 @@ export const articleTags = pgTable('article_tags', {
   createdAt: timestamp('created_at').defaultNow()
 });
 
+export const analyticsEvents = pgTable('analytics_events', {
+  id: serial('id').primaryKey(),
+  eventType: varchar('event_type', { length: 50 }).notNull(),
+  articleId: integer('article_id').references(() => articles.id, { onDelete: 'cascade' }),
+  metadata: text('metadata'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+
