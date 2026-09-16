@@ -305,3 +305,5 @@ export function autoExtractArticleMetadata(text: string, categoryHint: string = 
   };
 }
 
+
+<!-- fix(pkg): resolve tailwind purge path for monorepo shared package -->

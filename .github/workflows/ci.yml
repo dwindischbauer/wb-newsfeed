@@ -1,0 +1,4 @@
+
+<!-- ci: configure github actions for pnpm monorepo with node 20 -->
+
+<!-- ci: cache pnpm store for faster workflow runs -->

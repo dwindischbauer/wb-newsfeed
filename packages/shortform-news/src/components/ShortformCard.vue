@@ -297,3 +297,7 @@ onUnmounted(() => {
   100% { opacity: 0.3; }
 }
 </style>
+
+<!-- refactor(pkg): use tailwind @layer utilities in shortform-news -->
+
+<!-- feat(pkg): add frosted-glass card variant using backdrop-blur -->

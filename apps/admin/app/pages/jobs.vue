@@ -1,13 +1,16 @@
 <template>
-  <div class="jobs-page">
-    <div class="carbon-card jobs-card">
-      <div class="header">
+  <div class="mx-auto max-w-[1440px] px-8 pb-12 pt-6">
+    <div class="rounded-[22px] border border-border-subtle bg-bg-card p-6 shadow-[0_4px_20px_rgba(20,20,20,0.08)]">
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 class="page-title">KI Job Queue</h2>
-          <p class="page-subtitle">BullMQ Worker & Async Pipeline Monitoring</p>
+          <h2 class="m-0 text-xl font-extrabold text-accent-ink">KI Job Queue</h2>
+          <p class="m-0 mt-[0.2rem] text-[0.78rem] text-text-muted">BullMQ Worker & Async Pipeline Monitoring</p>
         </div>
-        <div class="header-actions">
-          <select v-model="statusFilter" class="carbon-select">
+        <div class="flex items-center gap-[0.85rem]">
+          <select
+            v-model="statusFilter"
+            class="rounded-lg border border-border-subtle bg-black/[0.04] px-[0.85rem] py-2 text-[0.82rem] text-accent-ink outline-none focus:border-border-focus"
+          >
             <option value="">Alle Status</option>
             <option value="pending">Pending</option>
             <option value="processing">Processing</option>
@@ -15,56 +18,69 @@
             <option value="failed">Failed</option>
           </select>
           <Spinner v-if="isLoading" />
-          <button @click="fetchJobs" class="carbon-btn-primary">
+          <button
+            class="flex items-center gap-[0.4rem] rounded-full bg-accent-ink px-4 py-2 text-[0.82rem] font-semibold text-accent-lime shadow-[0_4px_14px_rgba(20,20,20,0.2)] transition-all duration-200 hover:opacity-[0.92] hover:shadow-[0_6px_18px_rgba(20,20,20,0.28)]"
+            @click="fetchJobs"
+          >
             <span>⟳</span>
             <span>Aktualisieren</span>
           </button>
         </div>
       </div>
-      
-      <div class="table-responsive">
-        <table class="carbon-table">
+
+      <div class="overflow-x-auto">
+        <table class="w-full border-separate [border-spacing:0_4px]">
           <thead>
             <tr>
-              <th style="width: 70px;">ID</th>
-              <th>Typ</th>
-              <th style="width: 110px;">Artikel-ID</th>
-              <th style="width: 140px;">Status</th>
-              <th style="width: 100px;">Dauer</th>
-              <th style="width: 160px;">Datum</th>
-              <th style="width: 160px; text-align: right;">Aktion</th>
+              <th class="w-[70px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">ID</th>
+              <th class="border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Typ</th>
+              <th class="w-[110px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Artikel-ID</th>
+              <th class="w-[140px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Status</th>
+              <th class="w-[100px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Dauer</th>
+              <th class="w-[160px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Datum</th>
+              <th class="w-[160px] border-b border-border-subtle px-4 py-3 text-right text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Aktion</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredJobs.length === 0">
-              <td colspan="7" class="empty-state">Keine Jobs in der Warteschlange gefunden.</td>
+              <td colspan="7" class="!py-12 bg-black/[0.02] text-center text-text-muted">Keine Jobs in der Warteschlange gefunden.</td>
             </tr>
-            <tr v-for="job in filteredJobs" :key="job.id">
-              <td class="font-mono">#{{ job.id }}</td>
-              <td>
-                <span class="job-type-pill">{{ job.type }}</span>
+            <tr v-for="job in filteredJobs" :key="job.id" class="group">
+              <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle font-mono text-[0.8rem] text-[#5c7a14] group-hover:bg-black/[0.04]">#{{ job.id }}</td>
+              <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle group-hover:bg-black/[0.04]">
+                <span class="rounded-md bg-black/5 px-[0.55rem] py-[0.2rem] text-[0.74rem] font-semibold text-[#3f4046]">{{ job.type }}</span>
               </td>
-              <td>
-                <span class="article-id-pill">Artikel #{{ job.articleId }}</span>
+              <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle group-hover:bg-black/[0.04]">
+                <span class="text-[0.72rem] text-text-secondary">Artikel #{{ job.articleId }}</span>
               </td>
-              <td>
-                <span :class="['status-badge', 'status-' + job.status]">
-                  <span class="badge-dot"></span>
+              <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle group-hover:bg-black/[0.04]">
+                <span
+                  class="inline-flex items-center gap-[0.35rem] rounded-full px-[0.65rem] py-[0.25rem] text-[0.72rem] font-bold uppercase tracking-[0.04em]"
+                  :class="statusBadgeClasses[job.status]"
+                >
+                  <span class="h-[6px] w-[6px] rounded-full" :class="statusDotClasses[job.status]"></span>
                   <span>{{ job.status }}</span>
                 </span>
               </td>
-              <td class="font-mono">
+              <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle font-mono text-[0.8rem] text-[#5c7a14] group-hover:bg-black/[0.04]">
                 {{ job.processingTimeMs ? (job.processingTimeMs / 1000).toFixed(2) + 's' : '-' }}
               </td>
-              <td class="text-muted">
+              <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle text-[0.76rem] text-text-muted group-hover:bg-black/[0.04]">
                 {{ new Date(job.createdAt).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' }) }}
               </td>
-              <td style="text-align: right;">
-                <div class="action-btn-row">
-                  <button v-if="job.status === 'failed'" @click="retryJob(job.id)" class="carbon-action-btn">
+              <td class="bg-black/[0.02] px-4 py-[0.85rem] text-right align-middle group-hover:bg-black/[0.04]">
+                <div class="flex justify-end gap-[0.4rem]">
+                  <button
+                    v-if="job.status === 'failed'"
+                    class="rounded-md border border-border-subtle bg-black/[0.04] px-[0.6rem] py-[0.25rem] text-[0.72rem] font-medium text-text-secondary transition-all duration-200 hover:bg-black/[0.08] hover:text-accent-ink"
+                    @click="retryJob(job.id)"
+                  >
                     Neu starten
                   </button>
-                  <button @click="deleteJob(job.id)" class="carbon-action-btn danger">
+                  <button
+                    class="rounded-md border border-border-subtle bg-black/[0.04] px-[0.6rem] py-[0.25rem] text-[0.72rem] font-medium text-[#f87171] transition-all duration-200 hover:bg-[rgba(239,68,68,0.2)]"
+                    @click="deleteJob(job.id)"
+                  >
                     Löschen
                   </button>
                 </div>
@@ -77,26 +93,50 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import Spinner from '../components/Spinner.vue';
 
+type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+interface Job {
+  id: number;
+  type: string;
+  articleId: number;
+  status: JobStatus;
+  processingTimeMs: number | null;
+  createdAt: string;
+}
+
 const config = useRuntimeConfig();
-const jobs = ref([]);
+const jobs = ref<Job[]>([]);
 const isLoading = ref(false);
-const statusFilter = ref('');
+const statusFilter = ref<JobStatus | ''>('');
+
+const statusBadgeClasses: Record<JobStatus, string> = {
+  pending: 'bg-[rgba(245,158,11,0.15)] text-[#fbbf24]',
+  processing: 'bg-[rgba(111,143,26,0.15)] text-[#5c7a14]',
+  completed: 'bg-[rgba(16,185,129,0.15)] text-[#34d399]',
+  failed: 'bg-[rgba(239,68,68,0.15)] text-[#f87171]'
+};
+
+const statusDotClasses: Record<JobStatus, string> = {
+  pending: 'bg-[#fbbf24]',
+  processing: 'bg-[#5c7a14]',
+  completed: 'bg-[#34d399]',
+  failed: 'bg-[#f87171]'
+};
 
 const filteredJobs = computed(() => {
   if (!statusFilter.value) return jobs.value;
-  return jobs.value.filter(j => j.status === statusFilter.value);
+  return jobs.value.filter((j) => j.status === statusFilter.value);
 });
 
 const fetchJobs = async () => {
   isLoading.value = true;
   try {
     const res = await apiFetch(`${config.public.apiUrl}/api/jobs`);
-    const data = await res.json();
-    jobs.value = data;
+    jobs.value = await res.json();
   } catch (e) {
     console.error(e);
   } finally {
@@ -104,7 +144,7 @@ const fetchJobs = async () => {
   }
 };
 
-const retryJob = async (jobId) => {
+const retryJob = async (jobId: number) => {
   try {
     const res = await apiFetch(`${config.public.apiUrl}/api/jobs/${jobId}/retry`, {
       method: 'POST'
@@ -117,7 +157,7 @@ const retryJob = async (jobId) => {
   }
 };
 
-const deleteJob = async (jobId) => {
+const deleteJob = async (jobId: number) => {
   if (!confirm('Diesen Job wirklich löschen?')) return;
   try {
     const res = await apiFetch(`${config.public.apiUrl}/api/jobs/${jobId}`, {
@@ -131,7 +171,7 @@ const deleteJob = async (jobId) => {
   }
 };
 
-let intervalId = null;
+let intervalId: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   fetchJobs();
@@ -142,219 +182,3 @@ onUnmounted(() => {
   if (intervalId) clearInterval(intervalId);
 });
 </script>
-
-<style scoped>
-.jobs-page {
-  padding: 1.5rem 2rem 3rem;
-  max-width: 1440px;
-  margin: 0 auto;
-}
-
-.jobs-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 22px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(20, 20, 20, 0.08);
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #14151a;
-}
-
-.page-subtitle {
-  margin: 0.2rem 0 0 0;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.carbon-select {
-  padding: 0.5rem 0.85rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: rgba(20, 20, 20, 0.04);
-  color: #14151a;
-  font-size: 0.82rem;
-  outline: none;
-}
-
-.carbon-select:focus {
-  border-color: var(--border-focus);
-}
-
-.carbon-btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  background: #14151a;
-  border: none;
-  color: #d5f24e;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.2);
-  transition: all 0.2s;
-}
-
-.carbon-btn-primary:hover {
-  opacity: 0.92;
-  box-shadow: 0 6px 18px rgba(20, 20, 20, 0.28);
-}
-
-.table-responsive {
-  overflow-x: auto;
-}
-
-.carbon-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 4px;
-}
-
-.carbon-table th {
-  text-align: left;
-  padding: 0.75rem 1rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.carbon-table td {
-  padding: 0.85rem 1rem;
-  font-size: 0.82rem;
-  color: #24252a;
-  background: rgba(20, 20, 20, 0.02);
-  vertical-align: middle;
-}
-
-.carbon-table tbody tr:hover td {
-  background: rgba(20, 20, 20, 0.04);
-}
-
-.font-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.8rem;
-  color: #5c7a14;
-}
-
-.job-type-pill {
-  font-size: 0.74rem;
-  font-weight: 600;
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
-  background: rgba(20, 20, 20, 0.05);
-  color: #3f4046;
-}
-
-.article-id-pill {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.65rem;
-  border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.badge-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.status-badge.pending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-}
-.status-badge.pending .badge-dot { background: #fbbf24; }
-
-.status-badge.processing {
-  background: rgba(111, 143, 26, 0.15);
-  color: #5c7a14;
-}
-.status-badge.processing .badge-dot { background: #5c7a14; }
-
-.status-badge.completed {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-}
-.status-badge.completed .badge-dot { background: #34d399; }
-
-.status-badge.failed {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-}
-.status-badge.failed .badge-dot { background: #f87171; }
-
-.empty-state {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 3rem 1rem !important;
-}
-
-.action-btn-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.4rem;
-}
-
-.carbon-action-btn {
-  background: rgba(20, 20, 20, 0.04);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 500;
-  padding: 0.25rem 0.6rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.carbon-action-btn:hover {
-  background: rgba(20, 20, 20, 0.08);
-  color: #14151a;
-}
-
-.carbon-action-btn.danger {
-  color: #f87171;
-}
-
-.carbon-action-btn.danger:hover {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 0.76rem;
-}
-</style>

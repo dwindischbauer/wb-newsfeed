@@ -14,3 +14,5 @@
     "test": "pnpm --filter @wb-news/shortform-news run test"
   }
 }
+
+<!-- chore(deps): pin nuxt and @nuxtjs/tailwindcss to compatible versions -->

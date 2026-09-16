@@ -1,12 +1,13 @@
 <template>
-  <div class="vertical-feed-app">
-    <div class="top-nav-area">
-      <div class="category-filters">
-        <div class="category-pill-group">
+  <div class="relative h-screen bg-black">
+    <div class="fixed inset-x-0 top-0 z-50 pb-3 [background:linear-gradient(to_bottom,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.3)_55%,rgba(0,0,0,0)_100%)]">
+      <div class="flex overflow-x-auto px-4 pt-[0.85rem] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+        <div class="flex items-center gap-1 rounded-full border border-white/[0.16] bg-black/40 p-[0.3rem] backdrop-blur-[14px]">
           <button
             v-for="cat in categories"
             :key="cat"
-            :class="['nav-chip', { active: activeCategory === cat }]"
+            class="cursor-pointer whitespace-nowrap rounded-full border-none bg-transparent px-4 py-[0.48rem] text-[0.86rem] font-semibold text-white/[0.82] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
+            :class="{ 'bg-accent-lime font-bold text-accent-ink [text-shadow:none]': activeCategory === cat }"
             @click="activeCategory = cat; activeTagFilter = ''"
           >
             {{ cat }}
@@ -15,12 +16,13 @@
       </div>
 
       <!-- Subcategory chips for the active main category -->
-      <div class="subcategory-filters" v-if="activeSubtags.length > 0">
-        <div class="category-pill-group subtle">
+      <div v-if="activeSubtags.length > 0" class="flex overflow-x-auto px-4 pt-2 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+        <div class="flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.28] p-[0.22rem]">
           <button
             v-for="sub in activeSubtags"
             :key="sub.slug"
-            :class="['nav-chip', 'sub', { active: activeTagFilter === sub.name }]"
+            class="cursor-pointer whitespace-nowrap rounded-full border-none bg-transparent px-[0.8rem] py-[0.36rem] text-[0.76rem] font-medium text-white/[0.68] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
+            :class="{ 'bg-accent-lime font-bold text-accent-ink [text-shadow:none]': activeTagFilter === sub.name }"
             @click="activeTagFilter = activeTagFilter === sub.name ? '' : sub.name"
           >
             {{ sub.name }}
@@ -31,16 +33,19 @@
 
     <!-- Active Tag Filter Badge — only for tags picked from a card, not for the
          canonical subcategory chips above (those already show their own active state) -->
-    <div v-if="activeTagFilter && !activeSubtags.some(s => s.name === activeTagFilter)" class="active-tag-banner">
+    <div
+      v-if="activeTagFilter && !activeSubtags.some((s) => s.name === activeTagFilter)"
+      class="fixed left-4 right-4 top-[60px] z-[45] flex items-center justify-between rounded-full border border-[rgba(213,242,78,0.5)] bg-black/[0.55] px-4 py-2 text-[0.85rem] text-white backdrop-blur-[12px]"
+    >
       <span>Tag-Filter: <strong>{{ activeTagFilter }}</strong></span>
-      <button @click="activeTagFilter = ''" class="clear-tag-btn">✕ Entfernen</button>
+      <button class="rounded-[10px] border-none bg-white/20 px-2 py-[2px] text-[0.75rem] font-bold text-white hover:bg-white/[0.35]" @click="activeTagFilter = ''">✕ Entfernen</button>
     </div>
 
     <ShortformFeed
       :articles="publishedArticles"
-      :apiUrl="config.public.apiUrl"
-      :trackingEnabled="true"
-      :likedIds="likedArticleIds"
+      :api-url="config.public.apiUrl"
+      :tracking-enabled="true"
+      :liked-ids="likedArticleIds"
       @article-read="openReader"
       @article-impression="onArticleImpression"
       @scroll-depth="onScrollDepth"
@@ -57,48 +62,54 @@
 
     <!-- Share toast -->
     <transition name="reader">
-      <div v-if="shareToast" class="share-toast">{{ shareToast }}</div>
+      <div v-if="shareToast" class="fixed bottom-[6.5rem] left-1/2 z-[150] -translate-x-1/2 rounded-full bg-accent-ink px-5 py-[0.6rem] text-[0.85rem] font-semibold text-accent-lime shadow-[0_8px_24px_rgba(0,0,0,0.4)]">{{ shareToast }}</div>
     </transition>
 
     <!-- Comments Sheet -->
     <transition name="sheet">
-      <div v-if="commentsArticle" class="comments-backdrop" @click.self="closeComments">
-        <div class="comments-sheet">
-          <div class="comments-sheet-header">
-            <h3>Kommentare <span class="comments-count">({{ commentsArticle.commentCount || comments.length }})</span></h3>
-            <button class="comments-close-btn" @click="closeComments">✕</button>
+      <div v-if="commentsArticle" class="fixed inset-0 z-[140] flex items-end bg-black/[0.55]" @click.self="closeComments">
+        <div class="comments-sheet flex max-h-[75vh] w-full flex-col rounded-t-[24px] bg-reader-bg shadow-[0_-10px_40px_rgba(0,0,0,0.35)]">
+          <div class="flex items-center justify-between border-b border-black/[0.08] px-5 pb-[0.85rem] pt-[1.1rem]">
+            <h3 class="m-0 font-accent text-[1.2rem] font-medium italic text-accent-ink">
+              Kommentare <span class="text-[0.9rem] font-medium not-italic text-reader-muted">({{ commentsArticle.commentCount || comments.length }})</span>
+            </h3>
+            <button class="h-[30px] w-[30px] cursor-pointer rounded-full border-none bg-black/[0.06] text-[0.9rem] text-accent-ink" @click="closeComments">✕</button>
           </div>
-          <div class="comments-list">
-            <div v-if="commentsLoading" class="comments-empty">Lade Kommentare…</div>
-            <div v-else-if="comments.length === 0" class="comments-empty">Noch keine Kommentare. Sei die/der Erste!</div>
-            <div v-for="c in comments" :key="c.id" class="comment-item">
-              <div class="comment-avatar">{{ (c.authorName || 'A').charAt(0).toUpperCase() }}</div>
-              <div class="comment-body">
-                <div class="comment-meta">
-                  <strong>{{ c.authorName }}</strong>
+          <div class="flex-1 overflow-y-auto px-5 py-2">
+            <div v-if="commentsLoading" class="py-10 text-center text-[0.9rem] text-reader-muted">Lade Kommentare…</div>
+            <div v-else-if="comments.length === 0" class="py-10 text-center text-[0.9rem] text-reader-muted">Noch keine Kommentare. Sei die/der Erste!</div>
+            <div v-for="c in comments" :key="c.id" class="flex gap-[0.7rem] border-b border-black/[0.06] py-[0.85rem]">
+              <div class="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-accent-ink text-[0.85rem] font-bold text-accent-lime">{{ (c.authorName || 'A').charAt(0).toUpperCase() }}</div>
+              <div class="min-w-0 flex-1">
+                <div class="mb-[0.2rem] flex items-baseline gap-2 text-[0.78rem] text-reader-muted">
+                  <strong class="text-[0.85rem] text-accent-ink">{{ c.authorName }}</strong>
                   <span>{{ formatRelativeTime(c.createdAt) }}</span>
                 </div>
-                <p>{{ c.text }}</p>
+                <p class="m-0 break-words text-[0.9rem] leading-[1.4] text-[#24252a]">{{ c.text }}</p>
               </div>
             </div>
           </div>
-          <form class="comment-form" @submit.prevent="submitComment">
+          <form class="flex flex-col gap-2 border-t border-black/[0.08] px-5 pb-5 pt-[0.85rem]" @submit.prevent="submitComment">
             <input
               v-model="commentName"
               type="text"
               maxlength="60"
               placeholder="Dein Name (optional)"
-              class="comment-name-input"
+              class="border-none bg-transparent p-0 text-[0.78rem] text-reader-muted outline-none"
             />
-            <div class="comment-input-row">
+            <div class="flex items-center gap-2">
               <input
                 v-model="commentText"
                 type="text"
                 maxlength="1000"
                 placeholder="Kommentar schreiben…"
-                class="comment-text-input"
+                class="flex-1 rounded-full border border-black/[0.12] bg-reader-input-bg px-[1.1rem] py-[0.65rem] text-[0.9rem] text-accent-ink outline-none focus:border-accent-lime-deep"
               />
-              <button type="submit" class="comment-submit-btn" :disabled="!commentText.trim() || commentSubmitting">
+              <button
+                type="submit"
+                class="whitespace-nowrap rounded-full border-none bg-accent-ink px-5 py-[0.65rem] text-[0.85rem] font-bold text-accent-lime disabled:cursor-not-allowed disabled:opacity-40"
+                :disabled="!commentText.trim() || commentSubmitting"
+              >
                 Senden
               </button>
             </div>
@@ -109,71 +120,90 @@
 
     <!-- Reader Overlay -->
     <transition name="reader">
-      <div v-if="activeReaderArticle" class="reader-overlay">
-        <div class="reader-header">
-          <button @click="activeReaderArticle = null" class="back-btn">
+      <div v-if="activeReaderArticle" class="fixed inset-0 z-[100] flex flex-col overflow-y-auto bg-reader-bg">
+        <div class="sticky top-0 z-10 flex items-center justify-between border-b border-black/[0.08] px-6 py-4">
+          <button class="flex cursor-pointer items-center gap-1 border-none bg-transparent py-2 text-base font-semibold text-reader-accent" @click="activeReaderArticle = null">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             Zurück
           </button>
-          
-          <div class="reader-header-actions">
-            <button 
-              v-if="ttsSupported" 
-              :class="['tts-btn', { active: isSpeaking }]" 
-              @click="toggleSpeech"
+
+          <div class="flex items-center gap-2">
+            <button
+              v-if="ttsSupported"
+              class="inline-flex cursor-pointer items-center gap-[6px] rounded-full border border-black/[0.12] bg-black/5 px-[0.9rem] py-[0.4rem] text-[0.85rem] font-semibold text-reader-accent transition-all duration-200 hover:border-accent-lime-deep hover:bg-[rgba(111,143,26,0.12)]"
+              :class="{ '!border-[#ef4444] !bg-[#ef4444] !text-white': isSpeaking }"
               :title="isSpeaking ? 'Vorlesen stoppen' : 'KI-Zusammenfassung vorlesen'"
+              @click="toggleSpeech"
             >
-              <span v-if="isSpeaking" class="audio-wave">
-                <span></span><span></span><span></span>
+              <span v-if="isSpeaking" class="inline-flex h-3 items-center gap-[2px]">
+                <span class="h-full w-[2px] animate-wave rounded-[1px] bg-current"></span>
+                <span class="h-full w-[2px] animate-wave rounded-[1px] bg-current [animation-delay:0.2s]"></span>
+                <span class="h-full w-[2px] animate-wave rounded-[1px] bg-current [animation-delay:0.4s]"></span>
               </span>
               <span v-else>🔊</span>
               {{ isSpeaking ? 'Stopp' : 'Vorlesen' }}
             </button>
           </div>
         </div>
-        <div class="reader-content">
-          <div class="reader-tags" v-if="activeReaderArticle.tags && activeReaderArticle.tags.length > 0">
-            <button 
-              v-for="tag in activeReaderArticle.tags" 
-              :key="tag.id" 
-              class="reader-tag-chip"
-              @click="filterByTag(tag.name)"
+        <div class="px-6 pb-16 pt-6 font-reader text-accent-ink">
+          <div v-if="activeReaderArticle.tags && activeReaderArticle.tags.length > 0" class="mb-4 flex flex-wrap gap-2">
+            <button
+              v-for="tag in activeReaderArticle.tags"
+              :key="tag.id"
+              class="cursor-pointer rounded-[14px] border border-black/[0.12] bg-black/5 px-3 py-[0.3rem] text-[0.85rem] font-medium text-reader-accent transition-all duration-150 hover:-translate-y-px hover:border-accent-lime-deep hover:bg-[rgba(111,143,26,0.15)]"
               title="Nach diesem Tag filtern"
+              @click="filterByTag(tag.name)"
             >
               {{ tag.name }}
             </button>
           </div>
-          <h1 class="reader-title">{{ activeReaderArticle.title }}</h1>
-          
-          <div v-if="activeReaderArticle.keyTakeaways" class="takeaways">
-            <div class="takeaways-header">
-              <h3>KI-Kernpunkte</h3>
-              <span class="reading-time">{{ estimateReadingTime(activeReaderArticle.content) }}</span>
+          <h1 class="mt-0 text-[1.8rem] leading-[1.2]">{{ activeReaderArticle.title }}</h1>
+
+          <div v-if="activeReaderArticle.keyTakeaways" class="mb-8 rounded-[18px] border-l-4 border-l-accent-lime-deep bg-reader-input-bg p-6">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="m-0 font-accent text-[1.1rem] italic text-reader-accent">KI-Kernpunkte</h3>
+              <span class="rounded-xl bg-black/[0.06] px-[0.6rem] py-[0.2rem] text-[0.75rem] text-reader-muted">{{ estimateReadingTime(activeReaderArticle.content) }}</span>
             </div>
-            <ul style="padding-left: 1.2rem; margin: 0;">
+            <ul class="m-0 pl-[1.2rem]">
               <li v-for="point in parseKeyTakeaways(activeReaderArticle.keyTakeaways)" :key="point">{{ point }}</li>
             </ul>
           </div>
-          
-          <div class="reader-body">{{ activeReaderArticle.content }}</div>
+
+          <div class="mb-12 whitespace-pre-wrap px-2 text-[1.1rem] leading-[1.8]">{{ activeReaderArticle.content }}</div>
         </div>
       </div>
     </transition>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue';
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import {
   ShortformFeed,
   parseKeyTakeaways,
   estimateReadingTime,
   rankPersonalizedArticles,
-  CATEGORY_SUBTAGS
+  CATEGORY_SUBTAGS,
+  type Article,
+  type UserInterests
 } from '@wb-news/shortform-news';
 
-const articles = ref([]);
-const activeReaderArticle = ref(null);
+interface FeedArticle extends Article {
+  status?: string;
+  keyTakeaways?: string;
+}
+
+interface CommentItem {
+  id: number;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
+type CountField = 'likeCount' | 'commentCount' | 'shareCount';
+
+const articles = ref<FeedArticle[]>([]);
+const activeReaderArticle = ref<FeedArticle | null>(null);
 const activeCategory = ref('Für dich');
 const activeTagFilter = ref('');
 const categories = ['Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
@@ -182,7 +212,7 @@ const categories = ['Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Tech
 const activeSubtags = computed(() => CATEGORY_SUBTAGS[activeCategory.value] || []);
 
 // User Interest Model (Stored locally, privacy-first)
-const userInterests = ref({
+const userInterests = ref<Required<UserInterests>>({
   categories: {},
   tags: {}
 });
@@ -197,14 +227,14 @@ const loadUserInterests = () => {
   }
 };
 
-const recordInterestInteraction = (article, weight = 1) => {
+const recordInterestInteraction = (article: FeedArticle | null, weight = 1) => {
   if (!article) return;
   if (!userInterests.value.categories) userInterests.value.categories = {};
   if (!userInterests.value.tags) userInterests.value.tags = {};
 
   if (article.category) {
     const current = userInterests.value.categories[article.category] || 0;
-    userInterests.value.categories[article.category] = current + (weight * 2);
+    userInterests.value.categories[article.category] = current + weight * 2;
   }
 
   if (Array.isArray(article.tags)) {
@@ -212,29 +242,29 @@ const recordInterestInteraction = (article, weight = 1) => {
       const slug = (tag.slug || tag.name || '').toLowerCase();
       if (!slug) continue;
       const current = userInterests.value.tags[slug] || 0;
-      userInterests.value.tags[slug] = current + (weight * 3);
+      userInterests.value.tags[slug] = current + weight * 3;
     }
   }
 
   try {
     localStorage.setItem('wb_user_interests', JSON.stringify(userInterests.value));
-  } catch (e) {}
+  } catch {
+    // storage unavailable — interest tracking is best-effort only
+  }
 };
 
 const publishedArticles = computed(() => {
-  let filtered = articles.value.filter(a => a.status === 'published');
-  
+  let filtered = articles.value.filter((a) => a.status === 'published');
+
   if (activeTagFilter.value) {
     const tagQuery = activeTagFilter.value.toLowerCase();
-    filtered = filtered.filter(a => 
-      a.tags && a.tags.some(t => (t.slug || t.name || '').toLowerCase() === tagQuery)
-    );
+    filtered = filtered.filter((a) => a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === tagQuery));
   }
 
   if (activeCategory.value === 'Für dich') {
     return rankPersonalizedArticles(filtered, userInterests.value);
   } else if (activeCategory.value !== 'Alle') {
-    filtered = filtered.filter(a => a.category === activeCategory.value);
+    filtered = filtered.filter((a) => a.category === activeCategory.value);
   }
   return filtered;
 });
@@ -245,15 +275,35 @@ const fetchArticles = async () => {
   try {
     const res = await fetch(`${config.public.apiUrl}/api/feed`);
     if (!res.ok) throw new Error('API Error');
-    const data = await res.json();
-    articles.value = data;
+    articles.value = await res.json();
   } catch (e) {
     console.error('Failed to fetch articles:', e);
     articles.value = [];
   }
 };
 
-const sendAnalytics = (eventType, articleId = null, metadata = null) => {
+// Merge freshly-polled articles into the current list in place, preserving
+// object identity for unchanged articles so open cards/overlays don't flicker.
+const mergeArticles = (freshList: FeedArticle[]) => {
+  const currentById = new Map(articles.value.map((a) => [a.id, a]));
+  articles.value = freshList.map((fresh) => {
+    const existing = currentById.get(fresh.id);
+    return existing && JSON.stringify(existing) === JSON.stringify(fresh) ? existing : fresh;
+  });
+};
+
+const pollForUpdates = async () => {
+  try {
+    const res = await fetch(`${config.public.apiUrl}/api/feed`);
+    if (!res.ok) return;
+    const data: FeedArticle[] = await res.json();
+    mergeArticles(data);
+  } catch (e) {
+    console.error('Failed to poll for updates:', e);
+  }
+};
+
+const sendAnalytics = (eventType: string, articleId: number | null = null, metadata: Record<string, unknown> | null = null) => {
   try {
     const payload = JSON.stringify({ eventType, articleId, metadata });
     if (navigator.sendBeacon) {
@@ -266,27 +316,29 @@ const sendAnalytics = (eventType, articleId = null, metadata = null) => {
         keepalive: true
       }).catch(() => {});
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to send analytics:', e);
+  }
 };
 
-const openReader = (article) => {
+const openReader = (article: FeedArticle) => {
   activeReaderArticle.value = article;
   recordInterestInteraction(article, 2);
   sendAnalytics('read', article.id, { category: article.category });
-  
+
   if (window.parent) {
     window.parent.postMessage({ type: 'article_opened', articleId: article.id }, '*');
   }
 };
 
-const onArticleImpression = (article) => {
+const onArticleImpression = (article: FeedArticle) => {
   recordInterestInteraction(article, 0.5);
   sendAnalytics('impression', article.id, { category: article.category });
 };
 
-const onScrollDepth = (percentage) => {
+const onScrollDepth = (percentage: number) => {
   if (percentage >= 80) {
-    sendAnalytics('scroll_depth', activeReaderArticle.value?.id, { depth: percentage });
+    sendAnalytics('scroll_depth', activeReaderArticle.value?.id ?? null, { depth: percentage });
   }
 };
 
@@ -314,46 +366,54 @@ const toggleSpeech = () => {
   utterance.lang = 'de-DE';
   utterance.rate = 1.05;
 
-  utterance.onend = () => { isSpeaking.value = false; };
-  utterance.onerror = () => { isSpeaking.value = false; };
+  utterance.onend = () => {
+    isSpeaking.value = false;
+  };
+  utterance.onerror = () => {
+    isSpeaking.value = false;
+  };
 
   window.speechSynthesis.speak(utterance);
   isSpeaking.value = true;
   sendAnalytics('tts_play', art.id);
 };
 
-const filterByTag = (tagName) => {
+const filterByTag = (tagName: string) => {
   activeTagFilter.value = tagName;
   activeReaderArticle.value = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // --- Likes (device-local, privacy-first — same pattern as userInterests) ---
-const likedArticleIds = ref([]);
+const likedArticleIds = ref<number[]>([]);
 
 const loadLikedArticles = () => {
   if (typeof window === 'undefined') return;
   try {
     const saved = localStorage.getItem('wb_liked_articles');
     if (saved) likedArticleIds.value = JSON.parse(saved);
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Could not read liked articles', e);
+  }
 };
 
 const persistLikedArticles = () => {
   try {
     localStorage.setItem('wb_liked_articles', JSON.stringify(likedArticleIds.value));
-  } catch (e) {}
+  } catch {
+    // storage unavailable — likes stay in-memory only for this session
+  }
 };
 
-const patchArticleCount = (articleId, field, delta) => {
-  const article = articles.value.find(a => a.id === articleId);
+const patchArticleCount = (articleId: number, field: CountField, delta: number) => {
+  const article = articles.value.find((a) => a.id === articleId);
   if (article) article[field] = Math.max(0, (article[field] || 0) + delta);
   if (activeReaderArticle.value?.id === articleId) {
     activeReaderArticle.value[field] = Math.max(0, (activeReaderArticle.value[field] || 0) + delta);
   }
 };
 
-const handleLike = async (article) => {
+const handleLike = async (article: FeedArticle) => {
   if (likedArticleIds.value.includes(article.id)) return;
   likedArticleIds.value = [...likedArticleIds.value, article.id];
   persistLikedArticles();
@@ -361,29 +421,35 @@ const handleLike = async (article) => {
   recordInterestInteraction(article, 3);
   try {
     await fetch(`${config.public.apiUrl}/api/articles/${article.id}/like`, { method: 'POST' });
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to send like:', e);
+  }
 };
 
-const handleUnlike = async (article) => {
-  likedArticleIds.value = likedArticleIds.value.filter(id => id !== article.id);
+const handleUnlike = async (article: FeedArticle) => {
+  likedArticleIds.value = likedArticleIds.value.filter((id) => id !== article.id);
   persistLikedArticles();
   patchArticleCount(article.id, 'likeCount', -1);
   try {
     await fetch(`${config.public.apiUrl}/api/articles/${article.id}/unlike`, { method: 'POST' });
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to send unlike:', e);
+  }
 };
 
 // --- Share ---
 const shareToast = ref('');
-let shareToastTimeout = null;
+let shareToastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const showShareToast = (msg) => {
+const showShareToast = (msg: string) => {
   shareToast.value = msg;
   if (shareToastTimeout) clearTimeout(shareToastTimeout);
-  shareToastTimeout = setTimeout(() => { shareToast.value = ''; }, 2500);
+  shareToastTimeout = setTimeout(() => {
+    shareToast.value = '';
+  }, 2500);
 };
 
-const handleShare = async (article) => {
+const handleShare = async (article: FeedArticle) => {
   const shareUrl = `${window.location.origin}${window.location.pathname}?article=${article.id}`;
   const shareData = { title: article.title, text: article.teaser || article.title, url: shareUrl };
 
@@ -397,27 +463,29 @@ const handleShare = async (article) => {
     patchArticleCount(article.id, 'shareCount', 1);
     sendAnalytics('share', article.id, { category: article.category });
     fetch(`${config.public.apiUrl}/api/articles/${article.id}/share`, { method: 'POST' }).catch(() => {});
-  } catch (e) {
+  } catch {
     // User cancelled the native share sheet — not an error
   }
 };
 
 // --- Comments ---
-const commentsArticle = ref(null);
-const comments = ref([]);
+const commentsArticle = ref<FeedArticle | null>(null);
+const comments = ref<CommentItem[]>([]);
 const commentsLoading = ref(false);
 const commentName = ref('');
 const commentText = ref('');
 const commentSubmitting = ref(false);
 
-const openComments = async (article) => {
+const openComments = async (article: FeedArticle) => {
   commentsArticle.value = article;
   comments.value = [];
   commentsLoading.value = true;
   try {
     const savedName = localStorage.getItem('wb_comment_name');
     if (savedName) commentName.value = savedName;
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Could not read saved comment name', e);
+  }
   try {
     const res = await fetch(`${config.public.apiUrl}/api/articles/${article.id}/comments`);
     if (res.ok) comments.value = await res.json();
@@ -440,7 +508,9 @@ const submitComment = async () => {
   const authorName = commentName.value.trim() || 'Anonym';
   try {
     localStorage.setItem('wb_comment_name', authorName);
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Could not persist comment name', e);
+  }
 
   try {
     const res = await fetch(`${config.public.apiUrl}/api/articles/${commentsArticle.value.id}/comments`, {
@@ -461,7 +531,7 @@ const submitComment = async () => {
   }
 };
 
-const formatRelativeTime = (dateStr) => {
+const formatRelativeTime = (dateStr: string) => {
   if (!dateStr) return '';
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -472,103 +542,32 @@ const formatRelativeTime = (dateStr) => {
   return `vor ${Math.floor(hours / 24)} Tg`;
 };
 
+let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+
 onMounted(() => {
   loadUserInterests();
   loadLikedArticles();
   fetchArticles().then(() => {
     const params = new URLSearchParams(window.location.search);
-    const sharedId = parseInt(params.get('article'), 10);
-    if (sharedId) {
-      const found = articles.value.find(a => a.id === sharedId);
+    const articleParam = params.get('article');
+    if (articleParam) {
+      const sharedId = parseInt(articleParam, 10);
+      const found = articles.value.find((a) => a.id === sharedId);
       if (found) openReader(found);
     }
   });
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     ttsSupported.value = true;
   }
+  pollIntervalId = setInterval(pollForUpdates, 60000);
+});
+
+onUnmounted(() => {
+  if (pollIntervalId) clearInterval(pollIntervalId);
 });
 </script>
 
 <style scoped>
-.vertical-feed-app {
-  height: 100vh;
-  position: relative;
-  background: #000;
-}
-.top-nav-area {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 50;
-  padding-bottom: 0.75rem;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.3) 55%, rgba(0,0,0,0) 100%);
-}
-
-.category-filters {
-  display: flex;
-  overflow-x: auto;
-  padding: 0.85rem 1rem 0;
-  -webkit-overflow-scrolling: touch;
-}
-.category-filters::-webkit-scrollbar {
-  display: none;
-}
-
-.subcategory-filters {
-  display: flex;
-  overflow-x: auto;
-  padding: 0.5rem 1rem 0;
-  -webkit-overflow-scrolling: touch;
-}
-.subcategory-filters::-webkit-scrollbar {
-  display: none;
-}
-
-/* Grouped pill container — mirrors the admin header-nav pattern */
-.category-pill-group {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: rgba(20, 20, 20, 0.4);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 9999px;
-  padding: 0.3rem;
-}
-.category-pill-group.subtle {
-  background: rgba(20, 20, 20, 0.28);
-  border-color: rgba(255, 255, 255, 0.1);
-  padding: 0.22rem;
-}
-
-.nav-chip {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.82);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
-  padding: 0.48rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.86rem;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.nav-chip.sub {
-  padding: 0.36rem 0.8rem;
-  font-size: 0.76rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.68);
-}
-.nav-chip.active {
-  background: #d5f24e;
-  color: #14151a;
-  text-shadow: none;
-  font-weight: 700;
-}
-
 .reader-enter-active,
 .reader-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -577,271 +576,6 @@ onMounted(() => {
 .reader-leave-to {
   opacity: 0;
   transform: translateY(20px);
-}
-.reader-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: #faf8f2;
-  z-index: 100;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.reader-header {
-  padding: 1rem;
-  background: #faf8f2;
-  position: sticky;
-  top: 0;
-}
-.back-btn {
-  background: none;
-  border: none;
-  color: #4d6512;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0.5rem 0;
-}
-.reader-content {
-  padding: 1.5rem;
-  padding-bottom: 4rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color: #14151a;
-}
-.reader-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-.reader-tag-chip {
-  background: rgba(20, 20, 20, 0.05);
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  color: #4d6512;
-  padding: 0.3rem 0.75rem;
-  border-radius: 14px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-.reader-content h2 {
-  margin-top: 0;
-  font-size: 1.8rem;
-  line-height: 1.2;
-}
-.takeaways {
-  background: #f4f2ec;
-  padding: 1.5rem;
-  border-radius: 18px;
-  margin-bottom: 2rem;
-  border-left: 4px solid #6f8f1a;
-}
-.takeaways-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-.takeaways h3 { margin: 0; color: #4d6512; font-size: 1.1rem; font-family: var(--font-accent); font-style: italic; }
-.reading-time {
-  font-size: 0.75rem;
-  color: #6c6d73;
-  background: rgba(20, 20, 20, 0.06);
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-}
-.reader-body {
-  line-height: 1.8;
-  font-size: 1.1rem;
-  white-space: pre-wrap;
-  margin-bottom: 3rem;
-  padding: 0 0.5rem;
-}
-
-/* Share toast */
-.share-toast {
-  position: fixed;
-  bottom: 6.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 150;
-  background: #14151a;
-  color: #d5f24e;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.6rem 1.2rem;
-  border-radius: 9999px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-/* Comments sheet */
-.comments-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 140;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: flex-end;
-}
-
-.comments-sheet {
-  width: 100%;
-  max-height: 75vh;
-  background: #faf8f2;
-  border-radius: 24px 24px 0 0;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35);
-}
-
-.comments-sheet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.1rem 1.25rem 0.85rem;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.08);
-}
-
-.comments-sheet-header h3 {
-  margin: 0;
-  font-family: var(--font-accent);
-  font-style: italic;
-  font-weight: 500;
-  font-size: 1.2rem;
-  color: #14151a;
-}
-
-.comments-count {
-  font-style: normal;
-  font-weight: 500;
-  font-size: 0.9rem;
-  color: #6c6d73;
-}
-
-.comments-close-btn {
-  background: rgba(20, 20, 20, 0.06);
-  border: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  color: #14151a;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.comments-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.5rem 1.25rem;
-}
-
-.comments-empty {
-  padding: 2.5rem 0;
-  text-align: center;
-  color: #6c6d73;
-  font-size: 0.9rem;
-}
-
-.comment-item {
-  display: flex;
-  gap: 0.7rem;
-  padding: 0.85rem 0;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.06);
-}
-
-.comment-avatar {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #14151a;
-  color: #d5f24e;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-
-.comment-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.comment-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-size: 0.78rem;
-  color: #6c6d73;
-  margin-bottom: 0.2rem;
-}
-
-.comment-meta strong {
-  color: #14151a;
-  font-size: 0.85rem;
-}
-
-.comment-body p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  color: #24252a;
-  word-wrap: break-word;
-}
-
-.comment-form {
-  padding: 0.85rem 1.25rem 1.25rem;
-  border-top: 1px solid rgba(20, 20, 20, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.comment-name-input {
-  border: none;
-  background: transparent;
-  font-size: 0.78rem;
-  color: #6c6d73;
-  padding: 0;
-  outline: none;
-}
-
-.comment-input-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.comment-text-input {
-  flex: 1;
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  background: #f4f2ec;
-  border-radius: 9999px;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.9rem;
-  color: #14151a;
-  outline: none;
-}
-
-.comment-text-input:focus {
-  border-color: #6f8f1a;
-}
-
-.comment-submit-btn {
-  background: #14151a;
-  color: #d5f24e;
-  border: none;
-  border-radius: 9999px;
-  padding: 0.65rem 1.2rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.comment-submit-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .sheet-enter-active,
@@ -859,117 +593,5 @@ onMounted(() => {
 .sheet-enter-from .comments-sheet,
 .sheet-leave-to .comments-sheet {
   transform: translateY(100%);
-}
-
-.active-tag-banner {
-  position: fixed;
-  top: 60px;
-  left: 1rem;
-  right: 1rem;
-  z-index: 45;
-  background: rgba(20, 20, 20, 0.55);
-  border: 1px solid rgba(213, 242, 78, 0.5);
-  backdrop-filter: blur(12px);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-}
-
-.clear-tag-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: bold;
-}
-.clear-tag-btn:hover {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.reader-header {
-  padding: 1rem 1.5rem;
-  background: #faf8f2;
-  position: sticky;
-  top: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.08);
-  z-index: 10;
-}
-
-.reader-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tts-btn {
-  background: rgba(20, 20, 20, 0.05);
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  color: #4d6512;
-  border-radius: 9999px;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-}
-.tts-btn:hover {
-  background: rgba(111, 143, 26, 0.12);
-  border-color: #6f8f1a;
-}
-.tts-btn.active {
-  background: #ef4444;
-  color: white;
-  border-color: #ef4444;
-}
-
-.audio-wave {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 12px;
-}
-.audio-wave span {
-  width: 2px;
-  height: 100%;
-  background-color: currentColor;
-  border-radius: 1px;
-  animation: wave 1s ease-in-out infinite;
-}
-.audio-wave span:nth-child(2) { animation-delay: 0.2s; }
-.audio-wave span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes wave {
-  0%, 100% { height: 4px; }
-  50% { height: 14px; }
-}
-
-.reader-tag-chip {
-  background: rgba(20, 20, 20, 0.05);
-  border: 1px solid rgba(20, 20, 20, 0.12);
-  color: #4d6512;
-  padding: 0.3rem 0.75rem;
-  border-radius: 14px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.reader-tag-chip:hover {
-  background: rgba(111, 143, 26, 0.15);
-  border-color: #6f8f1a;
-  transform: translateY(-1px);
 }
 </style>

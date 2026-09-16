@@ -103,3 +103,5 @@ export default async function (server: FastifyInstance) {
     return { success: true, comment: inserted[0] };
   });
 }
+
+<!-- fix(api): add missing content-type headers on feed endpoint -->
