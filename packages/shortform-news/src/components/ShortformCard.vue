@@ -30,9 +30,9 @@
           class="flex flex-col items-center gap-[0.3rem] border-none bg-transparent p-0 text-white transition-transform duration-150 [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.5))] active:scale-[0.88]"
           :class="{ 'text-[var(--sf-primary-color,#4ade80)]': liked }"
           :title="liked ? 'Gefällt mir nicht mehr' : 'Gefällt mir'"
-          @click.stop="$emit(liked ? 'unlike' : 'like', article)"
+          @click.stop="handleLikeClick"
         >
-          <svg width="26" height="26" viewBox="0 0 24 24" :fill="liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z"/></svg>
+          <svg width="26" height="26" viewBox="0 0 24 24" :fill="liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="{ 'sf-like-pop': justLiked }"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z"/></svg>
           <span class="text-[0.72rem] font-bold [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">{{ formatCount(article.likeCount) }}</span>
         </button>
 
@@ -88,6 +88,24 @@ const formatCount = (n: number | undefined | null): string => formatEngagementCo
 const cardRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 
+// Brief pop animation as feedback when a like registers (not on unlike).
+const justLiked = ref(false);
+let likePopTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const handleLikeClick = () => {
+  if (!props.liked) {
+    justLiked.value = false;
+    requestAnimationFrame(() => {
+      justLiked.value = true;
+      if (likePopTimeout) clearTimeout(likePopTimeout);
+      likePopTimeout = setTimeout(() => {
+        justLiked.value = false;
+      }, 350);
+    });
+  }
+  emit(props.liked ? 'unlike' : 'like', props.article);
+};
+
 const mediaStyle = computed(() => {
   if (props.article.imageUrl) {
     const baseUrl = props.apiUrl ? props.apiUrl.replace(/\/$/, '') : '';
@@ -124,5 +142,29 @@ onUnmounted(() => {
   if (observer) {
     observer.disconnect();
   }
+  if (likePopTimeout) {
+    clearTimeout(likePopTimeout);
+  }
 });
 </script>
+
+<style scoped>
+@keyframes sf-like-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  65% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sf-like-pop {
+  animation: sf-like-pop 0.35s ease-out;
+}
+</style>
