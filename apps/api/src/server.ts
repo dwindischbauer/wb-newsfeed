@@ -25,7 +25,8 @@ server.register(multipart, {
 });
 
 server.register(cors, {
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : (process.env.NODE_ENV === 'production' ? 'https://admin.wb-news.local' : '*')
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : (process.env.NODE_ENV === 'production' ? 'https://admin.wb-news.local' : '*'),
+  credentials: true
 });
 
 // Public read-only/engagement sub-routes on articles — likes, shares and
