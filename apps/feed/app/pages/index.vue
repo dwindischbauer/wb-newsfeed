@@ -6,8 +6,8 @@
           <button
             v-for="cat in categories"
             :key="cat"
-            class="cursor-pointer whitespace-nowrap rounded-full border-none bg-transparent px-4 py-[0.48rem] text-[0.86rem] font-semibold text-white/[0.82] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
-            :class="{ 'bg-accent-lime font-bold text-accent-ink [text-shadow:none]': activeCategory === cat }"
+            class="cursor-pointer whitespace-nowrap rounded-full border-none px-4 py-[0.48rem] text-[0.86rem] font-semibold text-white/[0.82] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
+            :class="{ '!bg-accent-lime !font-bold !text-accent-ink ![text-shadow:none]': activeCategory === cat }"
             @click="activeCategory = cat; activeTagFilter = ''"
           >
             {{ cat }}
@@ -21,8 +21,8 @@
           <button
             v-for="sub in activeSubtags"
             :key="sub.slug"
-            class="cursor-pointer whitespace-nowrap rounded-full border-none bg-transparent px-[0.8rem] py-[0.36rem] text-[0.76rem] font-medium text-white/[0.68] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
-            :class="{ 'bg-accent-lime font-bold text-accent-ink [text-shadow:none]': activeTagFilter === sub.name }"
+            class="cursor-pointer whitespace-nowrap rounded-full border-none px-[0.8rem] py-[0.36rem] text-[0.76rem] font-medium text-white/[0.68] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
+            :class="{ '!bg-accent-lime !font-bold !text-accent-ink ![text-shadow:none]': activeTagFilter === sub.name }"
             @click="activeTagFilter = activeTagFilter === sub.name ? '' : sub.name"
           >
             {{ sub.name }}
