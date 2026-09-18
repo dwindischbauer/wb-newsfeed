@@ -2,22 +2,7 @@
   <div ref="cardRef" class="relative flex h-screen flex-col bg-[var(--sf-bg-color,#000)] text-[var(--sf-text-color,#fff)] [scroll-snap-align:start]">
     <div class="flex flex-1 items-start justify-end bg-[var(--sf-media-bg,#1f2937)] bg-cover bg-center bg-no-repeat p-[var(--sf-padding,1rem)]" :style="mediaStyle">
       <slot name="card-media" :article="article">
-        <div class="flex flex-col items-end gap-2">
-          <span class="rounded-full border border-[var(--sf-badge-border,rgba(255,255,255,0.3))] bg-[var(--sf-badge-bg,rgba(255,255,255,0.15))] px-[0.85rem] py-[0.4rem] font-[var(--font-accent,inherit)] text-[0.85rem] italic font-semibold text-[var(--sf-badge-color,white)] backdrop-blur-[10px]">{{ article.category }}</span>
-          <div v-if="article.tags && article.tags.length > 0" class="flex max-w-[250px] flex-wrap justify-end gap-[0.35rem]">
-            <button
-              v-for="tag in article.tags"
-              :key="tag.id || tag.name"
-              type="button"
-              class="rounded-full border border-white/30 bg-black/45 px-[0.65rem] py-[0.25rem] text-[0.75rem] font-medium text-[#f3f2ec] backdrop-blur-[8px]"
-              :style="tag.color ? { borderColor: tag.color, color: tag.color, backgroundColor: tag.color + '22' } : {}"
-              title="Nach diesem Subtag filtern"
-              @click.stop="$emit('filter-tag', tag.name)"
-            >
-              {{ tag.name }}
-            </button>
-          </div>
-        </div>
+        <span class="rounded-full border border-[var(--sf-badge-border,rgba(255,255,255,0.3))] bg-[var(--sf-badge-bg,rgba(255,255,255,0.15))] px-[0.85rem] py-[0.4rem] font-[var(--font-accent,inherit)] text-[0.85rem] italic font-semibold text-[var(--sf-badge-color,white)] backdrop-blur-[10px]">{{ article.category }}</span>
       </slot>
     </div>
     <div class="absolute inset-x-0 bottom-0 flex min-h-[65%] flex-col justify-end p-[var(--sf-padding,2rem)] [background:linear-gradient(to_top,var(--sf-overlay-color,rgba(0,0,0,0.9))_0%,var(--sf-overlay-color,rgba(0,0,0,0.9))_35%,rgba(0,0,0,0.55)_60%,rgba(0,0,0,0.15)_85%,transparent_100%)]">
