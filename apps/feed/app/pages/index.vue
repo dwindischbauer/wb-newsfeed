@@ -29,6 +29,11 @@
           </button>
         </div>
       </div>
+
+      <!-- Progress bar: how far through the current category/filter the user has scrolled -->
+      <div class="mt-2 h-[2px] w-full bg-white/10">
+        <div class="h-full bg-accent-lime transition-[width] duration-150" :style="{ width: `${feedScrollPercent}%` }"></div>
+      </div>
     </div>
 
     <!-- Active Tag Filter Badge — only for tags picked from a card, not for the
@@ -42,8 +47,10 @@
     </div>
 
     <ShortformFeed
+      ref="feedComponentRef"
       :articles="publishedArticles"
       :api-url="config.public.apiUrl"
+      :loading="isLoadingFeed"
       :tracking-enabled="true"
       :liked-ids="likedArticleIds"
       @article-read="openReader"
@@ -55,6 +62,16 @@
       @share="handleShare"
       @open-comments="openComments"
     >
+      <template #loading>
+        <div class="flex h-screen flex-col justify-end gap-3 p-8">
+          <div class="mb-2 h-7 w-24 animate-pulse rounded-full bg-white/10"></div>
+          <div class="h-8 w-4/5 animate-pulse rounded-lg bg-white/10"></div>
+          <div class="h-8 w-3/5 animate-pulse rounded-lg bg-white/10"></div>
+          <div class="mt-2 h-4 w-full animate-pulse rounded bg-white/10"></div>
+          <div class="h-4 w-5/6 animate-pulse rounded bg-white/10"></div>
+          <div class="mt-4 h-12 w-44 animate-pulse rounded-full bg-white/10"></div>
+        </div>
+      </template>
       <template #empty>
         Keine aktiven Nachrichten für '{{ activeTagFilter || activeCategory }}'.
       </template>
@@ -122,7 +139,7 @@
     <transition name="reader">
       <div v-if="activeReaderArticle" class="fixed inset-0 z-[100] flex flex-col overflow-y-auto bg-reader-bg">
         <div class="sticky top-0 z-10 flex items-center justify-between border-b border-black/[0.08] px-6 py-4">
-          <button class="flex cursor-pointer items-center gap-1 border-none bg-transparent py-2 text-base font-semibold text-reader-accent" @click="activeReaderArticle = null">
+          <button class="flex cursor-pointer items-center gap-1 border-none bg-transparent py-2 text-base font-semibold text-reader-accent" @click="closeReader">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             Zurück
           </button>
@@ -177,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import {
   ShortformFeed,
   parseKeyTakeaways,
@@ -203,6 +220,9 @@ interface CommentItem {
 type CountField = 'likeCount' | 'commentCount' | 'shareCount';
 
 const articles = ref<FeedArticle[]>([]);
+const feedComponentRef = ref<InstanceType<typeof ShortformFeed> | null>(null);
+const feedScrollPercent = ref(0);
+const savedFeedScrollTop = ref(0);
 const activeReaderArticle = ref<FeedArticle | null>(null);
 const activeCategory = ref('Für dich');
 const activeTagFilter = ref('');
@@ -253,7 +273,28 @@ const recordInterestInteraction = (article: FeedArticle | null, weight = 1) => {
   }
 };
 
+// The "Für dich" order is pinned per article-list fetch, not recomputed on
+// every like/read/impression — otherwise reading an article boosts its tags
+// immediately, the personalized ranking reshuffles mid-browse, and returning
+// from the reader (or even just scrolling) drops the user onto an unrelated
+// article. Interest updates still apply, just to the *next* fetched list.
+const personalizedOrder = ref<FeedArticle[]>([]);
+watch(
+  articles,
+  () => {
+    const published = articles.value.filter((a) => a.status === 'published');
+    personalizedOrder.value = rankPersonalizedArticles(published, userInterests.value);
+  },
+  { immediate: true }
+);
+
 const publishedArticles = computed(() => {
+  if (activeCategory.value === 'Für dich') {
+    if (!activeTagFilter.value) return personalizedOrder.value;
+    const tagQuery = activeTagFilter.value.toLowerCase();
+    return personalizedOrder.value.filter((a) => a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === tagQuery));
+  }
+
   let filtered = articles.value.filter((a) => a.status === 'published');
 
   if (activeTagFilter.value) {
@@ -261,15 +302,15 @@ const publishedArticles = computed(() => {
     filtered = filtered.filter((a) => a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === tagQuery));
   }
 
-  if (activeCategory.value === 'Für dich') {
-    return rankPersonalizedArticles(filtered, userInterests.value);
-  } else if (activeCategory.value !== 'Alle') {
+  if (activeCategory.value !== 'Alle') {
     filtered = filtered.filter((a) => a.category === activeCategory.value);
   }
   return filtered;
 });
 
 const config = useRuntimeConfig();
+
+const isLoadingFeed = ref(true);
 
 const fetchArticles = async () => {
   try {
@@ -279,6 +320,8 @@ const fetchArticles = async () => {
   } catch (e) {
     console.error('Failed to fetch articles:', e);
     articles.value = [];
+  } finally {
+    isLoadingFeed.value = false;
   }
 };
 
@@ -329,6 +372,7 @@ const openReader = (articleId: number) => {
   const article = articles.value.find((a) => a.id === articleId);
   if (!article) return;
 
+  savedFeedScrollTop.value = feedComponentRef.value?.$el?.scrollTop ?? 0;
   activeReaderArticle.value = article;
   recordInterestInteraction(article, 2);
   sendAnalytics('read', article.id, { category: article.category });
@@ -338,12 +382,24 @@ const openReader = (articleId: number) => {
   }
 };
 
+// Returning from the full-text reader used to always drop the user back at
+// the top of the feed — restore the scroll position they left behind instead.
+const closeReader = () => {
+  activeReaderArticle.value = null;
+  nextTick(() => {
+    if (feedComponentRef.value?.$el) {
+      feedComponentRef.value.$el.scrollTop = savedFeedScrollTop.value;
+    }
+  });
+};
+
 const onArticleImpression = (article: FeedArticle) => {
   recordInterestInteraction(article, 0.5);
   sendAnalytics('impression', article.id, { category: article.category });
 };
 
 const onScrollDepth = (percentage: number) => {
+  feedScrollPercent.value = Math.min(100, Math.max(0, percentage * 100));
   if (percentage >= 80) {
     sendAnalytics('scroll_depth', activeReaderArticle.value?.id ?? null, { depth: percentage });
   }
@@ -548,6 +604,17 @@ const formatRelativeTime = (dateStr: string) => {
   if (hours < 24) return `vor ${hours} Std`;
   return `vor ${Math.floor(hours / 24)} Tg`;
 };
+
+// Switching category/subtag swaps the article list under the same scroll
+// container — without this the new list would inherit the old scroll offset.
+watch([activeCategory, activeTagFilter], () => {
+  feedScrollPercent.value = 0;
+  nextTick(() => {
+    if (feedComponentRef.value?.$el) {
+      feedComponentRef.value.$el.scrollTop = 0;
+    }
+  });
+});
 
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
 
