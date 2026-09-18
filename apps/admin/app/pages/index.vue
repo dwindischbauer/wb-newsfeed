@@ -449,13 +449,20 @@
             Alle
           </button>
           <button
-            v-for="t in allTags"
+            v-for="t in visibleAllTags"
             :key="t.id"
             class="cursor-pointer rounded-full border border-[rgba(20,20,20,0.12)] bg-transparent px-3 py-[0.3rem] text-[0.74rem] font-medium text-text-secondary transition-all duration-200 hover:border-[rgba(111,143,26,0.4)] hover:text-[#14151a]"
             :class="{ 'border-[#6f8f1a] bg-[rgba(111,143,26,0.15)] font-semibold text-[#6f8f1a]': activeTag === t.name }"
             @click="activeTag = activeTag === t.name ? null : t.name"
           >
             #{{ t.name }} <span v-if="t.articleCount > 0" class="opacity-75">({{ t.articleCount }})</span>
+          </button>
+          <button
+            v-if="sortedAllTags.length > TAG_PREVIEW_COUNT"
+            class="cursor-pointer rounded-full border border-dashed border-[rgba(20,20,20,0.2)] bg-transparent px-3 py-[0.3rem] text-[0.74rem] font-semibold text-text-muted transition-all duration-200 hover:border-[rgba(20,20,20,0.4)] hover:text-[#14151a]"
+            @click="allTagsExpanded = !allTagsExpanded"
+          >
+            {{ allTagsExpanded ? 'Weniger anzeigen' : `+${sortedAllTags.length - TAG_PREVIEW_COUNT} weitere` }}
           </button>
         </div>
 
@@ -955,6 +962,17 @@ const allTags = ref<TagStat[]>([]);
 // Canonical subcategories (e.g. Politik -> Innenpolitik/Außenpolitik) for the active main category
 const canonicalSubtagsForActiveCategory = computed<SubtagDefinition[]>(() => CATEGORY_SUBTAGS[activeCategory.value] || []);
 const activeTag = ref<string | null>(null);
+
+// The live tag cloud (fallback when "Alle" is selected) can hold 100+ single-use
+// tags — showing them all at once buries the article table. Only the most-used
+// tags are shown by default; the rest stay behind a collapsed toggle. Search
+// already matches by tag name, so nothing becomes unreachable when collapsed.
+const TAG_PREVIEW_COUNT = 10;
+const allTagsExpanded = ref(false);
+const sortedAllTags = computed(() => [...allTags.value].sort((a, b) => b.articleCount - a.articleCount));
+const visibleAllTags = computed(() =>
+  allTagsExpanded.value ? sortedAllTags.value : sortedAllTags.value.slice(0, TAG_PREVIEW_COUNT)
+);
 const searchQuery = ref('');
 const selectedArticle = ref<DashboardArticle | null>(null);
 const pendingJobsCount = ref(0);
