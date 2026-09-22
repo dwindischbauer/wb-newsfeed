@@ -181,12 +181,10 @@
         </div>
       </div>
 
-      <!-- 2. MIDDLE SECTION: KPI Row, asymmetric -->
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
-        <!-- KPI 1: Verwaltete Artikel — featured, larger -->
-        <div
-          class="relative flex min-h-[120px] flex-col justify-between gap-[0.6rem] overflow-hidden rounded-[22px] border border-accent-ink bg-accent-ink px-[1.4rem] pb-5 pt-[1.4rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)] sm:col-span-2 lg:col-auto"
-        >
+      <!-- 2. MIDDLE SECTION: Verwaltete Artikel + Nach Kategorie -->
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <!-- Verwaltete Artikel -->
+        <div class="relative flex min-h-[120px] flex-col justify-between gap-[0.6rem] overflow-hidden rounded-[22px] border border-accent-ink bg-accent-ink px-[1.4rem] pb-5 pt-[1.4rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)]">
           <span class="font-accent text-[0.85rem] font-medium italic text-white/60">Verwaltete Artikel</span>
           <div class="font-accent text-[3.4rem] font-medium italic leading-none text-white">{{ totalArticlesCount }}</div>
           <div class="z-[2] mt-3 text-[0.72rem] text-white/[0.55]">
@@ -194,95 +192,7 @@
           </div>
         </div>
 
-        <!-- KPI 2: KI-Pipelines 2026 -->
-        <div class="relative flex min-h-[120px] flex-col justify-between gap-[0.6rem] overflow-hidden rounded-[22px] border border-border-subtle bg-bg-card px-[1.4rem] pb-5 pt-[1.4rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)]">
-          <span class="font-accent text-[0.85rem] font-medium italic text-text-secondary">KI-Pipelines 2026</span>
-          <div class="flex items-center gap-2 text-[1.35rem] font-bold tracking-[-0.02em] text-[#14151a]">
-            <span class="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
-            <span>Aktiv</span>
-          </div>
-          <div class="z-[2] mt-3 text-[0.72rem] text-text-muted">
-            <span>Fastify & qwen2.5:3b-instruct bereit</span>
-          </div>
-        </div>
-
-        <!-- KPI 3: Nachrichten (Feed) with Cyan Wave -->
-        <div class="relative flex min-h-[120px] flex-col justify-between gap-[0.6rem] overflow-hidden rounded-[22px] border border-border-subtle bg-bg-card px-[1.4rem] pb-5 pt-[1.4rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)]">
-          <span class="font-accent text-[0.85rem] font-medium italic text-text-secondary">Nachrichten (Feed)</span>
-          <div class="text-[1.75rem] font-bold tracking-[-0.02em] text-[#14151a]">{{ publishedArticlesCount }}</div>
-          <div class="z-[2] mt-3 text-[0.72rem] text-text-muted">
-            <span class="font-semibold text-[#5c7a14]">+100%</span> Bereitstellung
-          </div>
-          <!-- Cyan Area Sparkline Wave -->
-          <svg class="pointer-events-none absolute bottom-0 left-0 z-[1] h-[52px] w-full" viewBox="0 0 300 80" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="cyanSpark" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#6f8f1a" stop-opacity="0.35" />
-                <stop offset="100%" stop-color="#6f8f1a" stop-opacity="0.0" />
-              </linearGradient>
-            </defs>
-            <path d="M0,55 Q50,45 100,50 T200,28 T260,35 T300,12 L300,80 L0,80 Z" fill="url(#cyanSpark)" />
-            <path d="M0,55 Q50,45 100,50 T200,28 T260,35 T300,12" fill="none" stroke="#6f8f1a" stroke-width="2.5" />
-          </svg>
-        </div>
-
-        <!-- KPI 4: Feed-Interaktionen with Amber Wave -->
-        <div class="relative flex min-h-[120px] flex-col justify-between gap-[0.6rem] overflow-hidden rounded-[22px] border border-border-subtle bg-bg-card px-[1.4rem] pb-5 pt-[1.4rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)]">
-          <span class="font-accent text-[0.85rem] font-medium italic text-text-secondary">Feed-Leserate</span>
-          <div class="text-[1.75rem] font-bold tracking-[-0.02em] text-[#14151a]">{{ analyticsSummary.readThroughRate || '84.2%' }}</div>
-          <div class="z-[2] mt-3 text-[0.72rem] text-text-muted">
-            <span>{{ analyticsSummary.totalReads }} Volltext • {{ analyticsSummary.totalImpressions }} Aufrufe</span>
-          </div>
-          <!-- Amber Area Sparkline Wave -->
-          <svg class="pointer-events-none absolute bottom-0 left-0 z-[1] h-[52px] w-full" viewBox="0 0 300 80" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="amberSpark" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.35" />
-                <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0" />
-              </linearGradient>
-            </defs>
-            <path d="M0,60 Q60,40 120,48 T220,20 T270,25 T300,8 L300,80 L0,80 Z" fill="url(#amberSpark)" />
-            <path d="M0,60 Q60,40 120,48 T220,20 T270,25 T300,8" fill="none" stroke="#f59e0b" stroke-width="2.5" />
-          </svg>
-        </div>
-      </div>
-
-      <!-- 3. BOTTOM DASHBOARD SECTION: Authors Leaderboard + Category Distribution + Server Health -->
-      <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <!-- Card 1: Aktivste Autoren 2026 -->
-        <div class="relative overflow-hidden rounded-[22px] border border-border-subtle bg-bg-card p-[1.35rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)]">
-          <div class="mb-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div>
-                <h3 class="m-0 font-accent text-[1.15rem] font-medium italic text-[#14151a]">Aktivste Autoren</h3>
-                <span class="text-[0.72rem] text-text-muted">Beiträge im Diplomarbeits-Semester</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-[0.85rem]">
-            <div v-for="author in authorStats" :key="author.name" class="flex flex-col gap-[0.4rem]">
-              <div class="flex items-center justify-between">
-                <div class="flex flex-col">
-                  <span class="text-[0.82rem] font-semibold text-[#24252a]">{{ author.name }}</span>
-                  <span class="text-[0.68rem] text-text-muted">{{ author.role }}</span>
-                </div>
-                <div class="flex items-center gap-[0.3rem] text-[0.76rem]">
-                  <span class="font-semibold text-[#14151a]">{{ author.count }} Artikel</span>
-                  <span class="text-text-muted">({{ author.percent }}%)</span>
-                </div>
-              </div>
-              <div class="h-[6px] w-full overflow-hidden rounded-full bg-[rgba(20,20,20,0.05)]">
-                <div
-                  class="h-full rounded-full transition-[width] duration-[400ms] ease-in-out"
-                  :style="{ width: `${Math.max(author.percent, 8)}%`, backgroundColor: author.color }"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 2: Artikel nach Kategorie -->
+        <!-- Nach Kategorie -->
         <div class="relative overflow-hidden rounded-[22px] border border-border-subtle bg-bg-card p-[1.35rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)]">
           <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -311,60 +221,6 @@
                 <span class="h-2 w-2 flex-shrink-0 rounded-full" :style="{ backgroundColor: cat.color }"></span>
                 <span class="flex-1 text-text-secondary">{{ cat.name }}</span>
                 <span class="font-semibold text-[#14151a]">{{ cat.count }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 3: Server & KI-Status -->
-        <div class="relative overflow-hidden rounded-[22px] border border-border-subtle bg-bg-card p-[1.35rem] shadow-[0_4px_20px_rgba(20,20,20,0.05)] transition-[border-color,transform] duration-200 hover:border-[rgba(20,20,20,0.14)]">
-          <div class="mb-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div>
-                <h3 class="m-0 font-accent text-[1.15rem] font-medium italic text-[#14151a]">Server & KI-Status</h3>
-                <span class="text-[0.72rem] text-text-muted">Infrastruktur-Metriken</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-4">
-            <div class="flex items-center justify-between rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.02)] p-3">
-              <div class="text-[1.25rem] font-extrabold text-[#14151a]">0,53 Last</div>
-              <div class="flex items-center gap-[0.4rem] text-[0.74rem] font-semibold text-[#34d399]">
-                <span class="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
-                <span>Läuft stabil</span>
-              </div>
-            </div>
-
-            <div class="flex flex-col gap-[0.65rem]">
-              <div class="flex flex-col gap-[0.3rem]">
-                <div class="flex justify-between text-[0.72rem] text-text-secondary">
-                  <span>Fastify REST API (Port 3005)</span>
-                  <span class="font-semibold text-[#14151a]">Online</span>
-                </div>
-                <div class="h-[5px] w-full overflow-hidden rounded-full bg-[rgba(20,20,20,0.05)]">
-                  <div class="h-full w-full rounded-full bg-[#6f8f1a]"></div>
-                </div>
-              </div>
-
-              <div class="flex flex-col gap-[0.3rem]">
-                <div class="flex justify-between text-[0.72rem] text-text-secondary">
-                  <span>PostgreSQL & Redis Queue</span>
-                  <span class="font-semibold text-[#14151a]">Aktiv</span>
-                </div>
-                <div class="h-[5px] w-full overflow-hidden rounded-full bg-[rgba(20,20,20,0.05)]">
-                  <div class="h-full w-full rounded-full bg-[#10b981]"></div>
-                </div>
-              </div>
-
-              <div class="flex flex-col gap-[0.3rem]">
-                <div class="flex justify-between text-[0.72rem] text-text-secondary">
-                  <span>Ollama LLM (qwen2.5)</span>
-                  <span class="font-semibold text-[#14151a]">1.2 GB VRAM</span>
-                </div>
-                <div class="h-[5px] w-full overflow-hidden rounded-full bg-[rgba(20,20,20,0.05)]">
-                  <div class="h-full w-[32%] rounded-full bg-[#a855f7]"></div>
-                </div>
               </div>
             </div>
           </div>
@@ -930,21 +786,6 @@ interface ImageGenState {
   elapsed?: number;
 }
 
-interface AnalyticsSummary {
-  totalImpressions: number;
-  totalReads: number;
-  totalTtsPlays: number;
-  readThroughRate: string;
-}
-
-interface AuthorStat {
-  name: string;
-  role: string;
-  count: number;
-  percent: number;
-  color: string;
-}
-
 interface CategoryStat {
   name: string;
   count: number;
@@ -1031,48 +872,6 @@ const upcomingArticles = computed<DashboardArticle[]>(() => {
 const totalArticlesCount = computed(() => articles.value.length);
 const publishedArticlesCount = computed(() => {
   return articles.value.reduce((count, a) => (a.status === 'published' ? count + 1 : count), 0);
-});
-
-// Author Leaderboard
-const authorStats = computed<AuthorStat[]>(() => {
-  let davidCount = 0;
-  let stefanCount = 0;
-  let orfCount = 0;
-  articles.value.forEach((a) => {
-    const author = a.author || '';
-    if (author.includes('Windischbauer')) {
-      davidCount++;
-    } else if (author.includes('Schachner')) {
-      stefanCount++;
-    } else {
-      orfCount++;
-    }
-  });
-  const total = articles.value.length || 1;
-
-  return [
-    {
-      name: 'David Windischbauer',
-      role: 'Backend & KI-Architektur',
-      count: davidCount,
-      percent: Math.round((davidCount / total) * 100),
-      color: '#6f8f1a'
-    },
-    {
-      name: 'Stefan Schachner',
-      role: 'Frontend & UI-Design',
-      count: stefanCount,
-      percent: Math.round((stefanCount / total) * 100),
-      color: '#a855f7'
-    },
-    {
-      name: 'ORF.at Redaktion',
-      role: 'Journalistischer Quell-Feed',
-      count: orfCount,
-      percent: Math.round((orfCount / total) * 100),
-      color: '#10b981'
-    }
-  ];
 });
 
 // Category Distribution
@@ -1220,13 +1019,6 @@ const stopGenTimer = () => {
   }
 };
 
-const analyticsSummary = ref<AnalyticsSummary>({
-  totalImpressions: 0,
-  totalReads: 0,
-  totalTtsPlays: 0,
-  readThroughRate: '0.0%'
-});
-
 // API Calls
 const fetchArticles = async () => {
   try {
@@ -1259,17 +1051,6 @@ const fetchJobsStat = async () => {
     }
   } catch (e) {
     console.error('Failed to fetch jobs', e);
-  }
-};
-
-const fetchAnalytics = async () => {
-  try {
-    const res = await apiFetch(`${config.public.apiUrl}/api/analytics`);
-    if (res.ok) {
-      analyticsSummary.value = await res.json();
-    }
-  } catch {
-    // analytics are a non-critical enhancement — keep the previous summary on failure
   }
 };
 
@@ -1616,7 +1397,6 @@ onMounted(() => {
   fetchArticles();
   fetchTags();
   fetchJobsStat();
-  fetchAnalytics();
 });
 </script>
 
