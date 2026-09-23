@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, boolean, integer, varchar, doublePrecision, unique } from 'drizzle-orm/pg-core';
 
 export const articles = pgTable('articles', {
   id: serial('id').primaryKey(),
@@ -67,4 +67,24 @@ export const analyticsEvents = pgTable('analytics_events', {
   createdAt: timestamp('created_at').defaultNow()
 });
 
-
+// Every generated (or manually edited) teaser is kept as an immutable version,
+// together with the model and sampling parameters that produced it, so older
+// results can be compared, reproduced and restored.
+export const generationVersions = pgTable('generation_versions', {
+  id: serial('id').primaryKey(),
+  articleId: integer('article_id').notNull().references(() => articles.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  title: text('title'),
+  category: text('category'),
+  teaser: text('teaser'),
+  keyTakeaways: text('key_takeaways'),
+  tags: text('tags'),
+  source: varchar('source', { length: 20 }).notNull(),
+  model: varchar('model', { length: 100 }),
+  temperature: doublePrecision('temperature'),
+  seed: integer('seed'),
+  contentHash: varchar('content_hash', { length: 64 }),
+  jobId: integer('job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  restoredFrom: integer('restored_from'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (t) => [unique('generation_versions_article_version').on(t.articleId, t.version)]);

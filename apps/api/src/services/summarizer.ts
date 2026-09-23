@@ -11,6 +11,8 @@ export interface SummaryResult {
   teaser: string;
   keyTakeaways: string;
   source: 'ai' | 'fallback';
+  /** Model and sampling parameters used; null when the offline fallback ran. */
+  generation: (GenerationOptions & { model: string }) | null;
 }
 
 export interface GenerationOptions {
@@ -101,12 +103,11 @@ ${content}`;
     const data = await response.json();
     const resultObj = JSON.parse(data.response);
 
-    const finalTitle = resultObj.title && resultObj.title !== '[Auto-Titel ausstehend]'
-      ? resultObj.title
-      : (currentTitle !== '[Auto-Titel ausstehend]' ? currentTitle : resultObj.title);
-    const finalCategory = resultObj.category && resultObj.category !== 'Auto'
-      ? resultObj.category
-      : currentCategory;
+    // An editorial title/category always wins; the model only fills in placeholders.
+    const finalTitle = currentTitle !== '[Auto-Titel ausstehend]' ? currentTitle : resultObj.title;
+    const finalCategory = currentCategory !== 'Auto' && currentCategory !== 'Allgemein'
+      ? currentCategory
+      : resultObj.category;
 
     const tagList: string[] = Array.isArray(resultObj.tags)
       ? resultObj.tags.filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0).map((t: string) => t.trim())
@@ -118,7 +119,8 @@ ${content}`;
       tags: tagList,
       teaser: resultObj.teaser || '',
       keyTakeaways: resultObj.keyTakeaways || '',
-      source: 'ai'
+      source: 'ai',
+      generation: { model: aiModel, ...generationOptions }
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -130,7 +132,8 @@ ${content}`;
       tags: extracted.tags.map(t => t.name),
       teaser: extracted.teaser,
       keyTakeaways: extracted.keyTakeaways,
-      source: 'fallback'
+      source: 'fallback',
+      generation: null
     };
   }
 }

@@ -6,6 +6,7 @@ import { eq, desc } from 'drizzle-orm';
 import { inMemoryArticles, type StoredArticle } from './articles';
 import { autoExtractArticleMetadata } from '../utils/metadata';
 import { generateArticleImage } from '../services/imageGenerator';
+import { recordGenerationVersion } from '../services/versions';
 
 type JobRecord = InferSelectModel<typeof jobs>;
 
@@ -59,6 +60,14 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
 
       try {
         await db.update(articles).set(updateData).where(eq(articles.id, articleId));
+        await recordGenerationVersion({
+          articleId,
+          content: article.content,
+          ...updateData,
+          tags: meta.tags.map((t) => t.name),
+          source: 'fallback',
+          jobId
+        });
       } catch {
         // best-effort — in-memory mirror below still gets the update
       }

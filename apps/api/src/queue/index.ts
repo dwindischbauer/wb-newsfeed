@@ -12,6 +12,50 @@ const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379'
 export const generationQueue = new Queue('generation_jobs', { connection });
 logger.info('Generation queue initialized');
 
+export type GenerationType = 'teaser_generation' | 'image_generation' | 'full_generation';
+
+export interface GenerationJobData {
+  jobId: number;
+  articleId: number;
+  type?: GenerationType;
+  /** Let the model replace the stored title/category (they are only placeholders). */
+  autoTitle?: boolean;
+  autoCategory?: boolean;
+  /** Why the job was started, e.g. 'created' or 'content_changed'. */
+  trigger?: string;
+}
+
+/**
+ * Creates a job row and puts it on the BullMQ queue. Used wherever an article
+ * is created or its content changes, so generation starts without the client
+ * having to call /api/jobs itself. If Redis is unreachable the job row is
+ * marked failed instead of silently staying 'pending'.
+ */
+export async function enqueueGeneration(
+  articleId: number,
+  type: GenerationType,
+  options: Omit<GenerationJobData, 'jobId' | 'articleId' | 'type'> = {}
+): Promise<{ jobId: number; queued: boolean }> {
+  const [jobRow] = await db.insert(jobs).values({ articleId, type, status: 'pending' }).returning();
+  if (!jobRow) throw new Error('Job-Erstellung fehlgeschlagen');
+
+  try {
+    const data: GenerationJobData = { jobId: jobRow.id, articleId, type, ...options };
+    await generationQueue.add(type, data, {
+      jobId: `job-${jobRow.id}`,
+      removeOnComplete: 100,
+      removeOnFail: 100,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1000 }
+    });
+    return { jobId: jobRow.id, queued: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await db.update(jobs).set({ status: 'failed', error: `Job enqueuing failed: ${message}` }).where(eq(jobs.id, jobRow.id));
+    return { jobId: jobRow.id, queued: false };
+  }
+}
+
 
 generationQueue.waitUntilReady().then(async () => {
   try {
@@ -38,7 +82,7 @@ generationQueue.waitUntilReady().then(async () => {
 
 export const worker = new Worker('generation_jobs', async job => {
   logger.info(`Processing job ${job.id} of type ${job.name}`, { jobId: job.id, type: job.name });
-  const { jobId, articleId } = job.data;
+  const { jobId, articleId, autoTitle, autoCategory } = job.data as GenerationJobData;
   const startTime = Date.now();
   let generationSource: 'ai' | 'fallback' | null = null;
   
@@ -53,7 +97,11 @@ export const worker = new Worker('generation_jobs', async job => {
 
     if (job.name === 'teaser_generation' || job.name === 'full_generation') {
       const { summarizeArticle } = await import('../services/summarizer');
-      const resultObj = await summarizeArticle(article.content, article.title, article.category);
+      const resultObj = await summarizeArticle(
+        article.content,
+        autoTitle ? '[Auto-Titel ausstehend]' : article.title,
+        autoCategory ? 'Auto' : article.category
+      );
       generationSource = resultObj.source;
 
       await db.update(articles).set({
@@ -63,8 +111,24 @@ export const worker = new Worker('generation_jobs', async job => {
         keyTakeaways: resultObj.keyTakeaways
       }).where(eq(articles.id, articleId));
 
-      // Auto-assign tags returned by AI
-      if (resultObj.tags.length > 0) {
+      const { recordGenerationVersion } = await import('../services/versions');
+      await recordGenerationVersion({
+        articleId,
+        content: article.content,
+        title: resultObj.title,
+        category: resultObj.category,
+        teaser: resultObj.teaser,
+        keyTakeaways: resultObj.keyTakeaways,
+        tags: resultObj.tags,
+        source: resultObj.source,
+        generation: resultObj.generation,
+        jobId
+      });
+
+      // Auto-assign tags returned by AI, but never pile new tags onto an
+      // article that already has some (e.g. on regeneration after an edit).
+      const currentTags = await db.select({ id: articleTags.id }).from(articleTags).where(eq(articleTags.articleId, articleId));
+      if (resultObj.tags.length > 0 && currentTags.length === 0) {
         const existingTags = await db.select().from(tags);
         for (const tagName of resultObj.tags) {
           const trimmed = tagName.trim();

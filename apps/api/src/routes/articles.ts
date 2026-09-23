@@ -1,10 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { InferSelectModel } from 'drizzle-orm';
 import { db } from '../db';
-import { articles, jobs, tags, articleTags } from '../db/schema';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { articles, tags, articleTags, generationVersions } from '../db/schema';
+import { eq, desc, inArray, and } from 'drizzle-orm';
 import { stripHtml } from '../utils/format';
-import { generationQueue } from '../queue';
+import { enqueueGeneration } from '../queue';
+import { listGenerationVersions, recordGenerationVersion } from '../services/versions';
 import { autoExtractArticleMetadata } from '../utils/metadata';
 import { generateArticleImage } from '../services/imageGenerator';
 
@@ -37,6 +38,8 @@ interface ArticleBody {
   imageUrl?: string | null;
   tags?: TagInput[];
   tagIds?: number[];
+  /** POST only: set to false to skip the automatic AI teaser generation. */
+  generate?: boolean;
 }
 
 async function getTagsForArticles(articleIds: number[]): Promise<Map<number, ArticleTagRef[]>> {
@@ -244,9 +247,11 @@ export default async function (server: FastifyInstance) {
       return;
     }
 
+    let generationJobId: number | null = null;
     try {
       const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
-      if (existing.length > 0) {
+      const before = existing[0];
+      if (before) {
         const updateData: Partial<Pick<ArticleRecord, 'status' | 'title' | 'category' | 'content' | 'teaser' | 'keyTakeaways' | 'author'>> = {};
         if (body.status !== undefined) updateData.status = body.status;
         if (body.title !== undefined) updateData.title = body.title;
@@ -258,6 +263,26 @@ export default async function (server: FastifyInstance) {
 
         if (Object.keys(updateData).length > 0) {
           await db.update(articles).set(updateData).where(eq(articles.id, parsedId));
+        }
+
+        // A hand-edited teaser becomes a 'manual' version. Otherwise, changed
+        // content makes the stored teaser stale, so regenerate it asynchronously.
+        const teaserEdited = (body.teaser !== undefined && body.teaser !== before.teaser)
+          || (body.keyTakeaways !== undefined && body.keyTakeaways !== before.keyTakeaways);
+        const contentChanged = body.content !== undefined && body.content !== before.content;
+        if (teaserEdited) {
+          await recordGenerationVersion({
+            articleId: parsedId,
+            content: updateData.content ?? before.content,
+            title: updateData.title ?? before.title,
+            category: updateData.category ?? before.category,
+            teaser: updateData.teaser ?? before.teaser,
+            keyTakeaways: updateData.keyTakeaways ?? before.keyTakeaways,
+            source: 'manual'
+          });
+        } else if (contentChanged) {
+          const { jobId } = await enqueueGeneration(parsedId, 'teaser_generation', { trigger: 'content_changed' });
+          generationJobId = jobId;
         }
 
         if (body.tags !== undefined && Array.isArray(body.tags)) {
@@ -289,8 +314,59 @@ export default async function (server: FastifyInstance) {
     return {
       success: true,
       article: updatedMem,
-      tags: updatedMem.tags || []
+      tags: updatedMem.tags || [],
+      generationJobId
     };
+  });
+
+  server.get('/api/articles/:id/versions', async (request, reply) => {
+    const parsedId = parseInt((request.params as { id: string }).id);
+    if (Number.isNaN(parsedId)) {
+      reply.status(400).send({ error: 'Invalid article ID' });
+      return;
+    }
+    return listGenerationVersions(parsedId);
+  });
+
+  // Restoring copies an old version back onto the article and appends it as a
+  // new version (restoredFrom = old number), so history is never rewritten.
+  server.post('/api/articles/:id/versions/:version/restore', async (request, reply) => {
+    const params = request.params as { id: string; version: string };
+    const parsedId = parseInt(params.id);
+    const versionNo = parseInt(params.version);
+    if (Number.isNaN(parsedId) || Number.isNaN(versionNo)) {
+      reply.status(400).send({ error: 'Invalid article ID or version' });
+      return;
+    }
+
+    const [old] = await db.select().from(generationVersions)
+      .where(and(eq(generationVersions.articleId, parsedId), eq(generationVersions.version, versionNo)));
+    const [article] = await db.select().from(articles).where(eq(articles.id, parsedId));
+    if (!old || !article) {
+      reply.status(404).send({ error: 'Version not found' });
+      return;
+    }
+
+    await db.update(articles).set({ teaser: old.teaser, keyTakeaways: old.keyTakeaways }).where(eq(articles.id, parsedId));
+    const created = await recordGenerationVersion({
+      articleId: parsedId,
+      content: article.content,
+      title: article.title,
+      category: article.category,
+      teaser: old.teaser,
+      keyTakeaways: old.keyTakeaways,
+      tags: old.tags ? (JSON.parse(old.tags) as string[]) : undefined,
+      source: old.source as 'ai' | 'fallback' | 'manual',
+      generation: old.model && old.temperature !== null && old.seed !== null
+        ? { model: old.model, temperature: old.temperature, seed: old.seed }
+        : null,
+      restoredFrom: old.version
+    });
+
+    const mem = inMemoryArticles.get(parsedId);
+    if (mem) inMemoryArticles.set(parsedId, { ...mem, teaser: old.teaser, keyTakeaways: old.keyTakeaways, updatedAt: new Date() });
+
+    return { success: true, version: created };
   });
 
   server.delete('/api/articles/:id', async (request, reply) => {
@@ -469,6 +545,7 @@ export default async function (server: FastifyInstance) {
       : extracted.tags.map((t) => t.name);
 
     let createdArticle: StoredArticle;
+    let generationJobId: number | null = null;
     try {
       const newArticle = await db.insert(articles).values({
         title: finalTitle,
@@ -491,6 +568,27 @@ export default async function (server: FastifyInstance) {
 
       const tagsMap = await getTagsForArticles([inserted.id]);
       createdArticle = { ...inserted, tags: tagsMap.get(inserted.id) || [] };
+
+      // New content is generated server-side, so any client (not only the admin)
+      // gets an AI teaser. A teaser sent by the client is kept as a manual version.
+      if (body.teaser) {
+        await recordGenerationVersion({
+          articleId: inserted.id,
+          content: cleanContent,
+          title: finalTitle,
+          category: finalCategory,
+          teaser: finalTeaser,
+          keyTakeaways: finalTakeaways,
+          source: 'manual'
+        });
+      } else if (body.generate !== false) {
+        const { jobId } = await enqueueGeneration(inserted.id, 'teaser_generation', {
+          autoTitle: !(body.title && body.title.trim() && body.title !== '[Auto-Titel ausstehend]'),
+          autoCategory: !(body.category && body.category !== 'Auto' && body.category !== 'Allgemein'),
+          trigger: 'created'
+        });
+        generationJobId = jobId;
+      }
     } catch {
       server.log.warn('DB insert failed, saving article in in-memory store');
       fallbackIdCounter++;
@@ -517,7 +615,7 @@ export default async function (server: FastifyInstance) {
     }
 
     inMemoryArticles.set(createdArticle.id, createdArticle);
-    return createdArticle;
+    return { ...createdArticle, generationJobId };
   });
 
   server.post('/api/articles/quick', async (request, reply) => {
@@ -545,35 +643,16 @@ export default async function (server: FastifyInstance) {
       reply.status(500);
       return { success: false, error: 'Insert fehlgeschlagen' };
     }
-    const articleId = inserted.id;
-
-    // Create job record in db first to get the auto-increment ID
-    const newJob = await db.insert(jobs).values({
-      articleId,
-      type: 'teaser_generation',
-      status: 'pending'
-    }).returning();
-
-    const dbJobId = newJob[0]?.id;
-    if (dbJobId === undefined) {
-      reply.status(500);
-      return { success: false, error: 'Job-Erstellung fehlgeschlagen' };
-    }
-
-    // Automatically queue generation job
-    const jobIdStr = `job-${dbJobId}`;
-    try {
-      const job = await generationQueue.add('teaser_generation', {
-        articleId,
-        jobId: dbJobId,
-        type: 'teaser_generation'
-      }, { jobId: jobIdStr });
-
-      return { success: true, article: inserted, jobId: job.id };
-    } catch (error) {
-      await db.update(jobs).set({ status: 'failed', error: String(error) }).where(eq(jobs.id, dbJobId));
-      return { success: false, article: inserted, jobId: jobIdStr, error: 'Job enqueuing failed' };
-    }
+    // Title/category are placeholders here, so the model may replace them
+    const { jobId, queued } = await enqueueGeneration(inserted.id, 'teaser_generation', {
+      autoTitle: true,
+      autoCategory: true,
+      trigger: 'created'
+    });
+    const jobIdStr = `job-${jobId}`;
+    return queued
+      ? { success: true, article: inserted, jobId: jobIdStr }
+      : { success: false, article: inserted, jobId: jobIdStr, error: 'Job enqueuing failed' };
   });
 
   // Synchronous article creation: takes raw content, runs it straight through
@@ -618,6 +697,17 @@ export default async function (server: FastifyInstance) {
       const row = inserted[0];
       if (!row) throw new Error('Insert returned no row');
       await syncArticleTags(row.id, finalTags.map(tagInputName));
+      await recordGenerationVersion({
+        articleId: row.id,
+        content: cleanContent,
+        title: summary.title,
+        category: summary.category,
+        teaser: summary.teaser,
+        keyTakeaways: summary.keyTakeaways,
+        tags: summary.tags,
+        source: summary.source,
+        generation: summary.generation
+      });
       createdArticle = { ...row, tags: [] };
     } catch (e) {
       reply.status(500);
