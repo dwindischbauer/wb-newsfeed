@@ -1341,19 +1341,18 @@ const generateImageForArticle = async (mode: 'editorial' | 'ai' = 'editorial') =
 const removeImage = async (id: number) => {
   if (!confirm('Titelbild entfernen?')) return;
   try {
-    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageUrl: null })
-    });
-    if (res.ok) {
-      if (selectedArticle.value && selectedArticle.value.id === id) {
-        selectedArticle.value.imageUrl = null;
-      }
-      const listArticle = articles.value.find((a) => a.id === id);
-      if (listArticle) listArticle.imageUrl = null;
-      showToast('Titelbild entfernt', 'success');
+    // PUT ignores imageUrl; the dedicated route clears the DB field and deletes the file
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${id}/image`, { method: 'DELETE' });
+    if (!res.ok) {
+      showToast('Titelbild konnte nicht entfernt werden', 'error');
+      return;
     }
+    if (selectedArticle.value && selectedArticle.value.id === id) {
+      selectedArticle.value.imageUrl = null;
+    }
+    const listArticle = articles.value.find((a) => a.id === id);
+    if (listArticle) listArticle.imageUrl = null;
+    showToast('Titelbild entfernt', 'success');
   } catch (e) {
     console.error(e);
   }
@@ -1378,18 +1377,20 @@ const uploadFile = async (file: File) => {
   const formData = new FormData();
   formData.append('image', file);
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/articles/${selectedArticle.value.id}/upload-image`, {
+    // Goes through the admin server proxy, which adds the API key server-side
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${selectedArticle.value.id}/image`, {
       method: 'POST',
-      headers: { 'x-api-key': 'diplomarbeit-secret-key' },
       body: formData
     });
-    if (res.ok) {
-      const data = await res.json();
-      selectedArticle.value.imageUrl = data.imageUrl;
-      const listArticle = articles.value.find((a) => a.id === selectedArticle.value?.id);
-      if (listArticle) listArticle.imageUrl = data.imageUrl;
-      showToast('Bild erfolgreich hochgeladen', 'success');
+    if (!res.ok) {
+      showToast('Fehler beim Upload', 'error');
+      return;
     }
+    const data = await res.json();
+    selectedArticle.value.imageUrl = data.imageUrl;
+    const listArticle = articles.value.find((a) => a.id === selectedArticle.value?.id);
+    if (listArticle) listArticle.imageUrl = data.imageUrl;
+    showToast('Bild erfolgreich hochgeladen', 'success');
   } catch (e) {
     console.error(e);
     showToast('Fehler beim Upload', 'error');
