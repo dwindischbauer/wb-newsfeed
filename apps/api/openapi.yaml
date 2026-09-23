@@ -1,0 +1,775 @@
+openapi: 3.1.0
+info:
+  title: wb-newsfeed API
+  version: 1.0.0
+  description: |
+    REST-API für Redaktion (Admin-CMS), Short-Form-Feed und externe Systeme.
+
+    **Authentifizierung:** Alle Endpunkte verlangen den Header `x-api-key`
+    (Wert aus `.env`, `API_KEY`), außer den als *öffentlich* markierten
+    (`security: []`): Feed, Engagement (Like/Share/Kommentare), Analytics-Events,
+    `/api/sysinfo` und statische Bilder unter `/images/`.
+
+    **KI-Generierung** läuft asynchron über BullMQ. Endpunkte, die eine
+    Generierung auslösen, liefern eine Job-ID; der Status ist über `/api/jobs/{id}`
+    abrufbar. Jedes Ergebnis wird als Version gespeichert (`/api/articles/{id}/versions`).
+
+    Architektur und Abläufe: `docs/architektur.md`.
+servers:
+  - url: http://localhost:3005
+    description: Lokale Entwicklung
+security:
+  - apiKey: []
+tags:
+  - name: Feed
+    description: Öffentlicher Short-Form-Feed
+  - name: Artikel
+  - name: Versionen
+    description: Versionierte KI-Ergebnisse (Teaser, Kernpunkte)
+  - name: Jobs
+    description: Asynchrone Generierung (BullMQ)
+  - name: Engagement
+    description: Öffentliche Interaktionen aus dem Feed
+  - name: Tags
+  - name: Analytics
+  - name: Einstellungen
+  - name: System
+
+paths:
+  /api/feed:
+    get:
+      tags: [Feed]
+      summary: Veröffentlichte Artikel für den Feed
+      description: |
+        Liefert nur Artikel mit `status = published`, neueste zuerst.
+        Serverseitig gecacht (invalidiert bei jeder Artikel- oder Tag-Änderung,
+        spätestens nach 60 s). Antwortet mit `ETag`; bei passendem
+        `If-None-Match` kommt `304 Not Modified` ohne Body.
+      security: []
+      parameters:
+        - { name: category, in: query, schema: { type: string }, description: 'Kategorie-Filter, `Alle` = kein Filter' }
+        - { name: tag, in: query, schema: { type: string }, description: Tag-Slug oder -Name }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: If-None-Match, in: header, schema: { type: string } }
+      responses:
+        '200':
+          description: Artikelliste
+          headers:
+            ETag: { schema: { type: string } }
+            Cache-Control: { schema: { type: string, example: no-cache } }
+            X-Feed-Cache: { schema: { type: string, enum: [HIT, MISS, BYPASS] }, description: 'Serverseitiger Cache-Status (BYPASS = DB offline)' }
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Article' } }
+        '304': { description: Unverändert seit dem übergebenen ETag }
+
+  /api/articles:
+    get:
+      tags: [Artikel]
+      summary: Alle Artikel (inkl. Entwürfe)
+      parameters:
+        - { name: category, in: query, schema: { type: string } }
+        - { name: tag, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Artikelliste, neueste zuerst
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Article' } }
+    post:
+      tags: [Artikel]
+      summary: Artikel anlegen
+      description: |
+        Fehlende Titel/Kategorie/Tags werden vorläufig heuristisch ergänzt.
+        Ohne mitgeschickten `teaser` wird automatisch eine KI-Generierung
+        eingereiht (`generationJobId`); mit `generate: false` unterbleibt sie.
+        Ein mitgeschickter Teaser wird als manuelle Version gespeichert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ArticleInput'
+                - type: object
+                  required: [content]
+                  properties:
+                    generate: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Angelegter Artikel
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Article'
+                  - type: object
+                    properties:
+                      generationJobId: { type: [integer, 'null'] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/articles/quick:
+    post:
+      tags: [Artikel]
+      summary: Schnell-Ingest aus Rohtext
+      description: Legt einen veröffentlichten Artikel an; Titel, Kategorie, Teaser und Tags erzeugt die KI asynchron.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string, minLength: 10 }
+                content: { type: string, description: Alias für `text` }
+      responses:
+        '200':
+          description: Artikel angelegt, Job eingereiht (`success = false`, wenn Redis nicht erreichbar)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  article: { $ref: '#/components/schemas/Article' }
+                  jobId: { type: string, example: job-42 }
+                  error: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/articles/generate:
+    post:
+      tags: [Artikel]
+      summary: Artikel synchron generieren und anlegen
+      description: Wie `quick`, aber die KI läuft direkt im Request (kein Job-Polling). Optional mit Titelbild.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ArticleInput'
+                - type: object
+                  required: [content]
+                  properties:
+                    generateImage: { type: boolean, default: false }
+                    imageMode: { type: string, enum: [editorial, ai], default: editorial }
+      responses:
+        '200':
+          description: Angelegter Artikel mit Generierungsergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  article: { $ref: '#/components/schemas/Article' }
+                  imagePath: { type: [string, 'null'] }
+                  summary:
+                    type: object
+                    properties:
+                      teaser: { type: string }
+                      keyTakeaways: { type: string }
+                      source: { $ref: '#/components/schemas/GenerationSource' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/Error' }
+
+  /api/articles/auto-extract:
+    post:
+      tags: [Artikel]
+      summary: Metadaten heuristisch vorschlagen (ohne KI, ohne Speichern)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                category: { type: string }
+      responses:
+        '200':
+          description: Vorschlag für Titel, Kategorie, Tags, Teaser, Kernpunkte
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/articles/{id}:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    get:
+      tags: [Artikel]
+      summary: Einzelnen Artikel lesen
+      responses:
+        '200':
+          description: Artikel
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Article' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Artikel]
+      summary: Artikel ändern
+      description: |
+        Teiländerung. Ändert sich `content` (und nicht gleichzeitig der Teaser),
+        wird der Teaser asynchron neu generiert (`generationJobId`).
+        Ein geänderter `teaser`/`keyTakeaways` wird als manuelle Version gespeichert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ArticleInput' }
+      responses:
+        '200':
+          description: Aktualisierter Artikel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  article: { $ref: '#/components/schemas/Article' }
+                  tags: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+                  generationJobId: { type: [integer, 'null'] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    delete:
+      tags: [Artikel]
+      summary: Artikel löschen (inkl. Kommentare, Events, Jobs, Versionen)
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/articles/{id}/image:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    post:
+      tags: [Artikel]
+      summary: Titelbild hochladen
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image: { type: string, format: binary, description: 'Bilddatei, max. 10 MB' }
+      responses:
+        '200':
+          description: Bild gespeichert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  imageUrl: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    delete:
+      tags: [Artikel]
+      summary: Titelbild entfernen
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/articles/{id}/generate-image:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    post:
+      tags: [Artikel]
+      summary: Titelbild erzeugen (Redaktionsfoto oder KI-Bild)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode: { type: string, enum: [editorial, ai], default: editorial }
+      responses:
+        '200':
+          description: Bild erzeugt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  imageUrl: { type: string }
+                  article: { $ref: '#/components/schemas/Article' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/Error' }
+
+  /api/articles/{id}/versions:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    get:
+      tags: [Versionen]
+      summary: Alle Versionen der generierten Inhalte, neueste zuerst
+      responses:
+        '200':
+          description: Versionsliste
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/GenerationVersion' } }
+
+  /api/articles/{id}/versions/{version}/restore:
+    parameters:
+      - $ref: '#/components/parameters/ArticleId'
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Versionen]
+      summary: Alte Version wiederherstellen
+      description: Setzt Teaser und Kernpunkte auf die gewählte Version und legt dafür eine neue Version mit `restoredFrom` an. Die Historie wird nie überschrieben.
+      responses:
+        '200':
+          description: Neu angelegte Version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  version: { $ref: '#/components/schemas/GenerationVersion' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/articles/{id}/like:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    post:
+      tags: [Engagement]
+      summary: Like hinzufügen
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/LikeCount' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/articles/{id}/unlike:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    post:
+      tags: [Engagement]
+      summary: Like entfernen (nicht unter 0)
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/LikeCount' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/articles/{id}/share:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    post:
+      tags: [Engagement]
+      summary: Teilen zählen
+      security: []
+      responses:
+        '200':
+          description: Neuer Zählerstand
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  shareCount: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/articles/{id}/comments:
+    parameters: [{ $ref: '#/components/parameters/ArticleId' }]
+    get:
+      tags: [Engagement]
+      summary: Kommentare, neueste zuerst
+      security: []
+      responses:
+        '200':
+          description: Kommentarliste
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+    post:
+      tags: [Engagement]
+      summary: Kommentar schreiben
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 1000 }
+                authorName: { type: string, maxLength: 60, default: Anonym }
+      responses:
+        '200':
+          description: Gespeicherter Kommentar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  comment: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/jobs:
+    get:
+      tags: [Jobs]
+      summary: Jobs, neueste zuerst
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/JobStatus' } }
+      responses:
+        '200':
+          description: Jobliste
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Job' } }
+    post:
+      tags: [Jobs]
+      summary: Generierung manuell einreihen
+      description: Ist Redis nicht erreichbar, wird der Job direkt (heuristisch, ohne KI) ausgeführt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [articleId, type]
+              properties:
+                articleId: { type: integer }
+                type: { $ref: '#/components/schemas/JobType' }
+      responses:
+        '200':
+          description: Angelegter Job
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/jobs/{id}:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    get:
+      tags: [Jobs]
+      summary: Jobstatus abfragen
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Jobs]
+      summary: Job aus Queue und Datenbank entfernen
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/jobs/{id}/retry:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    post:
+      tags: [Jobs]
+      summary: Fehlgeschlagenen Job erneut ausführen (direkt, heuristisch)
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/tags:
+    get:
+      tags: [Tags]
+      summary: Tags mit Artikelanzahl
+      responses:
+        '200':
+          description: Tagliste, meistverwendete zuerst
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Tag'
+                    - type: object
+                      properties:
+                        articleCount: { type: integer }
+    post:
+      tags: [Tags]
+      summary: Tag anlegen (existiert der Name schon, wird der bestehende geliefert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                color: { type: string, example: '#3b82f6' }
+      responses:
+        '200':
+          description: Tag
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/tags/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    delete:
+      tags: [Tags]
+      summary: Tag löschen (Zuordnungen werden mitgelöscht)
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/analytics/events:
+    post:
+      tags: [Analytics]
+      summary: Tracking-Event aus dem Feed erfassen
+      description: Blockiert den Client nie; bei DB-Fehlern kommt ebenfalls 200 mit `success = false`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventType]
+              properties:
+                eventType: { type: string, enum: [impression, read, scroll_depth, tts_play, share] }
+                articleId: { type: [integer, 'null'] }
+                metadata: { description: Beliebiges JSON oder String }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/analytics:
+    get:
+      tags: [Analytics]
+      summary: Aggregierte Kennzahlen (letzte 500 Events)
+      responses:
+        '200':
+          description: Kennzahlen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalImpressions: { type: integer }
+                  totalReads: { type: integer }
+                  totalTtsPlays: { type: integer }
+                  readThroughRate: { type: string, example: 12.5% }
+                  popularArticles: { type: array, items: { type: object, additionalProperties: true } }
+                  recentEventsCount: { type: integer }
+                  recentEvents: { type: array, items: { type: object, additionalProperties: true } }
+
+  /api/settings:
+    get:
+      tags: [Einstellungen]
+      summary: Gespeicherte Einstellungen als Key-Value
+      responses:
+        '200':
+          description: Einstellungen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+    post:
+      tags: [Einstellungen]
+      summary: Einstellungen speichern (unbekannte Keys werden ignoriert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Settings' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/settings/models:
+    get:
+      tags: [Einstellungen]
+      summary: Verfügbare Text- und Bildmodelle
+      description: Fragt Ollama und LocalAI ab; sind sie nicht erreichbar, kommt eine Standardliste.
+      responses:
+        '200':
+          description: Modelllisten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  textModels: { type: array, items: { type: string } }
+                  imageModels: { type: array, items: { type: string } }
+
+  /api/sysinfo:
+    get:
+      tags: [System]
+      summary: Health-Check
+      security: []
+      responses:
+        '200':
+          description: Dienst läuft
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  service: { type: string }
+                  uptime: { type: number }
+                  timestamp: { type: string, format: date-time }
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+
+  parameters:
+    ArticleId: { name: id, in: path, required: true, schema: { type: integer } }
+    JobId: { name: id, in: path, required: true, schema: { type: integer } }
+
+  responses:
+    Success:
+      description: Erfolgreich
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+    LikeCount:
+      description: Neuer Zählerstand
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              likeCount: { type: integer }
+    BadRequest:
+      description: Ungültige Eingabe (z. B. keine numerische ID, Text zu kurz)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Nicht gefunden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Error:
+      description: Serverfehler
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, const: false }
+        error: { type: string }
+
+    Tag:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        color: { type: [string, 'null'] }
+
+    ArticleInput:
+      type: object
+      properties:
+        title: { type: string }
+        content: { type: string, minLength: 10, description: HTML wird entfernt }
+        teaser: { type: string }
+        keyTakeaways: { type: string, description: 'Stichpunkte, getrennt durch •' }
+        author: { type: string }
+        category: { type: string, description: '`Auto` = von KI/Heuristik bestimmen' }
+        status: { type: string, enum: [draft, published] }
+        tags:
+          type: array
+          items:
+            oneOf:
+              - { type: string }
+              - { type: object, properties: { name: { type: string } }, required: [name] }
+        tagIds: { type: array, items: { type: integer } }
+
+    Article:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        content: { type: string }
+        teaser: { type: [string, 'null'] }
+        keyTakeaways: { type: [string, 'null'] }
+        imageUrl: { type: [string, 'null'] }
+        category: { type: string }
+        author: { type: string }
+        status: { type: string, enum: [draft, published] }
+        likeCount: { type: integer }
+        commentCount: { type: integer }
+        shareCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        tags: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+
+    GenerationSource:
+      type: string
+      enum: [ai, fallback, manual]
+      description: '`fallback` = Ollama nicht erreichbar, Heuristik ohne KI'
+
+    GenerationVersion:
+      type: object
+      properties:
+        id: { type: integer }
+        articleId: { type: integer }
+        version: { type: integer, description: 'Fortlaufend je Artikel, beginnt bei 1' }
+        title: { type: [string, 'null'] }
+        category: { type: [string, 'null'] }
+        teaser: { type: [string, 'null'] }
+        keyTakeaways: { type: [string, 'null'] }
+        tags: { type: array, items: { type: string } }
+        source: { $ref: '#/components/schemas/GenerationSource' }
+        model: { type: [string, 'null'] }
+        temperature: { type: [number, 'null'] }
+        seed: { type: [integer, 'null'] }
+        contentHash: { type: [string, 'null'], description: SHA-256 des Artikeltexts zum Zeitpunkt der Generierung }
+        jobId: { type: [integer, 'null'] }
+        restoredFrom: { type: [integer, 'null'], description: Versionsnummer, aus der wiederhergestellt wurde }
+        createdAt: { type: string, format: date-time }
+
+    JobType:
+      type: string
+      enum: [teaser_generation, image_generation, full_generation]
+
+    JobStatus:
+      type: string
+      enum: [pending, processing, completed, failed]
+
+    Job:
+      type: object
+      properties:
+        id: { type: integer }
+        jobId: { type: integer, description: Alias für `id` }
+        articleId: { type: [integer, 'null'] }
+        type: { $ref: '#/components/schemas/JobType' }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        result: { type: [string, 'null'], description: 'z. B. „Text-Teaser generiert (Fallback ohne KI – …)“' }
+        error: { type: [string, 'null'] }
+        processingTimeMs: { type: [integer, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        articleId: { type: integer }
+        authorName: { type: string }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Settings:
+      type: object
+      properties:
+        ollamaUrl: { type: string }
+        aiModel: { type: string }
+        timeout: { type: string, description: Millisekunden }
+        temperature: { type: string, description: '0–2, Standard 0 (reproduzierbar)' }
+        seed: { type: string, description: 'Ganzzahl, Standard 42' }
+        localAiUrl: { type: string }
+        imageModel: { type: string }
+        imageTimeout: { type: string, description: Millisekunden }

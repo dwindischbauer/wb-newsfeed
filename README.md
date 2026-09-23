@@ -30,6 +30,9 @@ graph TD
     F -->|Save Output| D
 ```
 
+Abläufe (Generierung, Versionierung, Caching, Auth) und Datenmodell: [`docs/architektur.md`](docs/architektur.md).
+Alle REST-Endpunkte: [`apps/api/openapi.yaml`](apps/api/openapi.yaml) (OpenAPI 3.1).
+
 ---
 
 ## 📁 Repository-Struktur
