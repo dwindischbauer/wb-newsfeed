@@ -40,6 +40,7 @@ export const worker = new Worker('generation_jobs', async job => {
   logger.info(`Processing job ${job.id} of type ${job.name}`, { jobId: job.id, type: job.name });
   const { jobId, articleId } = job.data;
   const startTime = Date.now();
+  let generationSource: 'ai' | 'fallback' | null = null;
   
   await db.update(jobs).set({ status: 'processing' }).where(eq(jobs.id, jobId));
   
@@ -53,6 +54,7 @@ export const worker = new Worker('generation_jobs', async job => {
     if (job.name === 'teaser_generation' || job.name === 'full_generation') {
       const { summarizeArticle } = await import('../services/summarizer');
       const resultObj = await summarizeArticle(article.content, article.title, article.category);
+      generationSource = resultObj.source;
 
       await db.update(articles).set({
         title: resultObj.title,
@@ -129,6 +131,7 @@ export const worker = new Worker('generation_jobs', async job => {
     if (job.name === 'teaser_generation') resultMsg = 'Text-Teaser generiert';
     if (job.name === 'image_generation') resultMsg = 'KI-Bild generiert';
     if (job.name === 'full_generation') resultMsg = imageUrl ? 'Teaser + Bild generiert' : 'Teaser generiert';
+    if (generationSource === 'fallback') resultMsg += ' (Fallback ohne KI – Ollama nicht erreichbar)';
 
     await db.update(jobs).set({ 
       status: 'completed', 
