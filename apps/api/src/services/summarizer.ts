@@ -13,6 +13,29 @@ export interface SummaryResult {
   source: 'ai' | 'fallback';
 }
 
+export interface GenerationOptions {
+  temperature: number;
+  seed: number;
+}
+
+export const DEFAULT_GENERATION_OPTIONS: GenerationOptions = { temperature: 0, seed: 42 };
+
+/**
+ * Sampling parameters for Ollama, read from the settings table. A fixed seed
+ * plus temperature 0 makes the same model + prompt produce the same output,
+ * so generated teasers are reproducible. Invalid values fall back to defaults.
+ */
+export function getGenerationOptions(settingsMap: Record<string, string>): GenerationOptions {
+  const temperature = Number.parseFloat(settingsMap['temperature'] ?? '');
+  const seed = Number.parseInt(settingsMap['seed'] ?? '', 10);
+  return {
+    temperature: Number.isFinite(temperature) && temperature >= 0 && temperature <= 2
+      ? temperature
+      : DEFAULT_GENERATION_OPTIONS.temperature,
+    seed: Number.isInteger(seed) ? seed : DEFAULT_GENERATION_OPTIONS.seed
+  };
+}
+
 /**
  * Summarizes an article with the local Ollama LLM (title, category, tags,
  * teaser, key takeaways) — the same prompt used by the async job queue
@@ -51,6 +74,7 @@ ${content}`;
     const ollamaUrl = settingsMap['ollamaUrl'] || process.env.OLLAMA_URL || 'http://localhost:11434';
     const aiModel = settingsMap['aiModel'] || 'qwen2.5:3b-instruct';
     const timeoutMs = parseInt(settingsMap['timeout'] || '60000', 10);
+    const generationOptions = getGenerationOptions(settingsMap);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -62,7 +86,8 @@ ${content}`;
         model: aiModel,
         prompt: promptText,
         stream: false,
-        format: 'json'
+        format: 'json',
+        options: generationOptions
       }),
       signal: controller.signal
     });
