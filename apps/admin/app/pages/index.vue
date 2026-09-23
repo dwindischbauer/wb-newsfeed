@@ -561,6 +561,43 @@
             </ul>
           </div>
 
+          <!-- Generierte Versionen (GET /api/articles/:id/versions) -->
+          <div v-if="versions.length > 0" class="rounded-[10px] border border-border-subtle p-[0.95rem]">
+            <div class="mb-2 flex items-baseline justify-between text-[0.78rem] text-[#24252a]">
+              <strong>Versionen</strong>
+              <span class="text-[0.72rem] text-text-muted">{{ versions.length }} gespeichert</span>
+            </div>
+            <ol class="m-0 flex list-none flex-col p-0">
+              <li
+                v-for="(v, idx) in versions"
+                :key="v.id"
+                class="flex items-start gap-3 border-t border-border-subtle py-[0.6rem] first:border-t-0 first:pt-0 last:pb-0"
+              >
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-x-[0.45rem] gap-y-[0.15rem] text-[0.72rem] text-[#5a5b61]">
+                    <span class="font-semibold text-[#24252a]">v{{ v.version }}</span>
+                    <span>{{ versionSourceLabel(v) }}</span>
+                    <span>{{ formatDateTime(v.createdAt) }}</span>
+                  </div>
+                  <div v-if="v.model" class="mt-[0.1rem] truncate font-mono text-[0.68rem] text-text-muted">
+                    {{ v.model }} · T {{ v.temperature }} · Seed {{ v.seed }}
+                  </div>
+                  <p class="m-0 mt-[0.2rem] line-clamp-2 text-[0.78rem] leading-[1.45] text-[#3f4046]">{{ v.teaser || '–' }}</p>
+                </div>
+                <span v-if="idx === 0" class="shrink-0 pt-[0.1rem] text-[0.72rem] font-semibold text-[#4d6612]">aktuell</span>
+                <button
+                  v-else
+                  type="button"
+                  class="shrink-0 rounded-full border border-border-subtle bg-white px-[0.7rem] py-[0.25rem] text-[0.72rem] font-semibold text-accent-ink transition-colors hover:bg-black/[0.04] disabled:opacity-50"
+                  :disabled="restoringVersion !== null"
+                  @click="restoreVersion(v.version)"
+                >
+                  {{ restoringVersion === v.version ? '…' : 'Wiederherstellen' }}
+                </button>
+              </li>
+            </ol>
+          </div>
+
           <!-- Author & Meta -->
           <div class="text-[0.74rem] text-text-muted">
             {{ selectedArticle.author }} • {{ estimateReadingTime(selectedArticle.content) }} • {{ formatDate(selectedArticle.createdAt) }}
@@ -1054,8 +1091,69 @@ const fetchJobsStat = async () => {
   }
 };
 
+interface GenerationVersion {
+  id: number;
+  version: number;
+  teaser: string | null;
+  keyTakeaways: string | null;
+  source: 'ai' | 'fallback' | 'manual';
+  model: string | null;
+  temperature: number | null;
+  seed: number | null;
+  restoredFrom: number | null;
+  createdAt: string;
+}
+
+const versions = ref<GenerationVersion[]>([]);
+const restoringVersion = ref<number | null>(null);
+
+const versionSourceLabel = (v: GenerationVersion): string => {
+  const label = { ai: 'KI', fallback: 'Fallback ohne KI', manual: 'Manuell' }[v.source] ?? v.source;
+  return v.restoredFrom ? `${label}, aus v${v.restoredFrom}` : label;
+};
+
+const formatDateTime = (dateStr: string): string =>
+  new Date(dateStr).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+const fetchVersions = async (articleId: number) => {
+  versions.value = [];
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${articleId}/versions`);
+    if (res.ok && selectedArticle.value?.id === articleId) versions.value = await res.json();
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const restoreVersion = async (version: number) => {
+  const article = selectedArticle.value;
+  if (!article) return;
+  restoringVersion.value = version;
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles/${article.id}/versions/${version}/restore`, { method: 'POST' });
+    if (!res.ok) {
+      showToast('Version konnte nicht wiederhergestellt werden', 'error');
+      return;
+    }
+    const restored = versions.value.find((v) => v.version === version);
+    if (restored) {
+      article.teaser = restored.teaser ?? undefined;
+      article.keyTakeaways = restored.keyTakeaways;
+    }
+    showToast(`Version v${version} wiederhergestellt`, 'success');
+    await fetchVersions(article.id);
+    fetchArticles();
+  } catch (e) {
+    console.error(e);
+    showToast('Netzwerkfehler beim Wiederherstellen', 'error');
+  } finally {
+    restoringVersion.value = null;
+  }
+};
+
 const selectArticle = (article: DashboardArticle) => {
   selectedArticle.value = article;
+  fetchVersions(article.id);
 };
 
 const isTagSelected = (name: string): boolean => {
@@ -1360,16 +1458,11 @@ const saveArticle = async () => {
       return;
     }
 
-    const article = isEdit ? newArticle.value : await res.json();
+    const data = await res.json();
+    const article = isEdit ? newArticle.value : data;
 
     if (!isEdit) {
-      // Trigger AI teaser generation job
-      apiFetch(`${config.public.apiUrl}/api/jobs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId: article.id, type: 'teaser_generation' })
-      }).catch(console.error);
-
+      // The API queues the AI teaser generation itself (POST /api/articles)
       showToast('Artikel angelegt! KI-Zusammenfassung gestartet...', 'success');
     } else {
       if (selectedArticle.value && selectedArticle.value.id === article.id) {
@@ -1381,7 +1474,7 @@ const saveArticle = async () => {
         const { tags: formTags, ...rest } = newArticle.value;
         selectedArticle.value = { ...selectedArticle.value, ...rest, tags: resolveTagObjects(formTags) };
       }
-      showToast('Artikel aktualisiert!', 'success');
+      showToast(data.generationJobId ? 'Artikel aktualisiert! KI-Teaser wird neu generiert...' : 'Artikel aktualisiert!', 'success');
     }
 
     closeModal();
