@@ -103,6 +103,30 @@
 
       <div class="flex gap-4">
         <div class="mb-5 flex flex-1 flex-col gap-[0.4rem]">
+          <label class="text-[0.78rem] font-semibold text-text-secondary">Temperatur (0 = reproduzierbar)</label>
+          <input
+            v-model.number="settings.temperature"
+            type="number"
+            min="0"
+            max="2"
+            step="0.1"
+            class="rounded-lg border border-border-subtle bg-black/[0.03] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.85rem] text-accent-ink outline-none focus:border-border-focus"
+          />
+        </div>
+
+        <div class="mb-5 flex flex-1 flex-col gap-[0.4rem]">
+          <label class="text-[0.78rem] font-semibold text-text-secondary">Seed</label>
+          <input
+            v-model.number="settings.seed"
+            type="number"
+            step="1"
+            class="rounded-lg border border-border-subtle bg-black/[0.03] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.85rem] text-accent-ink outline-none focus:border-border-focus"
+          />
+        </div>
+      </div>
+
+      <div class="flex gap-4">
+        <div class="mb-5 flex flex-1 flex-col gap-[0.4rem]">
           <label class="text-[0.78rem] font-semibold text-text-secondary">API Port</label>
           <input
             v-model="settings.apiPort"
@@ -168,6 +192,8 @@ const settings = ref({
   imageModel: 'stablediffusion',
   timeout: 30000,
   imageTimeout: 180000,
+  temperature: 0,
+  seed: 42,
   apiPort: 3005,
   dbPort: 5433
 });
@@ -236,6 +262,8 @@ const loadSettings = async () => {
       }
       if (data.timeout) settings.value.timeout = parseInt(data.timeout);
       if (data.imageTimeout) settings.value.imageTimeout = parseInt(data.imageTimeout);
+      if (data.temperature !== undefined) settings.value.temperature = parseFloat(data.temperature);
+      if (data.seed !== undefined) settings.value.seed = parseInt(data.seed);
     }
   } catch (e) {
     console.error('Failed to load settings', e);
@@ -250,7 +278,9 @@ const saveSettings = async () => {
       aiModel: settings.value.aiModel,
       imageModel: settings.value.imageModel,
       timeout: settings.value.timeout.toString(),
-      imageTimeout: settings.value.imageTimeout.toString()
+      imageTimeout: settings.value.imageTimeout.toString(),
+      temperature: settings.value.temperature.toString(),
+      seed: settings.value.seed.toString()
     };
 
     const res = await apiFetch(`${config.public.apiUrl}/api/settings`, {
