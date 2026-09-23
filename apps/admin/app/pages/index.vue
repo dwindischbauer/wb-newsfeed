@@ -438,7 +438,7 @@
           <button class="cursor-pointer border-none bg-transparent text-[1.5rem] leading-none text-text-muted hover:text-[#14151a]" @click="selectedArticle = null">&times;</button>
         </div>
 
-        <div class="flex flex-1 flex-col gap-5 overflow-y-auto p-6">
+        <div class="flex flex-1 flex-col gap-5 overflow-y-auto p-6 [&>*]:shrink-0">
           <!-- Cover Image Section -->
           <div
             v-if="selectedArticle.imageUrl"
