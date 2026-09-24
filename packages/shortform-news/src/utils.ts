@@ -127,6 +127,35 @@ export const rankPersonalizedArticles = <T extends ScorableArticle>(
   });
 };
 
+/**
+ * Appends a newly loaded page, skipping IDs already in the list: offsets
+ * shift when articles get published between two page requests.
+ */
+export const appendUniqueArticles = <T extends { id: number }>(current: T[], page: T[]): T[] => {
+  const seen = new Set(current.map((a) => a.id));
+  return [...current, ...page.filter((a) => !seen.has(a.id))];
+};
+
+/**
+ * Keeps the already pinned "Für dich" order for articles that are still there
+ * (taking their fresh objects) and appends the rest, ranked among themselves.
+ * Loading more pages or polling therefore never reshuffles what the user has
+ * already scrolled past.
+ */
+export const extendPersonalizedOrder = <T extends ScorableArticle>(
+  pinned: T[],
+  articles: T[],
+  interests: UserInterests = {}
+): T[] => {
+  const byId = new Map(articles.map((a) => [a.id, a]));
+  const kept = pinned.flatMap((a) => {
+    const fresh = byId.get(a.id);
+    return fresh ? [fresh] : [];
+  });
+  const keptIds = new Set(kept.map((a) => a.id));
+  return [...kept, ...rankPersonalizedArticles(articles.filter((a) => !keptIds.has(a.id)), interests)];
+};
+
 export interface SubtagDefinition {
   name: string;
   slug: string;

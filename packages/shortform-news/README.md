@@ -116,6 +116,14 @@ Die Tailwind-Einrichtung aus Schritt 3 gilt genauso.
 | `categories` | `string[]` | nein | `['Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur']` | Kategorie-Reiter. `Für dich` = persönliche Sortierung, `Alle` = kein Filter, leeres Array blendet die Leiste aus |
 | `pollInterval` | `number` | nein | `60000` | Millisekunden zwischen zwei Prüfungen auf neue/geänderte Artikel, `0` schaltet das ab |
 | `analytics` | `boolean` | nein | `true` | Impression-, Lese-, Teilen- und Scroll-Events an `POST /api/analytics/events` senden |
+| `pageSize` | `number` | nein | `10` | Artikel pro Anfrage an `GET /api/feed` (höchstens 100). Weitere Seiten lädt der Feed, sobald nur noch 3 Karten unter der sichtbaren liegen |
+
+### Laden und Rendering
+
+- **Seitenweise:** Zuerst kommt nur eine Seite (`?limit=<pageSize>&offset=0`), weitere folgen beim Scrollen. Findet ein Kategorie- oder Tag-Filter auf den geladenen Seiten zu wenig Treffer, lädt der Feed selbst weiter, bis genug da sind oder alles geladen ist. Ein geteilter Link (`?article=<id>`) lädt ebenfalls weiter, bis der Artikel gefunden ist.
+- **Nur sichtbare Karten:** Gerendert werden die sichtbare Karte und je zwei davor und danach, der Rest sind leere Platzhalter gleicher Höhe. Bilder laden dadurch erst, wenn ihre Karte in die Nähe kommt.
+- **Polling** lädt alle bisher geladenen Artikel neu (in Blöcken zu 100) und tauscht nur geänderte aus.
+- **„Für dich“** sortiert jede neu geladene Seite für sich und hängt sie an. Schon gesehene Karten behalten ihren Platz, auch nach Polling oder Likes. Die Sortierung gilt damit innerhalb der Seiten, nicht über alle Artikel.
 
 ### Events
 
@@ -136,7 +144,7 @@ Die Events dienen dazu, eigene Analytics-Systeme anzubinden. Für den Feed selbs
 | `findArticle(id)` | liefert den geladenen Artikel zur ID aus `article-read` (inkl. `content`, `keyTakeaways`, `tags`) |
 | `filterByTag(name)` | Feed nach Tag filtern, z. B. aus Tag-Buttons in der eigenen Artikelansicht |
 | `track(eventType, articleId?, metadata?)` | eigenes Analytics-Event über denselben Kanal senden, z. B. `tts_play` |
-| `refresh()` | Artikel sofort neu laden |
+| `refresh()` | alle bisher geladenen Artikel sofort neu laden |
 
 Likes, Interessen für „Für dich“ und der Kommentar-Name werden nur im Browser gespeichert (`localStorage`), es gibt keine Konten.
 
@@ -153,14 +161,16 @@ Vertikaler Scroll-Container ohne eigene Datenanbindung: rendert pro übergebenem
 | `loading` | `boolean` | nein | `false` | Zeigt den Ladezustand, solange `articles` leer ist |
 | `trackingEnabled` | `boolean` | nein | `false` | Aktiviert `article-impression` und `scroll-depth` |
 | `likedIds` | `number[]` | nein | `[]` | IDs der Artikel, die die Person schon geliked hat (steuert Herz-Zustand) |
+| `renderWindow` | `number` | nein | `2` | Karten vor und nach der sichtbaren, die gerendert werden; die übrigen sind leere Platzhalter gleicher Höhe. `Infinity` rendert alle |
 
 ### Events
 
 | Event | Payload | Wann |
 |-------|---------|------|
 | `article-read` | `articleId: number` | Klick auf „Vollständigen Artikel lesen“. Es wird bewusst **nur die ID** übergeben: der Host löst sie selbst auf und übernimmt Navigation/Darstellung |
-| `article-impression` | `article: Article` | Karte ist erstmals zu 50 % sichtbar (einmal pro Karte, nur mit `trackingEnabled`) |
+| `article-impression` | `article: Article` | Karte ist erstmals zu 50 % sichtbar (einmal pro Artikel, auch wenn die Karte neu gerendert wird; nur mit `trackingEnabled`) |
 | `scroll-depth` | `percentage: number` (0–1) | bei jedem Scrollen, Anteil des bereits gesehenen Feeds (nur mit `trackingEnabled`) |
+| `active-index` | `index: number` | sichtbare Karte hat gewechselt; zum Nachladen weiterer Seiten |
 | `like` | `article: Article` | Herz geklickt, Artikel war noch nicht in `likedIds` |
 | `unlike` | `article: Article` | Herz geklickt, Artikel war schon in `likedIds` |
 | `share` | `article: Article` | Teilen-Button |

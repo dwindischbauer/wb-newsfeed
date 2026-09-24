@@ -7,6 +7,8 @@ import {
   formatEngagementCount,
   calculatePersonalizedScore,
   rankPersonalizedArticles,
+  appendUniqueArticles,
+  extendPersonalizedOrder,
   CATEGORY_SUBTAGS,
   autoExtractArticleMetadata
 } from './utils';
@@ -163,6 +165,30 @@ describe('utils', () => {
       // Score = 2*3 (category) + 3*5 (tag) + recency boost
       const score = calculatePersonalizedScore(mockArticles[1], userInterests);
       expect(score).toBeGreaterThan(20);
+    });
+  });
+
+  describe('pagination helpers', () => {
+    it('appendUniqueArticles skips articles already loaded', () => {
+      const current = [{ id: 1 }, { id: 2 }];
+      expect(appendUniqueArticles(current, [{ id: 2 }, { id: 3 }]).map(a => a.id)).toEqual([1, 2, 3]);
+    });
+
+    it('extendPersonalizedOrder keeps the pinned order and appends new articles ranked', () => {
+      const interests = { categories: { Sport: 10 } };
+      const pinned = [
+        { id: 2, category: 'Politik' },
+        { id: 1, category: 'Politik' }
+      ];
+      const articles = [
+        { id: 1, category: 'Politik', likeCount: 5 },
+        { id: 3, category: 'Politik' },
+        { id: 4, category: 'Sport' }
+      ];
+      const order = extendPersonalizedOrder(pinned, articles, interests);
+      // 2 vanished, 1 keeps its slot (with the fresh object), 4 outranks 3
+      expect(order.map(a => a.id)).toEqual([1, 4, 3]);
+      expect(order[0]).toBe(articles[0]);
     });
   });
 

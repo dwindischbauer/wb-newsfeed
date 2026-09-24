@@ -56,9 +56,10 @@
       ref="feedComponentRef"
       :articles="visibleArticles"
       :api-url="apiBase"
-      :loading="isLoadingFeed"
+      :loading="isLoadingFeed || isBuffering"
       :tracking-enabled="true"
       :liked-ids="likedArticleIds"
+      @active-index="onActiveIndex"
       @article-read="onArticleRead"
       @article-impression="onArticleImpression"
       @scroll-depth="onScrollDepth"
@@ -153,7 +154,8 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import ShortformFeed from './ShortformFeed.vue';
 import {
-  rankPersonalizedArticles,
+  appendUniqueArticles,
+  extendPersonalizedOrder,
   CATEGORY_SUBTAGS,
   type Article,
   type UserInterests
@@ -170,6 +172,10 @@ type CountField = 'likeCount' | 'commentCount' | 'shareCount';
 
 const FOR_YOU = 'Für dich';
 const ALL = 'Alle';
+// Upper limit of GET /api/feed per request
+const MAX_PAGE_SIZE = 100;
+// Load the next page once this few cards are left below the visible one
+const PREFETCH_CARDS = 3;
 
 const props = withDefaults(defineProps<{
   /** Base URL of the wb-newsfeed API, e.g. `https://api.example.at` */
@@ -180,10 +186,13 @@ const props = withDefaults(defineProps<{
   pollInterval?: number;
   /** Send impression/read/share/scroll events to `POST /api/analytics/events`. */
   analytics?: boolean;
+  /** Articles per request; further pages load while scrolling (max. 100). */
+  pageSize?: number;
 }>(), {
   categories: () => [FOR_YOU, ALL, 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'],
   pollInterval: 60000,
-  analytics: true
+  analytics: true,
+  pageSize: 10
 });
 
 const emit = defineEmits<{
@@ -247,14 +256,15 @@ const recordInterestInteraction = (article: Article | undefined, weight = 1) => 
 
 const isPublished = (a: Article) => !a.status || a.status === 'published';
 
-// The "Für dich" order is pinned per fetched list, not recomputed on every
-// like/read/impression — otherwise interacting with an article reshuffles the
-// feed mid-browse. Interest updates apply to the *next* fetched list.
+// The "Für dich" order is pinned, not recomputed on every like/read/impression
+// or poll — otherwise the feed reshuffles mid-browse. Articles that arrive with
+// a new page or a poll are ranked among themselves and appended, so interest
+// updates only affect what the user has not seen yet.
 const personalizedOrder = ref<Article[]>([]);
 watch(
   articles,
   () => {
-    personalizedOrder.value = rankPersonalizedArticles(articles.value.filter(isPublished), userInterests.value);
+    personalizedOrder.value = extendPersonalizedOrder(personalizedOrder.value, articles.value.filter(isPublished), userInterests.value);
   },
   { immediate: true }
 );
@@ -274,16 +284,35 @@ const visibleArticles = computed(() => {
   return filtered;
 });
 
-// --- Loading + polling ---
-const fetchFeed = async (): Promise<Article[]> => {
-  const res = await fetch(`${apiBase.value}/api/feed`);
+// --- Loading (paged) + polling ---
+const pageSize = computed(() => Math.min(Math.max(Math.floor(props.pageSize) || 10, 1), MAX_PAGE_SIZE));
+// Offset of the next page on the server; can differ from articles.length when
+// a page only brought duplicates because new articles shifted the offsets.
+let nextOffset = 0;
+const hasMore = ref(true);
+const activeIndex = ref(0);
+
+const fetchFeed = async (offset: number, limit: number): Promise<Article[]> => {
+  const res = await fetch(`${apiBase.value}/api/feed?limit=${limit}&offset=${offset}`);
   if (!res.ok) throw new Error(`GET /api/feed failed: ${res.status}`);
   return res.json();
 };
 
-const loadArticles = async () => {
+// Page loads and polls both replace `articles`; running them one after the
+// other keeps a slow poll from overwriting a page that arrived meanwhile.
+let queue: Promise<unknown> = Promise.resolve();
+const serialized = <T>(task: () => Promise<T>): Promise<T> => {
+  const run = queue.then(task, task);
+  queue = run.catch(() => {});
+  return run;
+};
+
+const loadArticles = () => serialized(async () => {
   try {
-    articles.value = await fetchFeed();
+    const page = await fetchFeed(0, pageSize.value);
+    articles.value = page;
+    nextOffset = page.length;
+    hasMore.value = page.length === pageSize.value;
     loadError.value = false;
   } catch (e) {
     console.error('Failed to fetch articles:', e);
@@ -292,23 +321,69 @@ const loadArticles = async () => {
   } finally {
     isLoadingFeed.value = false;
   }
+});
+
+const loadMore = () => serialized(async () => {
+  if (!hasMore.value || loadError.value) return;
+  try {
+    const page = await fetchFeed(nextOffset, pageSize.value);
+    nextOffset += page.length;
+    hasMore.value = page.length === pageSize.value;
+    articles.value = appendUniqueArticles(articles.value, page);
+  } catch (e) {
+    console.error('Failed to load more articles:', e);
+    hasMore.value = false;
+  }
+});
+
+// Keeps a few cards loaded below the visible one. Filters run on the loaded
+// articles, so a rare category may need several pages until enough match.
+// Also drives the loading state, so a filter that matches nothing on the
+// loaded pages shows the skeleton instead of "no articles" while it loads.
+const isBuffering = ref(false);
+const ensureBuffer = async () => {
+  if (isBuffering.value) return;
+  isBuffering.value = true;
+  try {
+    while (hasMore.value && !loadError.value && visibleArticles.value.length - activeIndex.value <= PREFETCH_CARDS) {
+      await loadMore();
+    }
+  } finally {
+    isBuffering.value = false;
+  }
 };
 
-// Merge freshly-polled articles in place, preserving object identity for
-// unchanged articles so open cards/overlays don't flicker.
-const pollForUpdates = async () => {
+const onActiveIndex = (index: number) => {
+  activeIndex.value = index;
+  ensureBuffer();
+};
+
+// Re-fetches everything loaded so far (in chunks of the API maximum) and
+// merges it in place, preserving object identity for unchanged articles so
+// open cards/overlays don't flicker.
+const pollForUpdates = () => serialized(async () => {
   try {
-    const fresh = await fetchFeed();
+    const wanted = Math.max(nextOffset, pageSize.value);
+    const fresh: Article[] = [];
+    let complete = false;
+    for (let offset = 0; offset < wanted && !complete; offset += MAX_PAGE_SIZE) {
+      const limit = Math.min(MAX_PAGE_SIZE, wanted - offset);
+      const page = await fetchFeed(offset, limit);
+      fresh.push(...page);
+      complete = page.length < limit;
+    }
     const currentById = new Map(articles.value.map((a) => [a.id, a]));
     articles.value = fresh.map((f) => {
       const existing = currentById.get(f.id);
       return existing && JSON.stringify(existing) === JSON.stringify(f) ? existing : f;
     });
+    nextOffset = fresh.length;
+    hasMore.value = !complete;
     loadError.value = false;
   } catch (e) {
     console.error('Failed to poll for updates:', e);
   }
-};
+});
 
 // --- Analytics ---
 const track = (eventType: string, articleId: number | null = null, metadata: Record<string, unknown> | null = null) => {
@@ -356,9 +431,11 @@ const onScrollDepth = (fraction: number) => {
 const scrollFeedToTop = () => {
   feedScrollPercent.value = 0;
   deepScrollTracked = false;
+  activeIndex.value = 0;
   nextTick(() => {
     const el = feedComponentRef.value?.$el as HTMLElement | undefined;
     if (el) el.scrollTop = 0;
+    ensureBuffer();
   });
 };
 
@@ -544,8 +621,13 @@ onMounted(async () => {
   if (props.pollInterval > 0) pollIntervalId = setInterval(pollForUpdates, props.pollInterval);
 
   await loadArticles();
+  await ensureBuffer();
+  // A shared article may sit on a later page — keep loading until it's there
   const sharedId = Number.parseInt(new URLSearchParams(window.location.search).get('article') ?? '', 10);
-  if (!Number.isNaN(sharedId) && findArticle(sharedId)) onArticleRead(sharedId);
+  if (!Number.isNaN(sharedId)) {
+    while (!findArticle(sharedId) && hasMore.value && !loadError.value) await loadMore();
+    if (findArticle(sharedId)) onArticleRead(sharedId);
+  }
 });
 
 onUnmounted(() => {
@@ -561,7 +643,7 @@ defineExpose({
   filterByTag,
   /** Send a custom analytics event through the same channel, e.g. `tts_play`. */
   track,
-  /** Reload the feed immediately. */
+  /** Reload all loaded articles immediately. */
   refresh: pollForUpdates
 });
 </script>
