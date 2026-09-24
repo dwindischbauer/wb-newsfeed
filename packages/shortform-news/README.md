@@ -1,8 +1,10 @@
 # @wb-news/shortform-news
 
-Vue-3-Komponenten für einen vertikalen Short-Form-News-Feed (ähnlich TikTok/Reels), inklusive Nuxt-Modul zur Einbindung in bestehende Nuxt-Projekte.
+Vertikaler Short-Form-News-Feed (ähnlich TikTok/Reels) als Vue-3-Komponenten mit Nuxt-Modul, zur Einbindung in bestehende Nuxt-Projekte.
 
-Das Package rendert nur die Oberfläche. Daten laden, Tracking auswerten und den Vollartikel anzeigen übernimmt das einbindende System (Host). Die Komponenten melden dafür Ereignisse (Events) nach außen.
+Das Package bringt den **kompletten Feed** als eine Komponente mit: `<ShortformNewsFeed>` lädt die Artikel von der wb-newsfeed-API und prüft regelmäßig auf neue. Dazu kommen Kategorien mit Unterkategorien, „Für dich“-Sortierung, Likes, Kommentare, Teilen und Analytics-Events. Die einbindende Website (Host) muss nur eines selbst lösen: was passiert, wenn jemand einen Artikel ganz lesen will. Das Modul übergibt dafür nur die Artikel-ID (Vorgabe aus dem Briefing).
+
+Wer eine eigene Datenquelle hat, kann stattdessen die Bausteine `<ShortformFeed>` und `<ShortformCard>` verwenden und die Artikel selbst übergeben.
 
 ## Voraussetzungen
 
@@ -11,18 +13,19 @@ Das Package rendert nur die Oberfläche. Daten laden, Tracking auswerten und den
 | Vue | ≥ 3.4 | Komponenten nutzen `<script setup>` mit typisierten `defineProps`/`defineEmits` |
 | Nuxt (optional) | 4.x | nur für das Nuxt-Modul `@wb-news/shortform-news/nuxt` |
 | Tailwind CSS | 4.x mit `@tailwindcss/vite` | die Komponenten sind mit Tailwind-Utility-Klassen gestylt und bringen **kein** fertiges CSS mit |
+| wb-newsfeed-API | – | nur für `ShortformNewsFeed`: erreichbar, und die Adresse des Hosts steht in `CORS_ORIGIN` (siehe Schritt 5) |
 
 Ohne Tailwind v4 im Host erscheinen die Komponenten ungestylt.
 
 ## Einbindung in ein bestehendes Nuxt-4-Projekt
 
-Getestet mit einem frischen Nuxt-4-Projekt, das das Package als Tarball installiert (`pnpm pack`).
+Ein lauffähiges Beispiel liegt unter [`examples/nuxt-host/`](../../examples/nuxt-host/). Es ist ein eigenständiges Nuxt-Projekt außerhalb des Monorepo-Workspaces, das das Package wie ein fremdes Projekt als Tarball installiert.
 
 ### 1. Installieren
 
 ```bash
 # im Monorepo: Tarball erzeugen (landet in packages/shortform-news/)
-pnpm --filter @wb-news/shortform-news pack
+pnpm -C packages/shortform-news pack
 
 # im Host-Projekt installieren
 npm install /pfad/zu/wb-news-shortform-news-1.0.0.tgz
@@ -39,7 +42,7 @@ Innerhalb des Monorepos ist das Package als Workspace-Package `@wb-news/shortfor
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineNuxtConfig({
-  modules: ['@wb-news/shortform-news/nuxt'],   // registriert <ShortformFeed> und <ShortformCard> global
+  modules: ['@wb-news/shortform-news/nuxt'],   // registriert <ShortformNewsFeed>, <ShortformFeed> und <ShortformCard> global
   css: ['~/assets/css/main.css'],
   vite: { plugins: [tailwindcss()] }
 });
@@ -67,43 +70,79 @@ Tailwind v4 durchsucht `node_modules` nicht. Ohne den folgenden Import erzeugt T
 
 ```vue
 <template>
-  <ShortformFeed
-    :articles="articles"
-    api-url="https://api.example.at"
-    :loading="pending"
-    :tracking-enabled="true"
-    :liked-ids="likedIds"
-    @article-read="openArticle"
-    @article-impression="trackImpression"
-    @like="(a) => likedIds.push(a.id)"
-    @unlike="(a) => likedIds.splice(likedIds.indexOf(a.id), 1)"
-  />
+  <ShortformNewsFeed ref="feed" api-url="https://api.example.at" @article-read="openArticle" />
 </template>
 
 <script setup lang="ts">
-import type { Article } from '@wb-news/shortform-news';
+import type { ShortformNewsFeed } from '@wb-news/shortform-news';
 
-const likedIds = ref<number[]>([]);
-const { data: articles, pending } = await useFetch<Article[]>('/api/feed');
+const feed = ref<InstanceType<typeof ShortformNewsFeed> | null>(null);
 
+// Nur die ID kommt vom Modul. Der Host entscheidet, was passiert:
+// eigene Artikelseite, Overlay, externer Link …
 const openArticle = (id: number) => navigateTo(`/artikel/${id}`);
-const trackImpression = (article: Article) => { /* an Analytics senden */ };
+// Braucht der Host den geladenen Artikel (Titel, Inhalt, Kernpunkte):
+// const article = feed.value?.findArticle(id);
 </script>
 ```
 
 Der Feed ist ein Vollbild-Scroll-Container (`h-screen`, Scroll-Snap). Er gehört daher auf eine eigene Seite oder in einen Bereich mit voller Viewport-Höhe.
 
+### 5. Host bei der API freischalten
+
+Die Komponente ruft die API direkt aus dem Browser auf. Die API lässt nur Adressen zu, die in `CORS_ORIGIN` stehen (`.env` der API, kommagetrennt), zum Beispiel:
+
+```bash
+CORS_ORIGIN=http://localhost:3001,http://localhost:3002,https://www.host-website.at
+```
+
+Fehlt der Eintrag, blockiert der Browser die Anfragen und der Feed zeigt „Nachrichten konnten nicht geladen werden.“
+
 ### Ohne Nuxt (reines Vue)
 
 ```ts
-import { ShortformFeed, ShortformCard } from '@wb-news/shortform-news';
+import { ShortformNewsFeed, ShortformFeed, ShortformCard } from '@wb-news/shortform-news';
 ```
 
 Die Tailwind-Einrichtung aus Schritt 3 gilt genauso.
 
-## `ShortformFeed`
+## `ShortformNewsFeed` (kompletter Feed)
 
-Vertikaler Scroll-Container, rendert pro Artikel eine `ShortformCard` und reicht deren Events weiter.
+### Props
+
+| Prop | Typ | Pflicht | Standard | Beschreibung |
+|------|-----|---------|----------|--------------|
+| `apiUrl` | `string` | ja | – | Basis-URL der wb-newsfeed-API |
+| `categories` | `string[]` | nein | `['Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur']` | Kategorie-Reiter. `Für dich` = persönliche Sortierung, `Alle` = kein Filter, leeres Array blendet die Leiste aus |
+| `pollInterval` | `number` | nein | `60000` | Millisekunden zwischen zwei Prüfungen auf neue/geänderte Artikel, `0` schaltet das ab |
+| `analytics` | `boolean` | nein | `true` | Impression-, Lese-, Teilen- und Scroll-Events an `POST /api/analytics/events` senden |
+
+### Events
+
+| Event | Payload | Wann |
+|-------|---------|------|
+| `article-read` | `articleId: number` | „Vollständigen Artikel lesen“ geklickt, oder die Seite wurde über einen geteilten Link (`?article=<id>`) geöffnet. Der Host übernimmt Navigation und Darstellung |
+| `article-impression` | `article: Article` | Karte ist erstmals zu 50 % sichtbar |
+| `like` / `unlike` | `article: Article` | Herz geklickt (Zähler und API-Aufruf erledigt das Modul selbst) |
+| `share` | `article: Article` | Artikel geteilt |
+| `comment` | `article: Article, comment` | Kommentar erfolgreich gespeichert |
+
+Die Events dienen dazu, eigene Analytics-Systeme anzubinden. Für den Feed selbst muss der Host keines davon behandeln außer `article-read`.
+
+### Methoden (über `ref`)
+
+| Methode | Zweck |
+|---------|-------|
+| `findArticle(id)` | liefert den geladenen Artikel zur ID aus `article-read` (inkl. `content`, `keyTakeaways`, `tags`) |
+| `filterByTag(name)` | Feed nach Tag filtern, z. B. aus Tag-Buttons in der eigenen Artikelansicht |
+| `track(eventType, articleId?, metadata?)` | eigenes Analytics-Event über denselben Kanal senden, z. B. `tts_play` |
+| `refresh()` | Artikel sofort neu laden |
+
+Likes, Interessen für „Für dich“ und der Kommentar-Name werden nur im Browser gespeichert (`localStorage`), es gibt keine Konten.
+
+## Bausteine: `ShortformFeed`
+
+Vertikaler Scroll-Container ohne eigene Datenanbindung: rendert pro übergebenem Artikel eine `ShortformCard` und reicht deren Events weiter. `ShortformNewsFeed` baut intern darauf auf. Direkt verwenden lohnt sich nur mit eigener Datenquelle.
 
 ### Props
 
@@ -128,7 +167,7 @@ Vertikaler Scroll-Container, rendert pro Artikel eine `ShortformCard` und reicht
 | `open-comments` | `article: Article` | Kommentar-Button |
 | `filter-tag` | `tag: string` | reserviert; die Standard-Karte zeigt keine Tags und löst es derzeit nicht aus |
 
-Like-Zustand und Zähler verwaltet der Host: Das Package zeigt nur an, was in `likedIds` und `article.likeCount` steht.
+Bei direkter Verwendung verwaltet der Host Like-Zustand und Zähler: `ShortformFeed` zeigt nur an, was in `likedIds` und `article.likeCount` steht.
 
 ### Slots
 
@@ -141,7 +180,7 @@ Like-Zustand und Zähler verwaltet der Host: Das Package zeigt nur an, was in `l
 
 Die Aktionsleiste (Like, Kommentare, Teilen) bleibt auch mit eigenem `content`-Slot erhalten.
 
-## `ShortformCard`
+## Bausteine: `ShortformCard`
 
 Eine einzelne Karte. Normalerweise rendert `ShortformFeed` sie; direkt verwenden lohnt sich nur für eigene Container.
 
@@ -171,10 +210,12 @@ interface Article {
   commentCount?: number | null;
   shareCount?: number | null;
   createdAt?: string | Date | null;
+  keyTakeaways?: string | null; // KI-Kernpunkte, für die Artikelansicht des Hosts
+  status?: string;              // nur 'published' wird angezeigt
 }
 ```
 
-Die Einträge von `GET /api/feed` der wb-newsfeed-API enthalten alle diese Felder (plus weitere wie `keyTakeaways`, `status`) und können direkt übergeben werden.
+Die Einträge von `GET /api/feed` der wb-newsfeed-API haben genau diese Felder (plus `updatedAt`).
 
 ## Hilfsfunktionen
 
@@ -208,13 +249,21 @@ Alle Farben und Größen lassen sich im Host überschreiben. Werte in Klammern s
   --sf-title-size: 2rem;
   --sf-teaser-size: 1rem;
   --sf-padding: 2rem;                          /* Innenabstand (Bildbereich: 1rem) */
-  --font-accent: inherit;                      /* Schrift des Kategorie-Badges */
+  --font-accent: inherit;                      /* Schrift von Badge und Kommentar-Titel */
+
+  /* nur ShortformNewsFeed: Kommentarfenster und Hinweis „Link kopiert“ */
+  --sf-sheet-bg: #fff;
+  --sf-sheet-text: #14151a;
+  --sf-sheet-muted: #6b7280;
+  --sf-sheet-input-bg: #f3f4f6;
+  --sf-sheet-accent: #16a34a;                  /* Rahmen des Eingabefelds im Fokus */
+  --sf-toast-bg: #14151a;
 }
 ```
 
 ## Einbettung per iframe
 
-Die Feed-App `apps/feed` lässt sich per `<iframe>` in ein fremdes System einbetten. Beim Öffnen eines Artikels sendet sie `window.parent.postMessage({ type: 'article_opened', articleId }, '*')`. Das macht die App in ihrem `article-read`-Handler, nicht das Package selbst. Der Host prüft `event.origin` gegen die bekannte iframe-Quelle, bevor er der Nachricht vertraut. Beispiel ohne Vue/Nuxt: [`examples/host-embed-demo.html`](../../examples/host-embed-demo.html).
+Alternativ zur Nuxt-Komponente lässt sich die fertige Feed-App `apps/feed` per `<iframe>` in beliebige Websites einbetten, auch ohne Nuxt. Beim Öffnen eines Artikels sendet sie `window.parent.postMessage({ type: 'article_opened', articleId }, '*')`. Das macht die App in ihrem `article-read`-Handler, nicht das Package selbst. Der Host prüft `event.origin` gegen die bekannte iframe-Quelle, bevor er der Nachricht vertraut. Beispiel ohne Vue/Nuxt: [`examples/host-embed-demo.html`](../../examples/host-embed-demo.html).
 
 ## Entwicklung
 

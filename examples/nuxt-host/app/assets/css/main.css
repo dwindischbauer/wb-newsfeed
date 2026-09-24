@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+@import '@wb-news/shortform-news/tailwind.css';
+
+/* Optional: the host's own look. Without these the package defaults apply. */
+:root {
+  --font-accent: 'Fraunces', Georgia, serif;
+  --sf-media-bg: #d9d6cb;
+  --sf-overlay-color: rgba(20, 20, 20, 0.92);
+  --sf-badge-bg: rgba(255, 255, 255, 0.22);
+  --sf-badge-border: rgba(255, 255, 255, 0.4);
+  --sf-primary-color: #d5f24e;
+  --sf-primary-text: #14151a;
+  --sf-sheet-bg: #faf8f2;
+  --sf-sheet-muted: #6c6d73;
+  --sf-sheet-input-bg: #f4f2ec;
+  --sf-sheet-accent: #6f8f1a;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #000;
+  overflow: hidden;
+}
