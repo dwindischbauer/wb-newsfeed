@@ -1,0 +1,4 @@
+/* Tailwind v4 entry for host apps: `@import '@wb-news/shortform-news/tailwind.css';`
+   after `@import 'tailwindcss';`. Tailwind never scans node_modules on its own,
+   so without this @source the components' utility classes are not generated. */
+@source './components';

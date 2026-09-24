@@ -31,13 +31,6 @@
   --animate-btn-spin: btn-spin 0.8s linear infinite;
   --animate-fade-in: fade-in 0.2s ease;
   --animate-slide-toast: slide-toast 0.25s ease;
-  --animate-sf-pulse: sf-pulse 2s infinite;
-}
-
-@keyframes sf-pulse {
-  0% { opacity: 0.3; }
-  50% { opacity: 0.8; }
-  100% { opacity: 0.3; }
 }
 
 @keyframes pulse-dot {

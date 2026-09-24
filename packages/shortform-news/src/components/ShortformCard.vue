@@ -18,7 +18,7 @@
         >
           Vollständigen Artikel lesen
         </button>
-        <div class="pointer-events-none absolute bottom-20 left-1/2 -translate-x-1/2 animate-sf-pulse text-[0.8rem] text-white/75 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
+        <div class="pointer-events-none absolute bottom-20 left-1/2 -translate-x-1/2 sf-pulse text-[0.8rem] text-white/75 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
           &darr; Weiterscrollen
         </div>
       </slot>
@@ -27,8 +27,8 @@
       <div class="absolute bottom-[6.75rem] right-4 flex flex-col items-center gap-[1.35rem]">
         <button
           type="button"
-          class="flex flex-col items-center gap-[0.3rem] border-none bg-transparent p-0 text-white transition-transform duration-150 [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.5))] active:scale-[0.88]"
-          :class="{ 'text-[var(--sf-primary-color,#4ade80)]': liked }"
+          class="flex flex-col items-center gap-[0.3rem] border-none bg-transparent p-0 transition-transform duration-150 [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.5))] active:scale-[0.88]"
+          :class="liked ? 'text-[var(--sf-primary-color,#4ade80)]' : 'text-white'"
           :title="liked ? 'Gefällt mir nicht mehr' : 'Gefällt mir'"
           @click.stop="handleLikeClick"
         >
@@ -108,6 +108,9 @@ const handleLikeClick = () => {
 
 const mediaStyle = computed(() => {
   if (props.article.imageUrl) {
+    if (/^(https?:)?\/\//.test(props.article.imageUrl)) {
+      return { backgroundImage: `url(${props.article.imageUrl})` };
+    }
     const baseUrl = props.apiUrl ? props.apiUrl.replace(/\/$/, '') : '';
     const imageUrl = props.article.imageUrl.startsWith('/') ? props.article.imageUrl : `/${props.article.imageUrl}`;
     return { backgroundImage: `url(${baseUrl}${imageUrl})` };
@@ -166,5 +169,18 @@ onUnmounted(() => {
 
 .sf-like-pop {
   animation: sf-like-pop 0.35s ease-out;
+}
+
+@keyframes sf-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.sf-pulse {
+  animation: sf-pulse 2s infinite;
 }
 </style>
