@@ -1,141 +1,8 @@
 <template>
   <div class="relative h-screen bg-black">
-    <div class="fixed inset-x-0 top-0 z-50 pb-3 [background:linear-gradient(to_bottom,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.3)_55%,rgba(0,0,0,0)_100%)]">
-      <div class="flex overflow-x-auto px-4 pt-[0.85rem] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-        <div class="flex items-center gap-1 rounded-full border border-white/[0.16] bg-black/40 p-[0.3rem] backdrop-blur-[14px]">
-          <button
-            v-for="cat in categories"
-            :key="cat"
-            class="cursor-pointer whitespace-nowrap rounded-full border-none px-4 py-[0.48rem] text-[0.86rem] font-semibold text-white/[0.82] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
-            :class="{ '!bg-accent-lime !font-bold !text-accent-ink ![text-shadow:none]': activeCategory === cat }"
-            @click="activeCategory = cat; activeTagFilter = ''"
-          >
-            {{ cat }}
-          </button>
-        </div>
-      </div>
+    <ShortformNewsFeed ref="feedRef" :api-url="config.public.apiUrl" @article-read="openReader" />
 
-      <!-- Subcategory chips for the active main category -->
-      <div v-if="activeSubtags.length > 0" class="flex overflow-x-auto px-4 pt-2 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-        <div class="flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.28] p-[0.22rem]">
-          <button
-            v-for="sub in activeSubtags"
-            :key="sub.slug"
-            class="cursor-pointer whitespace-nowrap rounded-full border-none px-[0.8rem] py-[0.36rem] text-[0.76rem] font-medium text-white/[0.68] transition-all duration-200 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
-            :class="{ '!bg-accent-lime !font-bold !text-accent-ink ![text-shadow:none]': activeTagFilter === sub.name }"
-            @click="activeTagFilter = activeTagFilter === sub.name ? '' : sub.name"
-          >
-            {{ sub.name }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Progress bar: how far through the current category/filter the user has scrolled -->
-      <div class="mt-2 h-[2px] w-full bg-white/10">
-        <div class="h-full bg-accent-lime transition-[width] duration-150" :style="{ width: `${feedScrollPercent}%` }"></div>
-      </div>
-    </div>
-
-    <!-- Active Tag Filter Badge — only for tags picked from a card, not for the
-         canonical subcategory chips above (those already show their own active state) -->
-    <div
-      v-if="activeTagFilter && !activeSubtags.some((s) => s.name === activeTagFilter)"
-      class="fixed left-4 right-4 top-[60px] z-[45] flex items-center justify-between rounded-full border border-[rgba(213,242,78,0.5)] bg-black/[0.55] px-4 py-2 text-[0.85rem] text-white backdrop-blur-[12px]"
-    >
-      <span>Tag-Filter: <strong>{{ activeTagFilter }}</strong></span>
-      <button class="rounded-[10px] border-none bg-white/20 px-2 py-[2px] text-[0.75rem] font-bold text-white hover:bg-white/[0.35]" @click="activeTagFilter = ''">✕ Entfernen</button>
-    </div>
-
-    <ShortformFeed
-      ref="feedComponentRef"
-      :articles="publishedArticles"
-      :api-url="config.public.apiUrl"
-      :loading="isLoadingFeed"
-      :tracking-enabled="true"
-      :liked-ids="likedArticleIds"
-      @article-read="openReader"
-      @article-impression="onArticleImpression"
-      @scroll-depth="onScrollDepth"
-      @filter-tag="filterByTag"
-      @like="handleLike"
-      @unlike="handleUnlike"
-      @share="handleShare"
-      @open-comments="openComments"
-    >
-      <template #loading>
-        <div class="flex h-screen flex-col justify-end gap-3 p-8">
-          <div class="mb-2 h-7 w-24 animate-pulse rounded-full bg-white/10"></div>
-          <div class="h-8 w-4/5 animate-pulse rounded-lg bg-white/10"></div>
-          <div class="h-8 w-3/5 animate-pulse rounded-lg bg-white/10"></div>
-          <div class="mt-2 h-4 w-full animate-pulse rounded bg-white/10"></div>
-          <div class="h-4 w-5/6 animate-pulse rounded bg-white/10"></div>
-          <div class="mt-4 h-12 w-44 animate-pulse rounded-full bg-white/10"></div>
-        </div>
-      </template>
-      <template #empty>
-        Keine aktiven Nachrichten für '{{ activeTagFilter || activeCategory }}'.
-      </template>
-    </ShortformFeed>
-
-    <!-- Share toast -->
-    <transition name="reader">
-      <div v-if="shareToast" class="fixed bottom-[6.5rem] left-1/2 z-[150] -translate-x-1/2 rounded-full bg-accent-ink px-5 py-[0.6rem] text-[0.85rem] font-semibold text-accent-lime shadow-[0_8px_24px_rgba(0,0,0,0.4)]">{{ shareToast }}</div>
-    </transition>
-
-    <!-- Comments Sheet -->
-    <transition name="sheet">
-      <div v-if="commentsArticle" class="fixed inset-0 z-[140] flex items-end bg-black/[0.55]" @click.self="closeComments">
-        <div class="comments-sheet flex max-h-[75vh] w-full flex-col rounded-t-[24px] bg-reader-bg shadow-[0_-10px_40px_rgba(0,0,0,0.35)]">
-          <div class="flex items-center justify-between border-b border-black/[0.08] px-5 pb-[0.85rem] pt-[1.1rem]">
-            <h3 class="m-0 font-accent text-[1.2rem] font-medium italic text-accent-ink">
-              Kommentare <span class="text-[0.9rem] font-medium not-italic text-reader-muted">({{ commentsArticle.commentCount || comments.length }})</span>
-            </h3>
-            <button class="h-[30px] w-[30px] cursor-pointer rounded-full border-none bg-black/[0.06] text-[0.9rem] text-accent-ink" @click="closeComments">✕</button>
-          </div>
-          <div class="flex-1 overflow-y-auto px-5 py-2">
-            <div v-if="commentsLoading" class="py-10 text-center text-[0.9rem] text-reader-muted">Lade Kommentare…</div>
-            <div v-else-if="comments.length === 0" class="py-10 text-center text-[0.9rem] text-reader-muted">Noch keine Kommentare. Sei die/der Erste!</div>
-            <div v-for="c in comments" :key="c.id" class="flex gap-[0.7rem] border-b border-black/[0.06] py-[0.85rem]">
-              <div class="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-accent-ink text-[0.85rem] font-bold text-accent-lime">{{ (c.authorName || 'A').charAt(0).toUpperCase() }}</div>
-              <div class="min-w-0 flex-1">
-                <div class="mb-[0.2rem] flex items-baseline gap-2 text-[0.78rem] text-reader-muted">
-                  <strong class="text-[0.85rem] text-accent-ink">{{ c.authorName }}</strong>
-                  <span>{{ formatRelativeTime(c.createdAt) }}</span>
-                </div>
-                <p class="m-0 break-words text-[0.9rem] leading-[1.4] text-[#24252a]">{{ c.text }}</p>
-              </div>
-            </div>
-          </div>
-          <form class="flex flex-col gap-2 border-t border-black/[0.08] px-5 pb-5 pt-[0.85rem]" @submit.prevent="submitComment">
-            <input
-              v-model="commentName"
-              type="text"
-              maxlength="60"
-              placeholder="Dein Name (optional)"
-              class="border-none bg-transparent p-0 text-[0.78rem] text-reader-muted outline-none"
-            />
-            <div class="flex items-center gap-2">
-              <input
-                v-model="commentText"
-                type="text"
-                maxlength="1000"
-                placeholder="Kommentar schreiben…"
-                class="flex-1 rounded-full border border-black/[0.12] bg-reader-input-bg px-[1.1rem] py-[0.65rem] text-[0.9rem] text-accent-ink outline-none focus:border-accent-lime-deep"
-              />
-              <button
-                type="submit"
-                class="whitespace-nowrap rounded-full border-none bg-accent-ink px-5 py-[0.65rem] text-[0.85rem] font-bold text-accent-lime disabled:cursor-not-allowed disabled:opacity-40"
-                :disabled="!commentText.trim() || commentSubmitting"
-              >
-                Senden
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </transition>
-
-    <!-- Reader Overlay -->
+    <!-- Reader Overlay — the full article is this app's job, the module only signals the ID -->
     <transition name="reader">
       <div v-if="activeReaderArticle" class="fixed inset-0 z-[100] flex flex-col overflow-y-auto bg-reader-bg">
         <div class="sticky top-0 z-10 flex items-center justify-between border-b border-black/[0.08] px-6 py-4">
@@ -194,215 +61,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import {
-  ShortformFeed,
+  ShortformNewsFeed,
   parseKeyTakeaways,
   estimateReadingTime,
-  rankPersonalizedArticles,
-  CATEGORY_SUBTAGS,
-  type Article,
-  type UserInterests
+  type Article
 } from '@wb-news/shortform-news';
 
-interface FeedArticle extends Article {
-  status?: string;
-  keyTakeaways?: string;
-}
-
-interface CommentItem {
-  id: number;
-  authorName: string;
-  text: string;
-  createdAt: string;
-}
-
-type CountField = 'likeCount' | 'commentCount' | 'shareCount';
-
-const articles = ref<FeedArticle[]>([]);
-const feedComponentRef = ref<InstanceType<typeof ShortformFeed> | null>(null);
-const feedScrollPercent = ref(0);
-const savedFeedScrollTop = ref(0);
-const activeReaderArticle = ref<FeedArticle | null>(null);
-const activeCategory = ref('Für dich');
-const activeTagFilter = ref('');
-const categories = ['Für dich', 'Alle', 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'];
-
-// Granular subcategory chips (e.g. Politik -> Innenpolitik/Außenpolitik) for the active main category
-const activeSubtags = computed(() => CATEGORY_SUBTAGS[activeCategory.value] || []);
-
-// User Interest Model (Stored locally, privacy-first)
-const userInterests = ref<Required<UserInterests>>({
-  categories: {},
-  tags: {}
-});
-
-const loadUserInterests = () => {
-  if (typeof window === 'undefined') return;
-  try {
-    const saved = localStorage.getItem('wb_user_interests');
-    if (saved) userInterests.value = JSON.parse(saved);
-  } catch (e) {
-    console.warn('Could not read user interests', e);
-  }
-};
-
-const recordInterestInteraction = (article: FeedArticle | null, weight = 1) => {
-  if (!article) return;
-  if (!userInterests.value.categories) userInterests.value.categories = {};
-  if (!userInterests.value.tags) userInterests.value.tags = {};
-
-  if (article.category) {
-    const current = userInterests.value.categories[article.category] || 0;
-    userInterests.value.categories[article.category] = current + weight * 2;
-  }
-
-  if (Array.isArray(article.tags)) {
-    for (const tag of article.tags) {
-      const slug = (tag.slug || tag.name || '').toLowerCase();
-      if (!slug) continue;
-      const current = userInterests.value.tags[slug] || 0;
-      userInterests.value.tags[slug] = current + weight * 3;
-    }
-  }
-
-  try {
-    localStorage.setItem('wb_user_interests', JSON.stringify(userInterests.value));
-  } catch {
-    // storage unavailable — interest tracking is best-effort only
-  }
-};
-
-// The "Für dich" order is pinned per article-list fetch, not recomputed on
-// every like/read/impression — otherwise reading an article boosts its tags
-// immediately, the personalized ranking reshuffles mid-browse, and returning
-// from the reader (or even just scrolling) drops the user onto an unrelated
-// article. Interest updates still apply, just to the *next* fetched list.
-const personalizedOrder = ref<FeedArticle[]>([]);
-watch(
-  articles,
-  () => {
-    const published = articles.value.filter((a) => a.status === 'published');
-    personalizedOrder.value = rankPersonalizedArticles(published, userInterests.value);
-  },
-  { immediate: true }
-);
-
-const publishedArticles = computed(() => {
-  if (activeCategory.value === 'Für dich') {
-    if (!activeTagFilter.value) return personalizedOrder.value;
-    const tagQuery = activeTagFilter.value.toLowerCase();
-    return personalizedOrder.value.filter((a) => a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === tagQuery));
-  }
-
-  let filtered = articles.value.filter((a) => a.status === 'published');
-
-  if (activeTagFilter.value) {
-    const tagQuery = activeTagFilter.value.toLowerCase();
-    filtered = filtered.filter((a) => a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === tagQuery));
-  }
-
-  if (activeCategory.value !== 'Alle') {
-    filtered = filtered.filter((a) => a.category === activeCategory.value);
-  }
-  return filtered;
-});
-
 const config = useRuntimeConfig();
+const feedRef = ref<InstanceType<typeof ShortformNewsFeed> | null>(null);
+const activeReaderArticle = ref<Article | null>(null);
 
-const isLoadingFeed = ref(true);
-
-const fetchArticles = async () => {
-  try {
-    const res = await fetch(`${config.public.apiUrl}/api/feed`);
-    if (!res.ok) throw new Error('API Error');
-    articles.value = await res.json();
-  } catch (e) {
-    console.error('Failed to fetch articles:', e);
-    articles.value = [];
-  } finally {
-    isLoadingFeed.value = false;
-  }
-};
-
-// Merge freshly-polled articles into the current list in place, preserving
-// object identity for unchanged articles so open cards/overlays don't flicker.
-const mergeArticles = (freshList: FeedArticle[]) => {
-  const currentById = new Map(articles.value.map((a) => [a.id, a]));
-  articles.value = freshList.map((fresh) => {
-    const existing = currentById.get(fresh.id);
-    return existing && JSON.stringify(existing) === JSON.stringify(fresh) ? existing : fresh;
-  });
-};
-
-const pollForUpdates = async () => {
-  try {
-    const res = await fetch(`${config.public.apiUrl}/api/feed`);
-    if (!res.ok) return;
-    const data: FeedArticle[] = await res.json();
-    mergeArticles(data);
-  } catch (e) {
-    console.error('Failed to poll for updates:', e);
-  }
-};
-
-const sendAnalytics = (eventType: string, articleId: number | null = null, metadata: Record<string, unknown> | null = null) => {
-  try {
-    const payload = JSON.stringify({ eventType, articleId, metadata });
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(`${config.public.apiUrl}/api/analytics/events`, new Blob([payload], { type: 'application/json' }));
-    } else {
-      fetch(`${config.public.apiUrl}/api/analytics/events`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-        keepalive: true
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.error('Failed to send analytics:', e);
-  }
-};
-
-// The module only ever signals an article ID (never the full article) when a
-// user wants to read the full text — resolving that ID to actual content is
-// this host app's own responsibility, matching the module's "module never
-// navigates itself" contract from the briefing.
+// The module only ever signals an article ID when a user wants to read the
+// full text — resolving it to content is this host app's responsibility,
+// matching the briefing's "module never navigates itself" contract.
 const openReader = (articleId: number) => {
-  const article = articles.value.find((a) => a.id === articleId);
+  const article = feedRef.value?.findArticle(articleId);
   if (!article) return;
-
-  savedFeedScrollTop.value = feedComponentRef.value?.$el?.scrollTop ?? 0;
   activeReaderArticle.value = article;
-  recordInterestInteraction(article, 2);
-  sendAnalytics('read', article.id, { category: article.category });
 
   if (window.parent) {
-    window.parent.postMessage({ type: 'article_opened', articleId: article.id }, '*');
+    window.parent.postMessage({ type: 'article_opened', articleId }, '*');
   }
 };
 
-// Returning from the full-text reader used to always drop the user back at
-// the top of the feed — restore the scroll position they left behind instead.
 const closeReader = () => {
+  if (isSpeaking.value) window.speechSynthesis.cancel();
+  isSpeaking.value = false;
   activeReaderArticle.value = null;
-  nextTick(() => {
-    if (feedComponentRef.value?.$el) {
-      feedComponentRef.value.$el.scrollTop = savedFeedScrollTop.value;
-    }
-  });
 };
 
-const onArticleImpression = (article: FeedArticle) => {
-  recordInterestInteraction(article, 0.5);
-  sendAnalytics('impression', article.id, { category: article.category });
-};
-
-const onScrollDepth = (percentage: number) => {
-  feedScrollPercent.value = Math.min(100, Math.max(0, percentage * 100));
-  if (percentage >= 80) {
-    sendAnalytics('scroll_depth', activeReaderArticle.value?.id ?? null, { depth: percentage });
-  }
+const filterByTag = (tagName: string) => {
+  feedRef.value?.filterByTag(tagName);
+  closeReader();
 };
 
 // TTS Audio Synthesis
@@ -438,205 +130,11 @@ const toggleSpeech = () => {
 
   window.speechSynthesis.speak(utterance);
   isSpeaking.value = true;
-  sendAnalytics('tts_play', art.id);
+  feedRef.value?.track('tts_play', art.id);
 };
-
-const filterByTag = (tagName: string) => {
-  activeTagFilter.value = tagName;
-  activeReaderArticle.value = null;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-// --- Likes (device-local, privacy-first — same pattern as userInterests) ---
-const likedArticleIds = ref<number[]>([]);
-
-const loadLikedArticles = () => {
-  if (typeof window === 'undefined') return;
-  try {
-    const saved = localStorage.getItem('wb_liked_articles');
-    if (saved) likedArticleIds.value = JSON.parse(saved);
-  } catch (e) {
-    console.warn('Could not read liked articles', e);
-  }
-};
-
-const persistLikedArticles = () => {
-  try {
-    localStorage.setItem('wb_liked_articles', JSON.stringify(likedArticleIds.value));
-  } catch {
-    // storage unavailable — likes stay in-memory only for this session
-  }
-};
-
-const patchArticleCount = (articleId: number, field: CountField, delta: number) => {
-  const article = articles.value.find((a) => a.id === articleId);
-  if (article) article[field] = Math.max(0, (article[field] || 0) + delta);
-  if (activeReaderArticle.value?.id === articleId) {
-    activeReaderArticle.value[field] = Math.max(0, (activeReaderArticle.value[field] || 0) + delta);
-  }
-};
-
-const handleLike = async (article: FeedArticle) => {
-  if (likedArticleIds.value.includes(article.id)) return;
-  likedArticleIds.value = [...likedArticleIds.value, article.id];
-  persistLikedArticles();
-  patchArticleCount(article.id, 'likeCount', 1);
-  recordInterestInteraction(article, 3);
-  try {
-    await fetch(`${config.public.apiUrl}/api/articles/${article.id}/like`, { method: 'POST' });
-  } catch (e) {
-    console.error('Failed to send like:', e);
-  }
-};
-
-const handleUnlike = async (article: FeedArticle) => {
-  likedArticleIds.value = likedArticleIds.value.filter((id) => id !== article.id);
-  persistLikedArticles();
-  patchArticleCount(article.id, 'likeCount', -1);
-  try {
-    await fetch(`${config.public.apiUrl}/api/articles/${article.id}/unlike`, { method: 'POST' });
-  } catch (e) {
-    console.error('Failed to send unlike:', e);
-  }
-};
-
-// --- Share ---
-const shareToast = ref('');
-let shareToastTimeout: ReturnType<typeof setTimeout> | null = null;
-
-const showShareToast = (msg: string) => {
-  shareToast.value = msg;
-  if (shareToastTimeout) clearTimeout(shareToastTimeout);
-  shareToastTimeout = setTimeout(() => {
-    shareToast.value = '';
-  }, 2500);
-};
-
-const handleShare = async (article: FeedArticle) => {
-  const shareUrl = `${window.location.origin}${window.location.pathname}?article=${article.id}`;
-  const shareData = { title: article.title, text: article.teaser || article.title, url: shareUrl };
-
-  try {
-    if (navigator.share) {
-      await navigator.share(shareData);
-    } else if (navigator.clipboard) {
-      await navigator.clipboard.writeText(shareUrl);
-      showShareToast('Link kopiert');
-    }
-    patchArticleCount(article.id, 'shareCount', 1);
-    sendAnalytics('share', article.id, { category: article.category });
-    fetch(`${config.public.apiUrl}/api/articles/${article.id}/share`, { method: 'POST' }).catch(() => {});
-  } catch {
-    // User cancelled the native share sheet — not an error
-  }
-};
-
-// --- Comments ---
-const commentsArticle = ref<FeedArticle | null>(null);
-const comments = ref<CommentItem[]>([]);
-const commentsLoading = ref(false);
-const commentName = ref('');
-const commentText = ref('');
-const commentSubmitting = ref(false);
-
-const openComments = async (article: FeedArticle) => {
-  commentsArticle.value = article;
-  comments.value = [];
-  commentsLoading.value = true;
-  try {
-    const savedName = localStorage.getItem('wb_comment_name');
-    if (savedName) commentName.value = savedName;
-  } catch (e) {
-    console.warn('Could not read saved comment name', e);
-  }
-  try {
-    const res = await fetch(`${config.public.apiUrl}/api/articles/${article.id}/comments`);
-    if (res.ok) comments.value = await res.json();
-  } catch (e) {
-    console.error('Failed to load comments:', e);
-  } finally {
-    commentsLoading.value = false;
-  }
-};
-
-const closeComments = () => {
-  commentsArticle.value = null;
-  commentText.value = '';
-};
-
-const submitComment = async () => {
-  const text = commentText.value.trim();
-  if (!text || !commentsArticle.value) return;
-  commentSubmitting.value = true;
-  const authorName = commentName.value.trim() || 'Anonym';
-  try {
-    localStorage.setItem('wb_comment_name', authorName);
-  } catch (e) {
-    console.warn('Could not persist comment name', e);
-  }
-
-  try {
-    const res = await fetch(`${config.public.apiUrl}/api/articles/${commentsArticle.value.id}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ authorName, text })
-    });
-    const data = await res.json();
-    if (data.success) {
-      comments.value.unshift(data.comment);
-      patchArticleCount(commentsArticle.value.id, 'commentCount', 1);
-      commentText.value = '';
-    }
-  } catch (e) {
-    console.error('Failed to submit comment:', e);
-  } finally {
-    commentSubmitting.value = false;
-  }
-};
-
-const formatRelativeTime = (dateStr: string) => {
-  if (!dateStr) return '';
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'gerade eben';
-  if (mins < 60) return `vor ${mins} Min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `vor ${hours} Std`;
-  return `vor ${Math.floor(hours / 24)} Tg`;
-};
-
-// Switching category/subtag swaps the article list under the same scroll
-// container — without this the new list would inherit the old scroll offset.
-watch([activeCategory, activeTagFilter], () => {
-  feedScrollPercent.value = 0;
-  nextTick(() => {
-    if (feedComponentRef.value?.$el) {
-      feedComponentRef.value.$el.scrollTop = 0;
-    }
-  });
-});
-
-let pollIntervalId: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
-  loadUserInterests();
-  loadLikedArticles();
-  fetchArticles().then(() => {
-    const params = new URLSearchParams(window.location.search);
-    const articleParam = params.get('article');
-    if (articleParam) {
-      const sharedId = parseInt(articleParam, 10);
-      openReader(sharedId);
-    }
-  });
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    ttsSupported.value = true;
-  }
-  pollIntervalId = setInterval(pollForUpdates, 60000);
-});
-
-onUnmounted(() => {
-  if (pollIntervalId) clearInterval(pollIntervalId);
+  ttsSupported.value = 'speechSynthesis' in window;
 });
 </script>
 
@@ -649,22 +147,5 @@ onUnmounted(() => {
 .reader-leave-to {
   opacity: 0;
   transform: translateY(20px);
-}
-
-.sheet-enter-active,
-.sheet-leave-active {
-  transition: opacity 0.25s ease;
-}
-.sheet-enter-active .comments-sheet,
-.sheet-leave-active .comments-sheet {
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.sheet-enter-from,
-.sheet-leave-to {
-  opacity: 0;
-}
-.sheet-enter-from .comments-sheet,
-.sheet-leave-to .comments-sheet {
-  transform: translateY(100%);
 }
 </style>
