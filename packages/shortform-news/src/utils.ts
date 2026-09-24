@@ -52,6 +52,8 @@ export interface Article {
   commentCount?: number | null;
   shareCount?: number | null;
   createdAt?: string | Date | null;
+  keyTakeaways?: string | null;
+  status?: string;
 }
 
 export interface UserInterests {

@@ -7,8 +7,8 @@ export interface ModuleOptions {}
 
 /**
  * Nuxt module entry point — lets an external Nuxt project add
- * `modules: ['@wb-news/shortform-news/nuxt']` to auto-register <ShortformCard>
- * and <ShortformFeed> as global components, without any manual import.
+ * `modules: ['@wb-news/shortform-news/nuxt']` to auto-register <ShortformNewsFeed>,
+ * <ShortformFeed> and <ShortformCard> as global components, without any manual import.
  * The monorepo's own admin/feed apps don't use this — they import the
  * components/utils directly from the package's main entry instead.
  */
@@ -29,6 +29,11 @@ const shortformNewsModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOp
     addComponent({
       name: 'ShortformFeed',
       filePath: resolver.resolve('./components/ShortformFeed.vue')
+    });
+
+    addComponent({
+      name: 'ShortformNewsFeed',
+      filePath: resolver.resolve('./components/ShortformNewsFeed.vue')
     });
   }
 });
