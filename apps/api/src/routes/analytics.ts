@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { InferSelectModel } from 'drizzle-orm';
 import { db } from '../db';
 import { analyticsEvents, articles } from '../db/schema';
-import { desc } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 
 type AnalyticsEvent = InferSelectModel<typeof analyticsEvents>;
 type ArticleRecord = InferSelectModel<typeof articles>;
@@ -21,7 +21,8 @@ export default async function (server: FastifyInstance) {
         return reply.status(400).send({ error: 'eventType is required' });
       }
 
-      const validEvents = ['impression', 'read', 'scroll_depth', 'tts_play', 'share'];
+      // dwell = Sekunden auf einer Karte, read_time = Sekunden in der Artikelansicht
+      const validEvents = ['impression', 'read', 'scroll_depth', 'share', 'dwell', 'read_time'];
       if (!validEvents.includes(body.eventType)) {
         return reply.status(400).send({ error: `Invalid eventType: ${body.eventType}` });
       }
@@ -42,6 +43,35 @@ export default async function (server: FastifyInstance) {
     }
   });
 
+  // Kennzahlen je Artikel fuer das Admin: Aufrufe, Verweildauer, Oeffnungen, Lesedauer
+  server.get('/api/analytics/articles', async () => {
+    const rows = await db.execute(sql`
+      SELECT a.id,
+             count(*) FILTER (WHERE e.event_type = 'impression')::int AS impressions,
+             count(*) FILTER (WHERE e.event_type = 'read')::int AS reads,
+             count(*) FILTER (WHERE e.event_type = 'dwell')::int AS dwells,
+             round(avg((e.metadata::json->>'seconds')::float) FILTER (WHERE e.event_type = 'dwell')::numeric, 1)::float AS avg_dwell_seconds,
+             round(avg((e.metadata::json->>'seconds')::float) FILTER (WHERE e.event_type = 'read_time')::numeric, 1)::float AS avg_read_seconds,
+             count(*) FILTER (WHERE e.event_type = 'dwell' AND (e.metadata::json->>'seconds')::float < 1.5)::int AS quick_skips,
+             a.like_count AS likes, a.comment_count AS comments, a.share_count AS shares
+        FROM articles a
+        LEFT JOIN analytics_events e ON e.article_id = a.id
+       GROUP BY a.id
+       ORDER BY a.id DESC
+    `);
+    return rows.rows.map((r) => ({
+      articleId: r.id,
+      impressions: r.impressions,
+      reads: r.reads,
+      avgDwellSeconds: r.avg_dwell_seconds,
+      avgReadSeconds: r.avg_read_seconds,
+      quickSkips: r.quick_skips,
+      likes: r.likes,
+      comments: r.comments,
+      shares: r.shares
+    }));
+  });
+
   // Aggregated analytics metrics for Admin CMS Dashboard
   server.get('/api/analytics', async () => {
     try {
@@ -54,7 +84,6 @@ export default async function (server: FastifyInstance) {
 
       const totalImpressions = events.filter((e) => e.eventType === 'impression').length;
       const totalReads = events.filter((e) => e.eventType === 'read').length;
-      const totalTtsPlays = events.filter((e) => e.eventType === 'tts_play').length;
 
       const readThroughRate = totalImpressions > 0
         ? `${((totalReads / totalImpressions) * 100).toFixed(1)}%`
@@ -96,7 +125,6 @@ export default async function (server: FastifyInstance) {
       return {
         totalImpressions,
         totalReads,
-        totalTtsPlays,
         readThroughRate,
         popularArticles,
         recentEventsCount: events.length,
@@ -112,7 +140,6 @@ export default async function (server: FastifyInstance) {
       return {
         totalImpressions: 0,
         totalReads: 0,
-        totalTtsPlays: 0,
         readThroughRate: '0.0%',
         popularArticles: [],
         recentEventsCount: 0,
