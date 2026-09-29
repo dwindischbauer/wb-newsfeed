@@ -24,77 +24,6 @@ export const estimateReadingTime = (text: string | null | undefined, wordsPerMin
   return `${minutes} Min Lesezeit`;
 };
 
-export interface UserInterests {
-  categories?: Record<string, number>;
-  tags?: Record<string, number>;
-}
-
-export interface ScorableArticle {
-  id: number;
-  category?: string;
-  tags?: Array<{ name: string; slug?: string }>;
-  createdAt?: string | Date | null;
-  [key: string]: unknown;
-}
-
-export const calculatePersonalizedScore = (
-  article: ScorableArticle,
-  interests: UserInterests = {},
-  now: number = Date.now()
-): number => {
-  let score = 0;
-
-  if (article.category && interests.categories) {
-    const catReads = interests.categories[article.category] || 0;
-    score += catReads * 3;
-  }
-
-  if (Array.isArray(article.tags) && interests.tags) {
-    for (const tag of article.tags) {
-      const tagName = (tag.slug || tag.name || '').toLowerCase();
-      const tagReads = interests.tags[tagName] || 0;
-      score += tagReads * 5;
-    }
-  }
-
-  if (article.createdAt) {
-    const createdTime = new Date(article.createdAt).getTime();
-    if (!isNaN(createdTime)) {
-      const hoursOld = Math.max(0, (now - createdTime) / (1000 * 60 * 60));
-      if (hoursOld < 24) {
-        score += Math.max(0, 2 - (hoursOld / 12));
-      }
-    }
-  }
-
-  return score;
-};
-
-export const rankPersonalizedArticles = <T extends ScorableArticle>(
-  articles: T[],
-  interests: UserInterests = {}
-): T[] => {
-  if (!articles || articles.length === 0) return [];
-  const hasInterests = (interests.categories && Object.keys(interests.categories).length > 0) ||
-                       (interests.tags && Object.keys(interests.tags).length > 0);
-
-  if (!hasInterests) {
-    return [...articles];
-  }
-
-  const now = Date.now();
-  return [...articles].sort((a, b) => {
-    const scoreA = calculatePersonalizedScore(a, interests, now);
-    const scoreB = calculatePersonalizedScore(b, interests, now);
-    if (scoreB !== scoreA) {
-      return scoreB - scoreA;
-    }
-    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return timeB - timeA;
-  });
-};
-
 export interface SubtagDefinition {
   name: string;
   slug: string;
@@ -135,6 +64,12 @@ export const CATEGORY_SUBTAGS: Record<string, SubtagDefinition[]> = {
     { name: 'Musik', slug: 'musik', color: '#c026d3', keywords: ['musik', 'konzert', 'album', 'sänger', 'orchester', 'oper', 'band', 'tournee', 'song', 'philharmoniker'] },
     { name: 'Theater & Bühne', slug: 'theater-buehne', color: '#9333ea', keywords: ['theater', 'bühne', 'burgtheater', 'festspiele', 'darsteller', 'premiere', 'aufführung', 'inszenierung', 'schauspielhaus'] },
     { name: 'Literatur & Kunst', slug: 'literatur-kunst', color: '#7c3aed', keywords: ['buch', 'roman', 'autor', 'schriftsteller', 'kunst', 'ausstellung', 'museum', 'galerie', 'gemälde', 'skulptur'] }
+  ],
+  Chronik: [
+    { name: 'Kriminalität', slug: 'kriminalitaet', color: '#475569', keywords: ['polizei', 'festnahme', 'mord', 'messer', 'diebstahl', 'betrug', 'prozess', 'verdächtig', 'ermittlungen', 'anschlag'] },
+    { name: 'Unfälle & Unglücke', slug: 'unfaelle', color: '#64748b', keywords: ['unfall', 'absturz', 'brand', 'feuerwehr', 'verletzt', 'tote', 'explosion', 'einsturz', 'rettung'] },
+    { name: 'Wetter & Umwelt', slug: 'wetter-umwelt', color: '#0f766e', keywords: ['unwetter', 'hochwasser', 'hagel', 'sturm', 'hitze', 'klima', 'lawine', 'erdbeben', 'waldbrand'] },
+    { name: 'Gesundheit', slug: 'gesundheit', color: '#0891b2', keywords: ['spital', 'krankenhaus', 'arzt', 'patient', 'virus', 'impfung', 'pflege', 'gesundheit', 'medizin'] }
   ]
 };
 

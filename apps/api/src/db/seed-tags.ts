@@ -1,20 +1,10 @@
 import { db } from './index';
 import { tags } from './schema';
 import { eq } from 'drizzle-orm';
+import { CATEGORY_SUBTAGS } from '../utils/metadata';
 
-const INITIAL_TAGS = [
-  { name: 'Innenpolitik', slug: 'innenpolitik', color: '#dc2626' },
-  { name: 'Außenpolitik', slug: 'aussenpolitik', color: '#2563eb' },
-  { name: 'Wirtschaftspolitik', slug: 'wirtschaftspolitik', color: '#059669' },
-  { name: 'Finanzen', slug: 'finanzen', color: '#10b981' },
-  { name: 'Digital & KI', slug: 'digital-ki', color: '#6366f1' },
-  { name: 'Technologie', slug: 'technologie', color: '#8b5cf6' },
-  { name: 'Klima & Energie', slug: 'klima-energie', color: '#14b8a6' },
-  { name: 'Fußball', slug: 'fussball', color: '#f59e0b' },
-  { name: 'Wintersport', slug: 'wintersport', color: '#0284c7' },
-  { name: 'Kultur & Kunst', slug: 'kultur-kunst', color: '#d946ef' },
-  { name: 'Chronik', slug: 'chronik', color: '#64748b' }
-];
+// Tags sind genau die Unterkategorien aus utils/metadata.ts
+const INITIAL_TAGS = Object.values(CATEGORY_SUBTAGS).flat().map(({ name, slug, color }) => ({ name, slug, color }));
 
 export async function seedTags() {
   for (const tag of INITIAL_TAGS) {

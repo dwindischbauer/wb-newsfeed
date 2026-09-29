@@ -1,8 +1,6 @@
-import { db } from '../db';
-import { tags } from '../db/schema';
 import { getSettings } from '../utils/settings';
 import { logger } from '../utils/logger';
-import { autoExtractArticleMetadata } from '../utils/metadata';
+import { autoExtractArticleMetadata, CATEGORY_SUBTAGS } from '../utils/metadata';
 
 export interface SummaryResult {
   title: string;
@@ -18,6 +16,29 @@ export interface SummaryResult {
 export interface GenerationOptions {
   temperature: number;
   seed: number;
+}
+
+// Modelle liefern statt eines Strings manchmal ein Array, Kernpunkte werden dann zu Aufzaehlungen
+function asText(value: unknown, asList: boolean): string {
+  if (Array.isArray(value)) {
+    const items = value.map((v) => String(v).trim().replace(/^[•\-*]\s*/, '')).filter(Boolean);
+    return asList ? items.map((v) => `• ${v}`).join('\n') : items.join(' ');
+  }
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+const CATEGORIES = Object.keys(CATEGORY_SUBTAGS);
+const SUBTAG_NAMES = new Map(
+  Object.values(CATEGORY_SUBTAGS).flat().map((t) => [t.name.toLowerCase(), t.name])
+);
+
+/** Behaelt nur Tags aus der festen Liste, hoechstens zwei. */
+export function canonicalTags(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const names = raw
+    .map((t) => SUBTAG_NAMES.get(String(t).trim().toLowerCase()))
+    .filter((t): t is string => Boolean(t));
+  return Array.from(new Set(names)).slice(0, 2);
 }
 
 export const DEFAULT_GENERATION_OPTIONS: GenerationOptions = { temperature: 0, seed: 42 };
@@ -40,7 +61,7 @@ export function getGenerationOptions(settingsMap: Record<string, string>): Gener
 
 /**
  * Summarizes an article with the local Ollama LLM (title, category, tags,
- * teaser, key takeaways) — the same prompt used by the async job queue
+ * teaser, key takeaways) - the same prompt used by the async job queue
  * (queue/index.ts), just called synchronously. Falls back to the offline
  * keyword-based extractor (utils/metadata.ts) if Ollama is unreachable,
  * times out, or returns something unparsable, so the caller always gets a
@@ -51,17 +72,18 @@ export async function summarizeArticle(
   currentTitle: string = '[Auto-Titel ausstehend]',
   currentCategory: string = 'Auto'
 ): Promise<SummaryResult> {
-  const existingTags = await db.select().from(tags).catch(() => []);
-  const existingTagNames = existingTags.map(t => t.name);
-  const tagsHint = existingTagNames.length > 0
-    ? `[${existingTagNames.join(', ')}]`
-    : '[Innenpolitik, Außenpolitik, Wirtschaft, Technologie, Kultur, Sport, Chronik, Klima]';
+  // Tags nur aus der festen Liste der Unterkategorien, damit keine Einzelfall-Tags
+  // wie Firmen- oder Personennamen entstehen
+  const tagsHint = Object.entries(CATEGORY_SUBTAGS)
+    .map(([category, subtags]) => `${category}: ${subtags.map((t) => t.name).join(', ')}`)
+    .join('\n');
 
   const promptText = `Du bist ein erfahrener Nachrichten-Redakteur. Analysiere den folgenden Artikel.
 Antworte exakt im JSON Format mit folgenden Feldern:
 - "title": Ein passender, kurzer, knackiger Titel für den Artikel (max. 60 Zeichen). Falls der aktuelle Titel nicht "[Auto-Titel ausstehend]" ist, kopiere den aktuellen Titel.
-- "category": Ordne den Artikel genau einer dieser Kategorien zu: [Politik, Wirtschaft, Sport, Technologie, Kultur]. Falls die aktuelle Kategorie nicht "Auto" ist, kopiere die aktuelle Kategorie.
-- "tags": Ein JSON-Array mit 1 bis 3 passenden Schlagwörtern (z.B. ["Innenpolitik", "Nationalrat"] oder ["Außenpolitik", "Diplomatie"]). Wähle nach Möglichkeit aus den bestehenden Tags: ${tagsHint}.
+- "category": Ordne den Artikel genau einer dieser Kategorien zu: [${CATEGORIES.join(', ')}]. Auslandsnachrichten über Staaten, Konflikte und Regierungen gehören zu Politik, Kriminalität, Unfälle, Unwetter und Gesundheit zu Chronik. Falls die aktuelle Kategorie nicht "Auto" ist, kopiere die aktuelle Kategorie.
+- "tags": Ein JSON-Array mit 1 oder 2 Unterkategorien, NUR aus dieser Liste und passend zur gewählten Kategorie. Keine anderen Begriffe, keine Namen:
+${tagsHint}
 - "teaser": Maximal 3 Sätze Zusammenfassung für einen Social-Media Newsfeed.
 - "keyTakeaways": 3 wichtigste Stichpunkte als ein String, getrennt durch Bullet-Points (•).
 
@@ -74,8 +96,9 @@ ${content}`;
   try {
     const settingsMap = await getSettings();
     const ollamaUrl = settingsMap['ollamaUrl'] || process.env.OLLAMA_URL || 'http://localhost:11434';
-    const aiModel = settingsMap['aiModel'] || 'qwen2.5:3b-instruct';
-    const timeoutMs = parseInt(settingsMap['timeout'] || '60000', 10);
+    const aiModel = settingsMap['aiModel'] || 'qwen3:14b';
+    // qwen3:14b braucht kalt geladen neben dem Bildserver teils ueber eine Minute
+    const timeoutMs = parseInt(settingsMap['timeout'] || '180000', 10);
     const generationOptions = getGenerationOptions(settingsMap);
 
     const controller = new AbortController();
@@ -89,6 +112,8 @@ ${content}`;
         prompt: promptText,
         stream: false,
         format: 'json',
+        // Teaser brauchen keine Denkphase, das spart bei qwen3 viel Zeit
+        think: false,
         options: generationOptions
       }),
       signal: controller.signal
@@ -103,22 +128,20 @@ ${content}`;
     const data = await response.json();
     const resultObj = JSON.parse(data.response);
 
-    // An editorial title/category always wins; the model only fills in placeholders.
+    // Titel und Kategorie der Redaktion haben Vorrang, das Modell fuellt nur Platzhalter
     const finalTitle = currentTitle !== '[Auto-Titel ausstehend]' ? currentTitle : resultObj.title;
     const finalCategory = currentCategory !== 'Auto' && currentCategory !== 'Allgemein'
       ? currentCategory
-      : resultObj.category;
+      : CATEGORIES.includes(resultObj.category) ? resultObj.category : 'Chronik';
 
-    const tagList: string[] = Array.isArray(resultObj.tags)
-      ? resultObj.tags.filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0).map((t: string) => t.trim())
-      : [];
+    const tagList = canonicalTags(resultObj.tags);
 
     return {
       title: finalTitle || 'Neuer Nachrichtenartikel',
       category: finalCategory && finalCategory !== 'Auto' ? finalCategory : 'Politik',
       tags: tagList,
-      teaser: resultObj.teaser || '',
-      keyTakeaways: resultObj.keyTakeaways || '',
+      teaser: asText(resultObj.teaser, false),
+      keyTakeaways: asText(resultObj.keyTakeaways, true),
       source: 'ai',
       generation: { model: aiModel, ...generationOptions }
     };
