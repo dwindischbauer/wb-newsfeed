@@ -153,49 +153,55 @@ export const worker = new Worker('generation_jobs', async job => {
       }
     }
 
-    // Refetch the updated article for image generation
+    // Embedding fuer die inhaltliche Aehnlichkeit im "Fuer dich"-Feed
+    if (job.name === 'teaser_generation' || job.name === 'full_generation') {
+      const { updateArticleEmbedding } = await import('../services/embeddings');
+      await updateArticleEmbedding(articleId);
+    }
+
+    // Aktuellen Stand fuer die Bildgenerierung neu laden
     const updatedArticleRes = await db.select().from(articles).where(eq(articles.id, articleId));
     const updatedArticle = updatedArticleRes[0] || article;
 
-    // Step 2: Generate cover image (only if requested explicitly via job.name)
+    // Titelbild nur bei image_generation/full_generation
     let imageUrl: string | null = article.imageUrl;
-    
-    if (job.name === 'full_generation' || job.name === 'image_generation') {
-      try {
-        // Query assigned tags for the article to supply richer image context
-        const assignedTags = await db
-          .select({ name: tags.name })
-          .from(articleTags)
-          .innerJoin(tags, eq(articleTags.tagId, tags.id))
-          .where(eq(articleTags.articleId, articleId));
-        const tagNames = assignedTags.map(t => t.name);
+    let imageError: string | null = null;
 
+    if (job.name === 'full_generation' || job.name === 'image_generation') {
+      const assignedTags = await db
+        .select({ name: tags.name })
+        .from(articleTags)
+        .innerJoin(tags, eq(articleTags.tagId, tags.id))
+        .where(eq(articleTags.articleId, articleId));
+
+      try {
         const { generateArticleImage } = await import('../services/imageGenerator');
-        imageUrl = await generateArticleImage(
-          updatedArticle.title, 
-          updatedArticle.category, 
-          articleId,
-          updatedArticle.teaser || undefined,
-          tagNames
-        );
-        if (imageUrl) {
-          await db.update(articles).set({ imageUrl }).where(eq(articles.id, articleId));
-          logger.info(`Cover image generated for article ${articleId}`, { imageUrl });
-        }
+        const image = await generateArticleImage({
+          id: articleId,
+          title: updatedArticle.title,
+          category: updatedArticle.category,
+          teaser: updatedArticle.teaser,
+          content: updatedArticle.content,
+          tags: assignedTags.map(t => t.name)
+        });
+        imageUrl = image.imageUrl;
+        await db.update(articles).set({ imageUrl, imagePrompt: image.prompt }).where(eq(articles.id, articleId));
       } catch (imgError) {
-        const message = imgError instanceof Error ? imgError.message : String(imgError);
-        logger.warn(`Image generation skipped: ${message}`);
+        imageError = imgError instanceof Error ? imgError.message : String(imgError);
+        logger.warn(`Kein Bild fuer Artikel ${articleId}: ${imageError}`);
+        // Ein reiner Bild-Job ohne Bild ist fehlgeschlagen
+        if (job.name === 'image_generation') throw imgError;
       }
     }
-    
+
     const endTime = Date.now();
     const processingTimeMs = endTime - startTime;
 
     let resultMsg = 'Erfolgreich generiert';
-    if (job.name === 'teaser_generation') resultMsg = 'Text-Teaser generiert';
-    if (job.name === 'image_generation') resultMsg = 'KI-Bild generiert';
-    if (job.name === 'full_generation') resultMsg = imageUrl ? 'Teaser + Bild generiert' : 'Teaser generiert';
-    if (generationSource === 'fallback') resultMsg += ' (Fallback ohne KI – Ollama nicht erreichbar)';
+    if (job.name === 'teaser_generation') resultMsg = 'Teaser generiert';
+    if (job.name === 'image_generation') resultMsg = 'Bild generiert';
+    if (job.name === 'full_generation') resultMsg = imageError ? 'Teaser generiert, Bild fehlgeschlagen' : 'Teaser und Bild generiert';
+    if (generationSource === 'fallback') resultMsg += ' (Fallback, Ollama nicht erreichbar)';
 
     await db.update(jobs).set({ 
       status: 'completed', 

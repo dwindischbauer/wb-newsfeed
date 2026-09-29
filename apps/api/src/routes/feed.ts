@@ -1,15 +1,21 @@
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
-import { articles, tags, articleTags } from '../db/schema';
-import { eq, desc, inArray, count, max } from 'drizzle-orm';
+import { articles, tags, articleTags, analyticsEvents } from '../db/schema';
+import { eq, and, desc, inArray, count, max } from 'drizzle-orm';
+import { buildRelatedMap } from '../services/embeddings';
 import { inMemoryArticles, type StoredArticle } from './articles';
 
 // Upper bound for serving a cached feed, as a safety net for changes the
 // fingerprint cannot see (e.g. a renamed tag).
 const FEED_CACHE_TTL_MS = 60_000;
 
-let feedCache: { fingerprint: string; createdAt: number; articles: StoredArticle[] } | null = null;
+type FeedArticle = Omit<StoredArticle, 'embedding'> & {
+  related?: Array<{ id: number; score: number }>;
+  readCount?: number;
+};
+
+let feedCache: { fingerprint: string; createdAt: number; articles: FeedArticle[] } | null = null;
 
 /**
  * Cheap aggregate over everything the feed is built from. Every write to an
@@ -25,7 +31,18 @@ async function feedFingerprint(): Promise<string> {
   return `${a?.n}:${a?.lastUpdate?.getTime() ?? 0}:${t?.n}:${t?.lastId ?? 0}`;
 }
 
-async function loadPublishedFeed(): Promise<StoredArticle[]> {
+// Wie oft ein Artikel geoeffnet wurde, fliesst als Beliebtheit in "Fuer dich" ein
+async function readCounts(articleIds: number[]): Promise<Map<number, number>> {
+  if (articleIds.length === 0) return new Map();
+  const rows = await db
+    .select({ articleId: analyticsEvents.articleId, n: count() })
+    .from(analyticsEvents)
+    .where(and(eq(analyticsEvents.eventType, 'read'), inArray(analyticsEvents.articleId, articleIds)))
+    .groupBy(analyticsEvents.articleId);
+  return new Map(rows.map((r) => [r.articleId ?? 0, r.n]));
+}
+
+async function loadPublishedFeed(): Promise<FeedArticle[]> {
   const publishedArticles = await db
     .select()
     .from(articles)
@@ -55,9 +72,14 @@ async function loadPublishedFeed(): Promise<StoredArticle[]> {
     }
   }
 
-  return publishedArticles.map((a) => ({
+  const related = buildRelatedMap(publishedArticles);
+  const reads = await readCounts(articleIds);
+
+  return publishedArticles.map(({ embedding: _embedding, ...a }) => ({
     ...a,
-    tags: tagsMap.get(a.id) || []
+    tags: tagsMap.get(a.id) || [],
+    related: related.get(a.id) || [],
+    readCount: reads.get(a.id) || 0
   }));
 }
 
@@ -65,7 +87,7 @@ export default async function (server: FastifyInstance) {
   server.get('/api/feed', async (request, reply) => {
     const query = request.query as { tag?: string; category?: string; limit?: string; offset?: string };
 
-    let result: StoredArticle[] = [];
+    let result: FeedArticle[] = [];
     let cacheStatus = 'MISS';
     try {
       const fingerprint = await feedFingerprint();
@@ -80,6 +102,7 @@ export default async function (server: FastifyInstance) {
       server.log.warn('DB offline, serving published feed from in-memory store');
       result = Array.from(inMemoryArticles.values())
         .filter((a) => a.status === 'published')
+        .map(({ embedding: _embedding, ...a }) => a)
         .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
     }
 

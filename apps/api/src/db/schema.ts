@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer, varchar, doublePrecision, unique } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, integer, varchar, doublePrecision, real, unique } from 'drizzle-orm/pg-core';
 
 export const articles = pgTable('articles', {
   id: serial('id').primaryKey(),
@@ -7,12 +7,18 @@ export const articles = pgTable('articles', {
   teaser: text('teaser'),
   keyTakeaways: text('key_takeaways'),
   imageUrl: text('image_url'),
+  // Prompt, mit dem das Titelbild erzeugt wurde
+  imagePrompt: text('image_prompt'),
   category: text('category').notNull(),
-  author: text('author').notNull().default('ORF.at Redaktion'),
+  author: text('author').notNull().default('Redaktion'),
   status: text('status').notNull().default('draft'),
   likeCount: integer('like_count').notNull().default(0),
   commentCount: integer('comment_count').notNull().default(0),
   shareCount: integer('share_count').notNull().default(0),
+  // Herkunft bei importierten Artikeln (RSS), verhindert doppelte Importe
+  sourceUrl: text('source_url').unique(),
+  // Text-Embedding (bge-m3) fuer inhaltliche Aehnlichkeit im "Fuer dich"-Feed
+  embedding: real('embedding').array(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date())
 });
