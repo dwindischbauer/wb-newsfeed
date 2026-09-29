@@ -537,7 +537,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import {
   parseKeyTakeaways,
   estimateReadingTime,
@@ -700,6 +700,14 @@ const fetchArticles = async () => {
     const res = await apiFetch(`${config.public.apiUrl}/api/articles`);
     if (res.ok) {
       articles.value = await res.json();
+      // Offene Vorschau auf den neuen Stand bringen (Bild, Teaser, Tags aus einem Job)
+      const open = selectedArticle.value;
+      const fresh = open ? articles.value.find((a) => a.id === open.id) : undefined;
+      if (open && fresh) {
+        const teaserChanged = fresh.teaser !== open.teaser;
+        selectedArticle.value = fresh;
+        if (teaserChanged) fetchVersions(fresh.id);
+      }
     }
   } catch (e) {
     console.error('Failed to fetch articles', e);
@@ -1162,12 +1170,32 @@ const openArticleFromQuery = () => {
 };
 watch(() => route.query.article, openArticleFromQuery);
 
+// Solange Jobs laufen, alle paar Sekunden nachladen, damit fertige Bilder und
+// Teaser sofort in Liste und Vorschau erscheinen. Ein letzter Abruf folgt,
+// wenn der letzte Job fertig ist.
+let jobPoll: ReturnType<typeof setInterval> | null = null;
+let hadOpenJobs = false;
+const pollJobs = async () => {
+  await fetchJobsStat();
+  const open = pendingJobsCount.value > 0;
+  if (open || hadOpenJobs) {
+    await fetchArticles();
+    fetchTags();
+  }
+  hadOpenJobs = open;
+};
+
 onMounted(async () => {
   await fetchArticles();
   openArticleFromQuery();
   fetchTags();
   fetchJobsStat();
   fetchStats();
+  jobPoll = setInterval(pollJobs, 4000);
+});
+
+onUnmounted(() => {
+  if (jobPoll) clearInterval(jobPoll);
 });
 </script>
 
