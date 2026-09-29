@@ -377,15 +377,19 @@ const startDwell = () => {
   dwellStart = Date.now();
 };
 
-const finishDwell = () => {
+// Nur wer wirklich weiterwischt, ueberspringt eine Karte. Wird die Seite
+// verlassen (App-Wechsel, Tab im Hintergrund) oder der Artikel geoeffnet,
+// zaehlt eine kurze Zeit nicht als Desinteresse.
+const finishDwell = (scrolledAway = false) => {
   const article = dwellArticle;
   dwellArticle = undefined;
   if (!article) return;
   const seconds = (Date.now() - dwellStart) / 1000;
-  // Laenger als 10 Minuten: Seite offen vergessen, sagt nichts aus
-  if (seconds > 600) return;
+  // Unter 0,3 s: nur vorbeigescrollt. Ueber 10 Minuten: Seite offen vergessen.
+  if (seconds < 0.3 || seconds > 600) return;
   track('dwell', article.id, { seconds: Math.round(seconds * 10) / 10, category: article.category });
-  const signal = dwellSignal(seconds);
+  let signal = dwellSignal(seconds);
+  if (signal === 'skip' && !scrolledAway) signal = null;
   if (signal) {
     recordSignal(article, signal);
   } else {
@@ -400,7 +404,7 @@ const onVisibilityChange = () => {
 };
 
 const onActiveIndex = (index: number) => {
-  finishDwell();
+  finishDwell(true);
   activeIndex.value = index;
   startDwell();
   ensureBuffer();
