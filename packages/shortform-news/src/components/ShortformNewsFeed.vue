@@ -42,7 +42,7 @@
       </div>
     </div>
 
-    <!-- Active tag filter — only for tags set from outside (e.g. the host's reader),
+    <!-- Active tag filter - only for tags set from outside (e.g. the host's reader),
          the subcategory chips above already show their own active state -->
     <div
       v-if="activeTagFilter && !activeSubtags.some((s) => s.name === activeTagFilter)"
@@ -153,13 +153,18 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import ShortformFeed from './ShortformFeed.vue';
+import { appendUniqueArticles, CATEGORY_SUBTAGS, type Article } from '../utils';
 import {
-  appendUniqueArticles,
-  extendPersonalizedOrder,
-  CATEGORY_SUBTAGS,
-  type Article,
-  type UserInterests
-} from '../utils';
+  applySignal,
+  compactProfile,
+  createProfile,
+  dwellSignal,
+  markSeen,
+  parseProfile,
+  rerankTail,
+  type InterestProfile,
+  type SignalType
+} from '../personalization';
 
 interface CommentItem {
   id: number;
@@ -176,6 +181,9 @@ const ALL = 'Alle';
 const MAX_PAGE_SIZE = 100;
 // Load the next page once this few cards are left below the visible one
 const PREFETCH_CARDS = 3;
+// "Für dich" sortiert aus mindestens so vielen geladenen Artikeln
+const FOR_YOU_POOL = 40;
+const PROFILE_KEY = 'wb_profile';
 
 const props = withDefaults(defineProps<{
   /** Base URL of the wb-newsfeed API, e.g. `https://api.example.at` */
@@ -189,7 +197,7 @@ const props = withDefaults(defineProps<{
   /** Articles per request; further pages load while scrolling (max. 100). */
   pageSize?: number;
 }>(), {
-  categories: () => [FOR_YOU, ALL, 'Politik', 'Wirtschaft', 'Sport', 'Technologie', 'Kultur'],
+  categories: () => [FOR_YOU, ALL, 'Politik', 'Wirtschaft', 'Chronik', 'Sport', 'Technologie', 'Kultur'],
   pollInterval: 60000,
   analytics: true,
   pageSize: 10
@@ -222,52 +230,56 @@ const selectCategory = (cat: string) => {
   activeTagFilter.value = '';
 };
 
-// --- Interest model (device-local, privacy-first) ---
-const userInterests = ref<Required<UserInterests>>({ categories: {}, tags: {} });
+// --- Profil fuer "Für dich" (bleibt auf dem Geraet, siehe personalization.ts) ---
+const profile = ref<InterestProfile>(createProfile());
 
-const loadUserInterests = () => {
+const loadProfile = () => {
   try {
-    const saved = localStorage.getItem('wb_user_interests');
-    if (saved) userInterests.value = JSON.parse(saved);
+    profile.value = parseProfile(localStorage.getItem(PROFILE_KEY), localStorage.getItem('wb_user_interests'));
   } catch {
-    // storage unavailable — start without interests
+    // storage unavailable - start with an empty profile
   }
 };
 
-const recordInterestInteraction = (article: Article | undefined, weight = 1) => {
-  if (!article) return;
-  const interests = userInterests.value;
-
-  if (article.category) {
-    interests.categories[article.category] = Math.max(0, (interests.categories[article.category] || 0) + weight * 2);
-  }
-  for (const tag of article.tags || []) {
-    const slug = (tag.slug || tag.name || '').toLowerCase();
-    if (!slug) continue;
-    interests.tags[slug] = Math.max(0, (interests.tags[slug] || 0) + weight * 3);
-  }
-
+const saveProfile = () => {
   try {
-    localStorage.setItem('wb_user_interests', JSON.stringify(interests));
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(compactProfile(profile.value)));
   } catch {
-    // storage unavailable — interest tracking is best-effort only
+    // storage unavailable - profile only lives for this session
   }
+};
+
+const recordSignal = (article: Article | undefined, signal: SignalType) => {
+  if (!article) return;
+  applySignal(profile.value, article, signal);
+  saveProfile();
+  scheduleRerank();
 };
 
 const isPublished = (a: Article) => !a.status || a.status === 'published';
 
-// The "Für dich" order is pinned, not recomputed on every like/read/impression
-// or poll — otherwise the feed reshuffles mid-browse. Articles that arrive with
-// a new page or a poll are ranked among themselves and appended, so interest
-// updates only affect what the user has not seen yet.
+// Reihenfolge fuer "Für dich". Was schon gesehen wurde, die aktuelle und die
+// naechste Karte bleiben stehen, alles dahinter wird nach jedem Signal neu
+// gereiht. So reagiert der Feed sofort, ohne unter dem Daumen zu springen.
 const personalizedOrder = ref<Article[]>([]);
-watch(
-  articles,
-  () => {
-    personalizedOrder.value = extendPersonalizedOrder(personalizedOrder.value, articles.value.filter(isPublished), userInterests.value);
-  },
-  { immediate: true }
-);
+
+const rerank = () => {
+  let fixed = 0;
+  if (activeCategory.value === FOR_YOU) {
+    const current = visibleArticles.value[activeIndex.value];
+    const position = current ? personalizedOrder.value.findIndex((a) => a.id === current.id) : -1;
+    fixed = position >= 0 ? position + 2 : 0;
+  }
+  personalizedOrder.value = rerankTail(personalizedOrder.value, articles.value.filter(isPublished), profile.value, fixed);
+};
+
+let rerankTimeout: ReturnType<typeof setTimeout> | null = null;
+const scheduleRerank = () => {
+  if (rerankTimeout) clearTimeout(rerankTimeout);
+  rerankTimeout = setTimeout(rerank, 250);
+};
+
+watch(articles, () => rerank());
 
 const hasTag = (a: Article, tagQuery: string) =>
   !!a.tags && a.tags.some((t) => (t.slug || t.name || '').toLowerCase() === tagQuery);
@@ -345,7 +357,10 @@ const ensureBuffer = async () => {
   if (isBuffering.value) return;
   isBuffering.value = true;
   try {
-    while (hasMore.value && !loadError.value && visibleArticles.value.length - activeIndex.value <= PREFETCH_CARDS) {
+    const needsMore = () =>
+      visibleArticles.value.length - activeIndex.value <= PREFETCH_CARDS ||
+      (activeCategory.value === FOR_YOU && articles.value.length < FOR_YOU_POOL);
+    while (hasMore.value && !loadError.value && needsMore()) {
       await loadMore();
     }
   } finally {
@@ -353,8 +368,41 @@ const ensureBuffer = async () => {
   }
 };
 
+// --- Verweildauer: wie lange eine Karte im Bild war ---
+let dwellArticle: Article | undefined;
+let dwellStart = 0;
+
+const startDwell = () => {
+  dwellArticle = visibleArticles.value[activeIndex.value];
+  dwellStart = Date.now();
+};
+
+const finishDwell = () => {
+  const article = dwellArticle;
+  dwellArticle = undefined;
+  if (!article) return;
+  const seconds = (Date.now() - dwellStart) / 1000;
+  // Laenger als 10 Minuten: Seite offen vergessen, sagt nichts aus
+  if (seconds > 600) return;
+  track('dwell', article.id, { seconds: Math.round(seconds * 10) / 10, category: article.category });
+  const signal = dwellSignal(seconds);
+  if (signal) {
+    recordSignal(article, signal);
+  } else {
+    markSeen(profile.value, article.id);
+    saveProfile();
+  }
+};
+
+const onVisibilityChange = () => {
+  if (document.visibilityState === 'hidden') finishDwell();
+  else startDwell();
+};
+
 const onActiveIndex = (index: number) => {
+  finishDwell();
   activeIndex.value = index;
+  startDwell();
   ensureBuffer();
 };
 
@@ -403,17 +451,33 @@ const track = (eventType: string, articleId: number | null = null, metadata: Rec
 
 const findArticle = (articleId: number) => articles.value.find((a) => a.id === articleId);
 
-// The module only signals the article ID — resolving and displaying the full
+// The module only signals the article ID - resolving and displaying the full
 // article is the host's job (briefing: navigation stays outside the module).
 const onArticleRead = (articleId: number) => {
   const article = findArticle(articleId);
-  recordInterestInteraction(article, 2);
+  // Die Zeit in der Artikelansicht meldet der Host ueber recordReadTime
+  finishDwell();
+  recordSignal(article, 'open');
   track('read', articleId, { category: article?.category });
   emit('article-read', articleId);
 };
 
+// Aufruf vom Host beim Schliessen seiner Artikelansicht
+const recordReadTime = (articleId: number, seconds: number) => {
+  const article = findArticle(articleId);
+  track('read_time', articleId, { seconds: Math.round(seconds), category: article?.category });
+  if (seconds >= 30) recordSignal(article, 'read');
+  startDwell();
+};
+
+// Alle gelernten Interessen loeschen
+const resetProfile = () => {
+  profile.value = createProfile();
+  saveProfile();
+  rerank();
+};
+
 const onArticleImpression = (article: Article) => {
-  recordInterestInteraction(article, 0.5);
   track('impression', article.id, { category: article.category });
   emit('article-impression', article);
 };
@@ -429,17 +493,20 @@ const onScrollDepth = (fraction: number) => {
 };
 
 const scrollFeedToTop = () => {
+  finishDwell();
   feedScrollPercent.value = 0;
   deepScrollTracked = false;
   activeIndex.value = 0;
+  if (activeCategory.value === FOR_YOU) rerank();
   nextTick(() => {
     const el = feedComponentRef.value?.$el as HTMLElement | undefined;
     if (el) el.scrollTop = 0;
+    startDwell();
     ensureBuffer();
   });
 };
 
-// Switching category/subtag swaps the list under the same scroll container —
+// Switching category/subtag swaps the list under the same scroll container -
 // without this the new list would inherit the old scroll offset.
 watch([activeCategory, activeTagFilter], scrollFeedToTop);
 
@@ -455,7 +522,7 @@ const loadLikedArticles = () => {
     const saved = localStorage.getItem('wb_liked_articles');
     if (saved) likedArticleIds.value = JSON.parse(saved);
   } catch {
-    // storage unavailable — start without likes
+    // storage unavailable - start without likes
   }
 };
 
@@ -463,7 +530,7 @@ const persistLikedArticles = () => {
   try {
     localStorage.setItem('wb_liked_articles', JSON.stringify(likedArticleIds.value));
   } catch {
-    // storage unavailable — likes stay in-memory only for this session
+    // storage unavailable - likes stay in-memory only for this session
   }
 };
 
@@ -482,7 +549,7 @@ const handleLike = (article: Article) => {
   likedArticleIds.value = [...likedArticleIds.value, article.id];
   persistLikedArticles();
   patchArticleCount(article.id, 'likeCount', 1);
-  recordInterestInteraction(article, 3);
+  recordSignal(article, 'like');
   postAction(article.id, 'like');
   emit('like', article);
 };
@@ -493,7 +560,7 @@ const handleUnlike = (article: Article) => {
   likedArticleIds.value = likedArticleIds.value.filter((id) => id !== article.id);
   persistLikedArticles();
   patchArticleCount(article.id, 'likeCount', -1);
-  recordInterestInteraction(article, -3);
+  recordSignal(article, 'unlike');
   postAction(article.id, 'unlike');
   emit('unlike', article);
 };
@@ -525,11 +592,12 @@ const handleShare = async (article: Article) => {
       showShareToast('Link kopiert');
     }
     patchArticleCount(article.id, 'shareCount', 1);
+    recordSignal(article, 'share');
     track('share', article.id, { category: article.category });
     postAction(article.id, 'share');
     emit('share', article);
   } catch {
-    // User cancelled the native share sheet — not an error
+    // User cancelled the native share sheet - not an error
   }
 };
 
@@ -549,7 +617,7 @@ const openComments = async (article: Article) => {
     const savedName = localStorage.getItem('wb_comment_name');
     if (savedName) commentName.value = savedName;
   } catch {
-    // storage unavailable — name field stays empty
+    // storage unavailable - name field stays empty
   }
   try {
     const res = await fetch(`${apiBase.value}/api/articles/${article.id}/comments`);
@@ -575,7 +643,7 @@ const submitComment = async () => {
   try {
     localStorage.setItem('wb_comment_name', authorName);
   } catch {
-    // storage unavailable — name is not remembered
+    // storage unavailable - name is not remembered
   }
 
   try {
@@ -588,6 +656,7 @@ const submitComment = async () => {
     if (data.success) {
       comments.value.unshift(data.comment);
       patchArticleCount(article.id, 'commentCount', 1);
+      recordSignal(article, 'comment');
       commentText.value = '';
       emit('comment', article, data.comment);
     }
@@ -615,14 +684,16 @@ const onKeydown = (e: KeyboardEvent) => {
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
-  loadUserInterests();
+  loadProfile();
   loadLikedArticles();
   window.addEventListener('keydown', onKeydown);
+  document.addEventListener('visibilitychange', onVisibilityChange);
   if (props.pollInterval > 0) pollIntervalId = setInterval(pollForUpdates, props.pollInterval);
 
   await loadArticles();
   await ensureBuffer();
-  // A shared article may sit on a later page — keep loading until it's there
+  startDwell();
+  // A shared article may sit on a later page - keep loading until it's there
   const sharedId = Number.parseInt(new URLSearchParams(window.location.search).get('article') ?? '', 10);
   if (!Number.isNaN(sharedId)) {
     while (!findArticle(sharedId) && hasMore.value && !loadError.value) await loadMore();
@@ -631,8 +702,11 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  finishDwell();
   window.removeEventListener('keydown', onKeydown);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   if (pollIntervalId) clearInterval(pollIntervalId);
+  if (rerankTimeout) clearTimeout(rerankTimeout);
   if (shareToastTimeout) clearTimeout(shareToastTimeout);
 });
 
@@ -641,10 +715,16 @@ defineExpose({
   findArticle,
   /** Filter the feed by tag, e.g. from tag buttons in the host's reader. */
   filterByTag,
-  /** Send a custom analytics event through the same channel, e.g. `tts_play`. */
+  /** Send an analytics event through the same channel (impression, read, scroll_depth, share). */
   track,
   /** Reload all loaded articles immediately. */
-  refresh: pollForUpdates
+  refresh: pollForUpdates,
+  /** Report how long the host's article view was open (seconds), feeds "Für dich". */
+  recordReadTime,
+  /** Current interest profile (read-only use, e.g. for debugging). */
+  getProfile: () => profile.value,
+  /** Forget everything "Für dich" has learned on this device. */
+  resetProfile
 });
 </script>
 

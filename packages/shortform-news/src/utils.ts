@@ -11,6 +11,15 @@ export const stripHtml = (html: string): string => {
 
 export const parseKeyTakeaways = (raw: string | null | undefined): string[] => {
   if (!raw) return [];
+  // Aeltere Eintraege koennen ein JSON-Array als Text enthalten
+  if (raw.trim().startsWith('[')) {
+    try {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) return list.map((p) => String(p).trim()).filter((p) => p.length > 0);
+    } catch {
+      // kein gueltiges JSON, normal weiter
+    }
+  }
   return raw
     .split(/(?:\n|[,;]?\s*(?:•|-|\*|\d+\.)\s+)/)
     .map(p => p.trim())
@@ -22,6 +31,14 @@ export const estimateReadingTime = (text: string | null | undefined, wordsPerMin
   const words = text.trim().split(/\s+/).length;
   const minutes = Math.ceil(words / wordsPerMinute);
   return `${minutes} Min Lesezeit`;
+};
+
+// Relative Pfade wie /images/x.jpg liegen auf der API, absolute URLs bleiben unveraendert
+export const resolveImageUrl = (imageUrl: string | null | undefined, apiUrl = ''): string | null => {
+  if (!imageUrl) return null;
+  if (/^(https?:)?\/\//.test(imageUrl) || imageUrl.startsWith('data:')) return imageUrl;
+  const base = apiUrl.replace(/\/$/, '');
+  return `${base}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
 };
 
 export const formatEngagementCount = (n: number | undefined | null): string => {
@@ -54,78 +71,11 @@ export interface Article {
   createdAt?: string | Date | null;
   keyTakeaways?: string | null;
   status?: string;
+  /** Inhaltlich aehnliche Artikel (Embeddings, berechnet von der API) */
+  related?: Array<{ id: number; score: number }>;
+  /** Wie oft der Artikel geoeffnet wurde */
+  readCount?: number | null;
 }
-
-export interface UserInterests {
-  categories?: Record<string, number>;
-  tags?: Record<string, number>;
-}
-
-export interface ScorableArticle {
-  id: number;
-  category?: string;
-  tags?: Array<{ name: string; slug?: string }>;
-  createdAt?: string | Date | null;
-  [key: string]: unknown;
-}
-
-export const calculatePersonalizedScore = (
-  article: ScorableArticle,
-  interests: UserInterests = {},
-  now: number = Date.now()
-): number => {
-  let score = 0;
-
-  if (article.category && interests.categories) {
-    const catReads = interests.categories[article.category] || 0;
-    score += catReads * 3;
-  }
-
-  if (Array.isArray(article.tags) && interests.tags) {
-    for (const tag of article.tags) {
-      const tagName = (tag.slug || tag.name || '').toLowerCase();
-      const tagReads = interests.tags[tagName] || 0;
-      score += tagReads * 5;
-    }
-  }
-
-  if (article.createdAt) {
-    const createdTime = new Date(article.createdAt).getTime();
-    if (!isNaN(createdTime)) {
-      const hoursOld = Math.max(0, (now - createdTime) / (1000 * 60 * 60));
-      if (hoursOld < 24) {
-        score += Math.max(0, 2 - (hoursOld / 12));
-      }
-    }
-  }
-
-  return score;
-};
-
-export const rankPersonalizedArticles = <T extends ScorableArticle>(
-  articles: T[],
-  interests: UserInterests = {}
-): T[] => {
-  if (!articles || articles.length === 0) return [];
-  const hasInterests = (interests.categories && Object.keys(interests.categories).length > 0) ||
-                       (interests.tags && Object.keys(interests.tags).length > 0);
-
-  if (!hasInterests) {
-    return [...articles];
-  }
-
-  const now = Date.now();
-  return [...articles].sort((a, b) => {
-    const scoreA = calculatePersonalizedScore(a, interests, now);
-    const scoreB = calculatePersonalizedScore(b, interests, now);
-    if (scoreB !== scoreA) {
-      return scoreB - scoreA;
-    }
-    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return timeB - timeA;
-  });
-};
 
 /**
  * Appends a newly loaded page, skipping IDs already in the list: offsets
@@ -134,26 +84,6 @@ export const rankPersonalizedArticles = <T extends ScorableArticle>(
 export const appendUniqueArticles = <T extends { id: number }>(current: T[], page: T[]): T[] => {
   const seen = new Set(current.map((a) => a.id));
   return [...current, ...page.filter((a) => !seen.has(a.id))];
-};
-
-/**
- * Keeps the already pinned "Für dich" order for articles that are still there
- * (taking their fresh objects) and appends the rest, ranked among themselves.
- * Loading more pages or polling therefore never reshuffles what the user has
- * already scrolled past.
- */
-export const extendPersonalizedOrder = <T extends ScorableArticle>(
-  pinned: T[],
-  articles: T[],
-  interests: UserInterests = {}
-): T[] => {
-  const byId = new Map(articles.map((a) => [a.id, a]));
-  const kept = pinned.flatMap((a) => {
-    const fresh = byId.get(a.id);
-    return fresh ? [fresh] : [];
-  });
-  const keptIds = new Set(kept.map((a) => a.id));
-  return [...kept, ...rankPersonalizedArticles(articles.filter((a) => !keptIds.has(a.id)), interests)];
 };
 
 export interface SubtagDefinition {
@@ -196,6 +126,12 @@ export const CATEGORY_SUBTAGS: Record<string, SubtagDefinition[]> = {
     { name: 'Musik', slug: 'musik', color: '#c026d3', keywords: ['musik', 'konzert', 'album', 'sänger', 'orchester', 'oper', 'band', 'tournee', 'song', 'philharmoniker'] },
     { name: 'Theater & Bühne', slug: 'theater-buehne', color: '#9333ea', keywords: ['theater', 'bühne', 'burgtheater', 'festspiele', 'darsteller', 'premiere', 'aufführung', 'inszenierung', 'schauspielhaus'] },
     { name: 'Literatur & Kunst', slug: 'literatur-kunst', color: '#7c3aed', keywords: ['buch', 'roman', 'autor', 'schriftsteller', 'kunst', 'ausstellung', 'museum', 'galerie', 'gemälde', 'skulptur'] }
+  ],
+  Chronik: [
+    { name: 'Kriminalität', slug: 'kriminalitaet', color: '#475569', keywords: ['polizei', 'festnahme', 'mord', 'messer', 'diebstahl', 'betrug', 'prozess', 'verdächtig', 'ermittlungen', 'anschlag'] },
+    { name: 'Unfälle & Unglücke', slug: 'unfaelle', color: '#64748b', keywords: ['unfall', 'absturz', 'brand', 'feuerwehr', 'verletzt', 'tote', 'explosion', 'einsturz', 'rettung'] },
+    { name: 'Wetter & Umwelt', slug: 'wetter-umwelt', color: '#0f766e', keywords: ['unwetter', 'hochwasser', 'hagel', 'sturm', 'hitze', 'klima', 'lawine', 'erdbeben', 'waldbrand'] },
+    { name: 'Gesundheit', slug: 'gesundheit', color: '#0891b2', keywords: ['spital', 'krankenhaus', 'arzt', 'patient', 'virus', 'impfung', 'pflege', 'gesundheit', 'medizin'] }
   ]
 };
 
