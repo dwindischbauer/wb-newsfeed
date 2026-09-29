@@ -2,26 +2,29 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { settings } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { getSettings } from '../utils/settings';
+
+const VALID_KEYS = [
+  'ollamaUrl', 'aiModel', 'embeddingModel', 'timeout', 'temperature', 'seed',
+  'imageProvider', 'imageServerUrl', 'imageModel', 'imageTimeout', 'imagePromptModel', 'imagePromptThinking',
+  'geminiModel', 'geminiImageSize'
+];
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+  if (!res.ok) throw new Error(`${url} antwortet mit ${res.status}`);
+  return res.json() as Promise<T>;
+}
 
 export default async function (server: FastifyInstance) {
-  server.get('/api/settings', async (request, reply) => {
-    const allSettings = await db.select().from(settings);
-    const result: Record<string, string> = {};
-    for (const row of allSettings) {
-      result[row.key] = row.value;
-    }
-    return result;
-  });
+  server.get('/api/settings', async () => getSettings());
 
-  server.post('/api/settings', async (request, reply) => {
+  server.post('/api/settings', async (request) => {
     const body = request.body as Record<string, string>;
-    
-    const validKeys = ['ollamaUrl', 'aiModel', 'timeout', 'imageModel', 'localAiUrl', 'imageTimeout', 'temperature', 'seed'];
-    
-    // Upsert each setting
+
     for (const [key, value] of Object.entries(body)) {
-      if (!validKeys.includes(key)) continue;
-      
+      if (!VALID_KEYS.includes(key)) continue;
+
       const existing = await db.select().from(settings).where(eq(settings.key, key));
       if (existing.length > 0) {
         await db.update(settings).set({ value }).where(eq(settings.key, key));
@@ -29,75 +32,39 @@ export default async function (server: FastifyInstance) {
         await db.insert(settings).values({ key, value });
       }
     }
-    
+
     return { success: true };
   });
 
-  server.get('/api/settings/models', async (request, reply) => {
-    let ollamaUrl = 'http://localhost:11434';
-    let localAiUrl = 'http://localhost:8080';
-    try {
-      const allSettings = await db.select().from(settings);
-      const configMap: Record<string, string> = {};
-      for (const row of allSettings) {
-        configMap[row.key] = row.value;
-      }
-      if (configMap.ollamaUrl) ollamaUrl = configMap.ollamaUrl;
-      if (configMap.localAiUrl) localAiUrl = configMap.localAiUrl;
-    } catch {
-      // DB offline or starting, use defaults
-    }
+  // Fragt Ollama und den Bildserver nach den installierten Modellen.
+  // Ist ein Dienst aus, kommt statt einer erfundenen Liste eine Fehlermeldung.
+  server.get('/api/settings/models', async () => {
+    const config = await getSettings();
+    const ollamaUrl = config.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
+    const imageServerUrl = config.imageServerUrl || process.env.IMAGE_SERVER_URL || 'http://localhost:8080';
 
-    const defaultTextModels = [
-      'llama3.1:8b-instruct-q4_0',
-      'qwen2.5:3b-instruct',
-      'llama3:8b',
-      'mistral:7b',
-      'phi3:mini'
-    ];
-
-    const defaultImageModels = [
-      'stablediffusion',
-      'stable-diffusion-3-medium',
-      'flux.1-schnell',
-      'x/z-image-turbo'
-    ];
-
-    let textModels = [...defaultTextModels];
-    let imageModels = [...defaultImageModels];
+    const result = {
+      textModels: [] as string[],
+      imageModels: [] as string[],
+      imageModelLabels: {} as Record<string, string>,
+      errors: {} as Record<string, string>
+    };
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch(`${ollamaUrl}/api/tags`, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json() as { models?: Array<{ name: string }> };
-        if (data.models && Array.isArray(data.models) && data.models.length > 0) {
-          const names = data.models.map(m => m.name);
-          textModels = Array.from(new Set([...names, ...defaultTextModels]));
-        }
-      }
-    } catch {
-      // Ollama not reachable, fall back to defaults
+      const data = await fetchJson<{ models?: Array<{ name: string }> }>(`${ollamaUrl}/api/tags`);
+      result.textModels = (data.models || []).map(m => m.name);
+    } catch (err) {
+      result.errors.ollama = `Ollama nicht erreichbar: ${err instanceof Error ? err.message : String(err)}`;
     }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch(`${localAiUrl}/models`, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json() as { data?: Array<{ id: string }> };
-        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-          const ids = data.data.map(m => m.id);
-          imageModels = Array.from(new Set([...ids, ...defaultImageModels]));
-        }
-      }
-    } catch {
-      // LocalAI not reachable, fall back to defaults
+      const data = await fetchJson<{ data?: Array<{ id: string; label?: string }> }>(`${imageServerUrl}/v1/models`);
+      result.imageModels = (data.data || []).map(m => m.id);
+      result.imageModelLabels = Object.fromEntries((data.data || []).map(m => [m.id, m.label || m.id]));
+    } catch (err) {
+      result.errors.imageServer = `Bildserver nicht erreichbar: ${err instanceof Error ? err.message : String(err)}`;
     }
 
-    return { textModels, imageModels };
+    return { ...result, geminiKeySet: Boolean(process.env.GEMINI_API_KEY) };
   });
 }

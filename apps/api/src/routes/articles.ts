@@ -7,7 +7,7 @@ import { stripHtml } from '../utils/format';
 import { enqueueGeneration } from '../queue';
 import { listGenerationVersions, recordGenerationVersion } from '../services/versions';
 import { autoExtractArticleMetadata } from '../utils/metadata';
-import { generateArticleImage } from '../services/imageGenerator';
+import { generateArticleImage, ImageServerError } from '../services/imageGenerator';
 
 type ArticleRecord = InferSelectModel<typeof articles>;
 
@@ -18,7 +18,10 @@ export interface ArticleTagRef {
   color?: string | null;
 }
 
-export interface StoredArticle extends ArticleRecord {
+export interface StoredArticle extends Omit<ArticleRecord, 'sourceUrl' | 'embedding' | 'imagePrompt'> {
+  imagePrompt?: string | null;
+  sourceUrl?: string | null;
+  embedding?: number[] | null;
   tags: ArticleTagRef[];
 }
 
@@ -92,7 +95,7 @@ async function syncArticleTags(articleId: number, tagList: Array<number | string
       try {
         await db.insert(articleTags).values({ articleId, tagId }).onConflictDoNothing();
       } catch {
-        // duplicate article-tag pair — already linked, ignore
+        // duplicate article-tag pair - already linked, ignore
       }
     }
   }
@@ -183,8 +186,10 @@ export default async function (server: FastifyInstance) {
       const articleIds = allArticles.map((a) => a.id);
       const tagsMap = await getTagsForArticles(articleIds);
 
+      // Embeddings (1024 Zahlen je Artikel) braucht kein Client
       result = allArticles.map((a) => ({
         ...a,
+        embedding: null,
         content: stripHtml(a.content),
         tags: tagsMap.get(a.id) || []
       }));
@@ -223,6 +228,7 @@ export default async function (server: FastifyInstance) {
         const tagsMap = await getTagsForArticles([parsedId]);
         const res: StoredArticle = {
           ...articleRes[0],
+          embedding: null,
           tags: tagsMap.get(parsedId) || []
         };
         inMemoryArticles.set(parsedId, res);
@@ -489,32 +495,33 @@ export default async function (server: FastifyInstance) {
       return reply.status(404).send({ error: 'Article not found' });
     }
 
-    const reqBody = (request.body as { mode?: string }) || {};
-    const reqQuery = (request.query as { mode?: string }) || {};
-    const mode: 'editorial' | 'ai' = (reqBody.mode || reqQuery.mode) === 'ai' ? 'ai' : 'editorial';
-
-    const tagNames = (article.tags || []).map(tagInputName);
-    const imageUrl = await generateArticleImage(
-      article.title,
-      article.category,
-      parsedId,
-      article.teaser ?? undefined,
-      tagNames,
-      mode
-    );
-
-    if (!imageUrl) {
-      return reply.status(500).send({ success: false, error: 'Failed to generate image' });
+    let imageUrl: string;
+    let imagePrompt: string;
+    try {
+      const image = await generateArticleImage({
+        id: parsedId,
+        title: article.title,
+        category: article.category,
+        teaser: article.teaser,
+        content: article.content,
+        tags: (article.tags || []).map(tagInputName)
+      });
+      imageUrl = image.imageUrl;
+      imagePrompt = image.prompt;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(err instanceof ImageServerError ? 503 : 500).send({ success: false, error: message });
     }
+    await deletePhysicalImage(article.imageUrl);
 
     try {
-      await db.update(articles).set({ imageUrl }).where(eq(articles.id, parsedId));
+      await db.update(articles).set({ imageUrl, imagePrompt }).where(eq(articles.id, parsedId));
     } catch {
-      // best-effort — in-memory store below still gets the new image
+      // best-effort - in-memory store below still gets the new image
     }
 
     const mem = inMemoryArticles.get(parsedId) || article;
-    const updatedMem: StoredArticle = { ...mem, imageUrl, updatedAt: new Date() };
+    const updatedMem: StoredArticle = { ...mem, imageUrl, imagePrompt, updatedAt: new Date() };
     inMemoryArticles.set(parsedId, updatedMem);
 
     return { success: true, imageUrl, article: updatedMem };
@@ -582,7 +589,8 @@ export default async function (server: FastifyInstance) {
           source: 'manual'
         });
       } else if (body.generate !== false) {
-        const { jobId } = await enqueueGeneration(inserted.id, 'teaser_generation', {
+        // Ohne mitgeschicktes Bild wird auch gleich ein Titelbild erzeugt
+        const { jobId } = await enqueueGeneration(inserted.id, body.imageUrl ? 'teaser_generation' : 'full_generation', {
           autoTitle: !(body.title && body.title.trim() && body.title !== '[Auto-Titel ausstehend]'),
           autoCategory: !(body.category && body.category !== 'Auto' && body.category !== 'Allgemein'),
           trigger: 'created'
@@ -644,7 +652,7 @@ export default async function (server: FastifyInstance) {
       return { success: false, error: 'Insert fehlgeschlagen' };
     }
     // Title/category are placeholders here, so the model may replace them
-    const { jobId, queued } = await enqueueGeneration(inserted.id, 'teaser_generation', {
+    const { jobId, queued } = await enqueueGeneration(inserted.id, 'full_generation', {
       autoTitle: true,
       autoCategory: true,
       trigger: 'created'
@@ -657,11 +665,11 @@ export default async function (server: FastifyInstance) {
 
   // Synchronous article creation: takes raw content, runs it straight through
   // AI summarization (title/category/tags/teaser/keyTakeaways) and, optionally,
-  // cover image generation, then returns everything in one response — no job
+  // cover image generation, then returns everything in one response - no job
   // polling required. Same inputs/behaviour as creating an article in the
   // admin dashboard, just synchronous and API-first.
   server.post('/api/articles/generate', async (request, reply) => {
-    const body = (request.body as ArticleBody & { generateImage?: boolean | string; imageMode?: string }) || {};
+    const body = (request.body as ArticleBody & { generateImage?: boolean | string }) || {};
     const content = body.content;
 
     if (!content || typeof content !== 'string' || content.trim().length < 10) {
@@ -670,7 +678,6 @@ export default async function (server: FastifyInstance) {
     }
 
     const generateImage = body.generateImage === true || body.generateImage === 'true';
-    const imageMode: 'editorial' | 'ai' = body.imageMode === 'ai' ? 'ai' : 'editorial';
     const cleanContent = stripHtml(content);
     const requestedTitle = (body.title && body.title.trim()) || '[Auto-Titel ausstehend]';
     const requestedCategory = (body.category && body.category.trim()) || 'Auto';
@@ -716,18 +723,21 @@ export default async function (server: FastifyInstance) {
     }
 
     let imagePath: string | null = null;
+    let imageError: string | undefined;
     if (generateImage) {
-      const tagNames = finalTags.map(tagInputName);
-      imagePath = await generateArticleImage(
-        createdArticle.title,
-        createdArticle.category,
-        createdArticle.id,
-        createdArticle.teaser ?? undefined,
-        tagNames,
-        imageMode
-      );
-      if (imagePath) {
-        await db.update(articles).set({ imageUrl: imagePath }).where(eq(articles.id, createdArticle.id));
+      try {
+        const image = await generateArticleImage({
+          id: createdArticle.id,
+          title: createdArticle.title,
+          category: createdArticle.category,
+          teaser: createdArticle.teaser,
+          content: cleanContent,
+          tags: finalTags.map(tagInputName)
+        });
+        imagePath = image.imageUrl;
+        await db.update(articles).set({ imageUrl: imagePath, imagePrompt: image.prompt }).where(eq(articles.id, createdArticle.id));
+      } catch (err) {
+        imageError = err instanceof Error ? err.message : String(err);
       }
     }
 
@@ -743,6 +753,7 @@ export default async function (server: FastifyInstance) {
         tags: finalArticleTags
       },
       imagePath,
+      imageError,
       summary: {
         teaser: summary.teaser,
         keyTakeaways: summary.keyTakeaways,
