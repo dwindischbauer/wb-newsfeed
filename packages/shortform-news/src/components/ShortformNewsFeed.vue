@@ -251,6 +251,7 @@ const saveProfile = () => {
 
 const recordSignal = (article: Article | undefined, signal: SignalType) => {
   if (!article) return;
+  markReached(article);
   applySignal(profile.value, article, signal);
   saveProfile();
   scheduleRerank();
@@ -263,13 +264,18 @@ const isPublished = (a: Article) => !a.status || a.status === 'published';
 // gereiht. So reagiert der Feed sofort, ohne unter dem Daumen zu springen.
 const personalizedOrder = ref<Article[]>([]);
 
+// Hoechste Position in "Für dich", die schon zu sehen war oder angefasst wurde.
+// Alles bis dahin (plus die naechste Karte) bleibt beim Neusortieren stehen.
+let reachedPosition = -1;
+const markReached = (article: Article | undefined) => {
+  if (!article || activeCategory.value !== FOR_YOU) return;
+  const position = personalizedOrder.value.findIndex((a) => a.id === article.id);
+  if (position > reachedPosition) reachedPosition = position;
+};
+
 const rerank = () => {
-  let fixed = 0;
-  if (activeCategory.value === FOR_YOU) {
-    const current = visibleArticles.value[activeIndex.value];
-    const position = current ? personalizedOrder.value.findIndex((a) => a.id === current.id) : -1;
-    fixed = position >= 0 ? position + 2 : 0;
-  }
+  markReached(visibleArticles.value[activeIndex.value]);
+  const fixed = activeCategory.value === FOR_YOU ? reachedPosition + 2 : 0;
   personalizedOrder.value = rerankTail(personalizedOrder.value, articles.value.filter(isPublished), profile.value, fixed);
 };
 
@@ -406,6 +412,7 @@ const onVisibilityChange = () => {
 const onActiveIndex = (index: number) => {
   finishDwell(true);
   activeIndex.value = index;
+  markReached(visibleArticles.value[index]);
   startDwell();
   ensureBuffer();
 };
@@ -501,6 +508,8 @@ const scrollFeedToTop = () => {
   feedScrollPercent.value = 0;
   deepScrollTracked = false;
   activeIndex.value = 0;
+  // Zurueck in "Für dich": alles neu sortieren, Gesehenes rutscht nach hinten
+  reachedPosition = -1;
   if (activeCategory.value === FOR_YOU) rerank();
   nextTick(() => {
     const el = feedComponentRef.value?.$el as HTMLElement | undefined;
