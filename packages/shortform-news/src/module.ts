@@ -1,15 +1,15 @@
 import { defineNuxtModule, addComponent, createResolver } from '@nuxt/kit';
 import type { NuxtModule } from '@nuxt/schema';
 
-// Empty for now — reserved for future module options (e.g. component prefix).
+// Empty for now - reserved for future module options (e.g. component prefix).
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ModuleOptions {}
 
 /**
- * Nuxt module entry point — lets an external Nuxt project add
+ * Nuxt module entry point - lets an external Nuxt project add
  * `modules: ['@wb-news/shortform-news/nuxt']` to auto-register <ShortformNewsFeed>,
  * <ShortformFeed> and <ShortformCard> as global components, without any manual import.
- * The monorepo's own admin/feed apps don't use this — they import the
+ * The monorepo's own admin/feed apps don't use this - they import the
  * components/utils directly from the package's main entry instead.
  */
 const shortformNewsModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({

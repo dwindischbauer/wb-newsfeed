@@ -16,14 +16,11 @@
           class="cursor-pointer rounded-full border-none bg-[var(--sf-primary-color,#4ade80)] p-4 text-base font-bold text-[var(--sf-primary-text,#000)] shadow-[0_6px_18px_rgba(20,20,20,0.3)] transition-opacity duration-200 hover:opacity-90"
           @click="triggerRead"
         >
-          Vollständigen Artikel lesen
+          Weiterlesen
         </button>
-        <div class="pointer-events-none absolute bottom-20 left-1/2 -translate-x-1/2 sf-pulse text-[0.8rem] text-white/75 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
-          &darr; Weiterscrollen
-        </div>
       </slot>
 
-      <!-- TikTok-style action rail -->
+      <!-- Like, Kommentare, Teilen -->
       <div class="absolute bottom-[6.75rem] right-4 flex flex-col items-center gap-[1.35rem]">
         <button
           type="button"
@@ -62,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { estimateReadingTime, formatEngagementCount, type Article } from '../utils';
+import { estimateReadingTime, formatEngagementCount, resolveImageUrl, type Article } from '../utils';
 
 const props = defineProps<{
   article: Article;
@@ -107,18 +104,11 @@ const handleLikeClick = () => {
 };
 
 const mediaStyle = computed(() => {
-  if (props.article.imageUrl) {
-    if (/^(https?:)?\/\//.test(props.article.imageUrl)) {
-      return { backgroundImage: `url(${props.article.imageUrl})` };
-    }
-    const baseUrl = props.apiUrl ? props.apiUrl.replace(/\/$/, '') : '';
-    const imageUrl = props.article.imageUrl.startsWith('/') ? props.article.imageUrl : `/${props.article.imageUrl}`;
-    return { backgroundImage: `url(${baseUrl}${imageUrl})` };
-  }
-  return {};
+  const url = resolveImageUrl(props.article.imageUrl, props.apiUrl);
+  return url ? { backgroundImage: `url(${url})` } : {};
 });
 
-// Only the article ID is signaled to the host — the host owns navigation and
+// Only the article ID is signaled to the host - the host owns navigation and
 // full-article rendering, per the module's contract (module never navigates
 // itself, only tells the embedding system which article was opened).
 const triggerRead = () => {
@@ -169,18 +159,5 @@ onUnmounted(() => {
 
 .sf-like-pop {
   animation: sf-like-pop 0.35s ease-out;
-}
-
-@keyframes sf-pulse {
-  0%, 100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
-.sf-pulse {
-  animation: sf-pulse 2s infinite;
 }
 </style>

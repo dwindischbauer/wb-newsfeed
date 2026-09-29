@@ -78,7 +78,7 @@ const emit = defineEmits<{
 const feedRef = ref<HTMLElement | null>(null);
 const activeIndex = ref(0);
 
-// Cards remount when they scroll back into the render window — without this
+// Cards remount when they scroll back into the render window - without this
 // every remount would count as a new impression.
 const seenIds = new Set<number>();
 const onImpression = (article: Article) => {
@@ -88,7 +88,7 @@ const onImpression = (article: Article) => {
 };
 
 // Every card is exactly one container height, so the visible index follows
-// from scrollTop alone — no per-card observers needed.
+// from scrollTop alone - no per-card observers needed.
 const handleScroll = () => {
   const el = feedRef.value;
   if (!el) return;
