@@ -2,9 +2,9 @@
 
 Diese Doku beschreibt die Bausteine und die wichtigsten Abläufe im System.
 Die einzelnen Endpunkte mit Parametern und Antworten stehen in
-[`apps/api/openapi.yaml`](../apps/api/openapi.yaml) (OpenAPI 3.1). Die Datei lässt sich
-z. B. im [Swagger Editor](https://editor.swagger.io) oder mit der OpenAPI-Erweiterung
-von VS Code ansehen.
+[`apps/api/openapi.yaml`](../apps/api/openapi.yaml) (OpenAPI 3.1). Bei laufender API ist
+die Spezifikation unter http://localhost:3005/docs als Swagger UI erreichbar und dort
+direkt ausprobierbar.
 
 ## Bausteine
 
@@ -21,7 +21,7 @@ graph LR
     DB[(PostgreSQL · 5433)]
     R[(Redis · 6379)]
     O[Ollama · 11434<br/>Textmodell]
-    L[LocalAI · 8080<br/>Bildmodell]
+    L[Bildserver · 8080<br/>Z-Image-Turbo / FLUX.1-schnell]
 
     A -- "REST über Nuxt-Server-Proxy<br/>(setzt x-api-key)" --> API
     F -- "GET /api/feed, Engagement, Events" --> API
@@ -37,17 +37,24 @@ graph LR
 
 | Baustein | Aufgabe | Code |
 |---|---|---|
-| Admin-CMS | Artikel anlegen/bearbeiten, Versionen, Jobs, KI-Einstellungen | `apps/admin` |
+| Admin-CMS | Artikel anlegen/bearbeiten, Bilder, Versionen, Jobs, Modell-Einstellungen | `apps/admin` |
 | Feed-App | Mobiler Short-Form-Feed, nutzt das Package | `apps/feed` |
 | Package | `ShortformFeed`/`ShortformCard`, Events, Styling per CSS-Variablen | `packages/shortform-news` |
 | API | REST, Auth, Caching, Einreihen der Generierung | `apps/api/src/routes` |
-| Worker | KI-Generierung, Versionierung, Auto-Tagging, Bilder | `apps/api/src/queue/index.ts` |
+| Worker | Text- und Bildgenerierung, Versionierung, Auto-Tagging | `apps/api/src/queue/index.ts` |
 | Summarizer | Prompt an Ollama, Fallback-Heuristik | `apps/api/src/services/summarizer.ts` |
+| Bildgenerator | Szenenbeschreibung über Ollama, Aufruf des Bildservers | `apps/api/src/services/imageGenerator.ts` |
+| Bildserver | Z-Image-Turbo oder FLUX.1-schnell (Python, diffusers), OpenAI-kompatibler Endpunkt | `services/image` |
+| Embeddings | bge-m3 über Ollama, ähnliche Artikel für „Für dich“ | `apps/api/src/services/embeddings.ts` |
+| Import | RSS/Atom einlesen, Volltext holen, Jobs einreihen | `apps/api/src/services/importer.ts` |
+| Personalisierung | Profil, Signale, Sortierung (im Browser) | `packages/shortform-news/src/personalization.ts` |
 | Versionen | Versionen schreiben/lesen | `apps/api/src/services/versions.ts` |
 
 ## Ablauf: Artikel anlegen und generieren
 
-Die Generierung läuft asynchron. Die API antwortet sofort, der Worker erledigt die KI-Arbeit im Hintergrund.
+Die Generierung läuft asynchron. Die API antwortet sofort, der Worker erledigt die Arbeit im Hintergrund.
+Neue Artikel ohne Bild bekommen einen `full_generation`-Job (Text und Titelbild), bei geändertem Text
+wird nur der Teaser neu erzeugt (`teaser_generation`).
 Egal ob der Artikel über das Admin, `POST /api/articles` oder `POST /api/articles/quick` kommt:
 die API reiht den Job selbst ein (`enqueueGeneration`), kein Client muss `/api/jobs` extra aufrufen.
 
@@ -59,11 +66,12 @@ sequenceDiagram
     participant Q as Redis/BullMQ
     participant W as Worker
     participant O as Ollama
+    participant B as Bildserver
 
     C->>API: POST /api/articles {title, content}
     API->>DB: INSERT articles (vorläufige Heuristik-Werte)
     API->>DB: INSERT jobs (pending)
-    API->>Q: add teaser_generation
+    API->>Q: add full_generation
     API-->>C: 200 {id, generationJobId}
     Q->>W: Job
     W->>DB: jobs.status = processing
@@ -71,17 +79,23 @@ sequenceDiagram
     O-->>W: JSON {teaser, keyTakeaways, tags, ...}
     W->>DB: UPDATE articles (Teaser, Kernpunkte)
     W->>DB: INSERT generation_versions (Quelle ai, Modell, Parameter)
+    W->>O: Szenenbeschreibung fürs Bild (keep_alive 0)
+    W->>B: POST /v1/images/generations
+    B-->>W: JPEG (Base64)
+    W->>DB: UPDATE articles.image_url
     W->>DB: jobs.status = completed
     C->>API: GET /api/jobs/{id} bzw. /api/articles/{id}/versions
 ```
 
 **Regeln im Worker**
 
-- Einen von der Redaktion gesetzten Titel und eine gesetzte Kategorie überschreibt die KI nicht.
+- Einen von der Redaktion gesetzten Titel und eine gesetzte Kategorie überschreibt das Modell nicht.
   Nur Platzhalter (`[Auto-Titel ausstehend]`, `Auto`/`Allgemein`) werden ersetzt.
-- Tags vergibt die KI nur an Artikel, die noch keine haben.
+- Tags vergibt das Modell nur an Artikel, die noch keine haben.
 - Ist Ollama nicht erreichbar, liefert die Heuristik (`utils/metadata.ts`) ein Ergebnis. Der Job
-  bekommt dann den Zusatz „Fallback ohne KI“, die Version die Quelle `fallback`.
+  bekommt dann den Zusatz „Fallback“, die Version die Quelle `fallback`.
+- Scheitert nur das Bild (Bildserver aus), bleibt der Job trotzdem erfolgreich und vermerkt
+  „Bild fehlgeschlagen“. Ein reiner `image_generation`-Job schlägt dagegen fehl und wird von BullMQ wiederholt.
 
 ## Ablauf: Inhalt geändert
 
@@ -121,13 +135,67 @@ Modell, `temperature`, `seed`, SHA-256 des Artikeltexts und die Job-ID.
    Browser schicken beim nächsten Abruf `If-None-Match` mit. Hat sich nichts geändert, antwortet die
    API mit `304 Not Modified` ohne Body.
 
-Die KI-Arbeit selbst ist über die Queue entkoppelt: langsame Modelle blockieren keine API-Anfrage.
+Die Generierung selbst ist über die Queue entkoppelt: langsame Modelle blockieren keine API-Anfrage.
+
+## Bildgenerierung
+
+Anbieter laut Einstellung `imageProvider`:
+
+- **local:** eigener Bildserver unter `services/image` (FastAPI, `diffusers`) mit demselben Endpunkt wie
+  die OpenAI-Bild-API (`POST /v1/images/generations`). Standardmodell Z-Image-Turbo (Apache 2.0),
+  alternativ FLUX.1-schnell (Apache 2.0, Transformer als GGUF Q8_0, T5 in fp8).
+- **gemini:** Google Gemini API, z. B. Nano Banana Pro. Der Key kommt nur aus `GEMINI_API_KEY`.
+
+Ablauf beim lokalen Bildserver:
+
+1. **Bildprompt planen** (`planScene`): Entwurf mit Denkmodus (Kernereignis der Schlagzeile, dann
+   das passende Pressefoto auf Englisch), danach ein Prüfaufruf gegen die Schlagzeile, der den
+   Entwurf bei Bedarf korrigiert (Nebendetail als Motiv, erfundene Orte, Schrift, Gesichter).
+   Ohne Ollama geht die Schlagzeile direkt ins Modell. Der Prompt landet in `articles.image_prompt`.
+2. **Rendern:** 768 × 1344 Pixel (9:16), fester Seed aus der Artikel-ID.
+3. **Speichern:** JPEG unter `apps/api/public/images`, Pfad in `articles.image_url`. Ein ersetztes Bild wird gelöscht.
+
+**Speicher:** Passt das Modell samt Reserve in den freien Grafikspeicher, liegt nur die gerade
+rechnende Komponente auf der Karte (`enable_model_cpu_offload`). Sonst werden die Blöcke einzeln
+nachgeladen (`enable_group_offload`). Ollama gibt den Speicher nach der Szenenbeschreibung sofort
+frei (`keep_alive: 0`). So laufen Text- und Bildmodell nacheinander auf einer 16-GB-Karte.
+
+## Personalisierung („Für dich“)
+
+```mermaid
+sequenceDiagram
+    participant U as Nutzer
+    participant P as Package (Browser)
+    participant API as API
+    participant W as Worker
+    W->>W: Embedding je Artikel (bge-m3)
+    API-->>P: GET /api/feed (inkl. related, readCount)
+    U->>P: wischt, liest, liked, kommentiert
+    P->>P: Signal ins Profil (localStorage), Halbwertszeit 3 Tage
+    P->>P: Karten hinter der aktuellen neu reihen
+    P->>API: POST /api/analytics/events (dwell, read_time, …)
+```
+
+Score je Artikel: Interesse an der Kategorie (×3), an den Tags (×2), Ähnlichkeit zu Artikeln mit
+Interesse über `related` (×3), Aktualität mit 24 Stunden Halbwertszeit (×1,5) und Beliebtheit
+(×0,7). Gesehene Artikel verlieren 2,5, geöffnete 4 Punkte. Beim Sortieren kostet dieselbe
+Kategorie wie auf den beiden Plätzen davor 1,2 × Anzahl², jeder fünfte Platz geht an die
+Kategorie mit dem geringsten Interesse. Die Ähnlichkeitslisten berechnet die API beim Aufbau
+des Feed-Caches (Kosinus-Ähnlichkeit, ab 0,55, höchstens 8 je Artikel).
+
+## Import
+
+`POST /api/import/rss` liest RSS 1.0 (RDF), RSS 2.0 und Atom. Neue Einträge (erkannt an
+`articles.source_url`) werden mit Kategorie `Auto` angelegt und bekommen einen
+`full_generation`-Job. Mit `fullText` holt der Import die Absätze aus dem Hauptinhalt der
+Artikelseite.
 
 ## Authentifizierung
 
 Ein `preHandler`-Hook in `apps/api/src/server.ts` prüft den Header `x-api-key` gegen `API_KEY`.
 Ausgenommen sind die Endpunkte, die der anonyme Feed braucht: `/api/feed`, Like/Unlike/Share/Kommentare,
-`/api/analytics/events`, `/api/sysinfo` und `/images/`.
+`/api/analytics/events`, `/api/sysinfo`, `/images/` und die Doku unter `/docs`.
+Ohne `API_KEY` in der `.env` startet die API nicht.
 Das Admin ruft die API über seinen Nuxt-Server-Proxy (`apps/admin/server/api/[...].ts`) auf,
 der den Key serverseitig ergänzt.
 
@@ -151,6 +219,8 @@ erDiagram
         text key_takeaways
         text category
         text status "draft | published"
+        text source_url "bei Import"
+        real_array embedding "bge-m3"
         timestamp updated_at
     }
     generation_versions {

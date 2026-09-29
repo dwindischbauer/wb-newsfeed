@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8" />
-<title>Host-Einbindungs-Demo — wb-newsfeed</title>
+<title>Host-Einbindungs-Demo - wb-newsfeed</title>
 <style>
   body {
     margin: 0;
@@ -67,7 +67,7 @@
   <div class="sidebar">
     <h1>Host-Einbindungs-Demo</h1>
     <p class="subtitle">
-      Reines HTML/JS — kein Nuxt, kein Vue, keine Abhängigkeit von diesem Monorepo.
+      Reines HTML/JS - kein Nuxt, kein Vue, keine Abhängigkeit von diesem Monorepo.
       Zeigt, dass das Modul (rechts, als iframe unter <code>http://localhost:3002</code>
       eingebettet) beim Öffnen eines Artikels nur ein Signal mit der Artikel-ID sendet
       und die Navigation/Darstellung des Vollartikels komplett dem Host überlässt.
@@ -87,7 +87,7 @@
 
     window.addEventListener('message', (event) => {
       // A real host validates event.origin against the known embed source
-      // before trusting the payload — the module can't know that origin in
+      // before trusting the payload - the module can't know that origin in
       // advance, so it sends with targetOrigin '*'; the receiving side is
       // where the trust boundary actually belongs.
       if (event.origin !== EXPECTED_ORIGIN) return;
@@ -100,10 +100,10 @@
       entry.className = 'entry';
       const ts = new Date().toLocaleTimeString('de-AT');
       entry.innerHTML =
-        '<span class="ts">' + ts + '</span> — Signal <span class="action">article_opened</span>' +
+        '<span class="ts">' + ts + '</span> - Signal <span class="action">article_opened</span>' +
         ' empfangen, Artikel-ID: <span class="article-id">' + event.data.articleId + '</span><br>' +
         '&rarr; Host würde jetzt selbst zu <code>/artikel/' + event.data.articleId + '</code> navigieren ' +
-        '(z. B. eigenes CMS-Routing, eigene Vollartikel-Ansicht) — das Modul tut das nicht selbst.';
+        '(z. B. eigenes CMS-Routing, eigene Vollartikel-Ansicht) - das Modul tut das nicht selbst.';
       logEl.prepend(entry);
     });
   </script>

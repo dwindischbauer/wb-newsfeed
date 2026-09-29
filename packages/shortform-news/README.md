@@ -129,7 +129,7 @@ Die Tailwind-Einrichtung aus Schritt 3 gilt genauso.
 
 | Event | Payload | Wann |
 |-------|---------|------|
-| `article-read` | `articleId: number` | „Vollständigen Artikel lesen“ geklickt, oder die Seite wurde über einen geteilten Link (`?article=<id>`) geöffnet. Der Host übernimmt Navigation und Darstellung |
+| `article-read` | `articleId: number` | „Weiterlesen“ geklickt, oder die Seite wurde über einen geteilten Link (`?article=<id>`) geöffnet. Der Host übernimmt Navigation und Darstellung |
 | `article-impression` | `article: Article` | Karte ist erstmals zu 50 % sichtbar |
 | `like` / `unlike` | `article: Article` | Herz geklickt (Zähler und API-Aufruf erledigt das Modul selbst) |
 | `share` | `article: Article` | Artikel geteilt |
@@ -143,7 +143,7 @@ Die Events dienen dazu, eigene Analytics-Systeme anzubinden. Für den Feed selbs
 |---------|-------|
 | `findArticle(id)` | liefert den geladenen Artikel zur ID aus `article-read` (inkl. `content`, `keyTakeaways`, `tags`) |
 | `filterByTag(name)` | Feed nach Tag filtern, z. B. aus Tag-Buttons in der eigenen Artikelansicht |
-| `track(eventType, articleId?, metadata?)` | eigenes Analytics-Event über denselben Kanal senden, z. B. `tts_play` |
+| `track(eventType, articleId?, metadata?)` | Analytics-Event über denselben Kanal senden (erlaubt: `impression`, `read`, `scroll_depth`, `share`) |
 | `refresh()` | alle bisher geladenen Artikel sofort neu laden |
 
 Likes, Interessen für „Für dich“ und der Kommentar-Name werden nur im Browser gespeichert (`localStorage`), es gibt keine Konten.
@@ -167,7 +167,7 @@ Vertikaler Scroll-Container ohne eigene Datenanbindung: rendert pro übergebenem
 
 | Event | Payload | Wann |
 |-------|---------|------|
-| `article-read` | `articleId: number` | Klick auf „Vollständigen Artikel lesen“. Es wird bewusst **nur die ID** übergeben: der Host löst sie selbst auf und übernimmt Navigation/Darstellung |
+| `article-read` | `articleId: number` | Klick auf „Weiterlesen“. Es wird bewusst **nur die ID** übergeben: der Host löst sie selbst auf und übernimmt Navigation/Darstellung |
 | `article-impression` | `article: Article` | Karte ist erstmals zu 50 % sichtbar (einmal pro Artikel, auch wenn die Karte neu gerendert wird; nur mit `trackingEnabled`) |
 | `scroll-depth` | `percentage: number` (0–1) | bei jedem Scrollen, Anteil des bereits gesehenen Feeds (nur mit `trackingEnabled`) |
 | `active-index` | `index: number` | sichtbare Karte hat gewechselt; zum Nachladen weiterer Seiten |
