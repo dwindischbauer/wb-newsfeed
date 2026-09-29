@@ -1,9 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 
-/* The shared shortform-news component package lives outside this app's Vite
-   root, so Tailwind's automatic content scan won't see its class names
-   without this explicit @source. */
+/* Das Package liegt ausserhalb des Vite-Roots, Tailwind scannt es sonst nicht */
 @source '../../../../../packages/shortform-news/src';
 
 @theme {
@@ -19,17 +17,9 @@
   --font-accent: 'Fraunces', Georgia, serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-reader: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-
-  --animate-wave: wave 1s ease-in-out infinite;
 }
 
-@keyframes wave {
-  0%, 100% { height: 4px; }
-  50% { height: 14px; }
-}
-
-/* ShortformCard / ShortformFeed theme overrides — the shared package's own
-   theming contract, read directly via var() in its scoped styles. */
+/* Farben fuer die Package-Komponenten (--sf-*) */
 :root {
   --sf-bg-color: #000;
   --sf-media-bg: #d9d6cb;

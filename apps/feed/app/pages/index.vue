@@ -2,58 +2,71 @@
   <div class="relative h-screen bg-black">
     <ShortformNewsFeed ref="feedRef" :api-url="config.public.apiUrl" @article-read="openReader" />
 
-    <!-- Reader Overlay — the full article is this app's job, the module only signals the ID -->
+    <!-- Artikelansicht: schiebt sich ueber die aktuelle Karte, das Bild bleibt oben stehen -->
     <transition name="reader">
-      <div v-if="activeReaderArticle" class="fixed inset-0 z-[100] flex flex-col overflow-y-auto bg-reader-bg">
-        <div class="sticky top-0 z-10 flex items-center justify-between border-b border-black/[0.08] px-6 py-4">
-          <button class="flex cursor-pointer items-center gap-1 border-none bg-transparent py-2 text-base font-semibold text-reader-accent" @click="closeReader">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            Zurück
-          </button>
-
-          <div class="flex items-center gap-2">
-            <button
-              v-if="ttsSupported"
-              class="inline-flex cursor-pointer items-center gap-[6px] rounded-full border border-black/[0.12] bg-black/5 px-[0.9rem] py-[0.4rem] text-[0.85rem] font-semibold text-reader-accent transition-all duration-200 hover:border-accent-lime-deep hover:bg-[rgba(111,143,26,0.12)]"
-              :class="{ '!border-[#ef4444] !bg-[#ef4444] !text-white': isSpeaking }"
-              :title="isSpeaking ? 'Vorlesen stoppen' : 'KI-Zusammenfassung vorlesen'"
-              @click="toggleSpeech"
-            >
-              <span v-if="isSpeaking" class="inline-flex h-3 items-center gap-[2px]">
-                <span class="h-full w-[2px] animate-wave rounded-[1px] bg-current"></span>
-                <span class="h-full w-[2px] animate-wave rounded-[1px] bg-current [animation-delay:0.2s]"></span>
-                <span class="h-full w-[2px] animate-wave rounded-[1px] bg-current [animation-delay:0.4s]"></span>
-              </span>
-              <span v-else>🔊</span>
-              {{ isSpeaking ? 'Stopp' : 'Vorlesen' }}
-            </button>
-          </div>
+      <div v-if="article" class="fixed inset-0 z-[100]" role="dialog" aria-modal="true" :aria-label="article.title">
+        <div
+          class="reader-image absolute inset-0 bg-[#1b1c20] bg-cover bg-center"
+          :style="imageUrl ? { backgroundImage: `url(${imageUrl})` } : {}"
+        >
+          <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/60"></div>
         </div>
-        <div class="px-6 pb-16 pt-6 font-reader text-accent-ink">
-          <div v-if="activeReaderArticle.tags && activeReaderArticle.tags.length > 0" class="mb-4 flex flex-wrap gap-2">
-            <button
-              v-for="tag in activeReaderArticle.tags"
-              :key="tag.id"
-              class="cursor-pointer rounded-[14px] border border-black/[0.12] bg-black/5 px-3 py-[0.3rem] text-[0.85rem] font-medium text-reader-accent transition-all duration-150 hover:-translate-y-px hover:border-accent-lime-deep hover:bg-[rgba(111,143,26,0.15)]"
-              title="Nach diesem Tag filtern"
-              @click="filterByTag(tag.name)"
-            >
-              {{ tag.name }}
-            </button>
-          </div>
-          <h1 class="mt-0 text-[1.8rem] leading-[1.2]">{{ activeReaderArticle.title }}</h1>
 
-          <div v-if="activeReaderArticle.keyTakeaways" class="mb-8 rounded-[18px] border-l-4 border-l-accent-lime-deep bg-reader-input-bg p-6">
-            <div class="mb-3 flex items-center justify-between">
-              <h3 class="m-0 font-accent text-[1.1rem] italic text-reader-accent">KI-Kernpunkte</h3>
-              <span class="rounded-xl bg-black/[0.06] px-[0.6rem] py-[0.2rem] text-[0.75rem] text-reader-muted">{{ estimateReadingTime(activeReaderArticle.content) }}</span>
+        <div ref="scrollRef" class="absolute inset-0 overflow-y-auto overscroll-contain">
+          <button
+            type="button"
+            class="block h-[34vh] w-full cursor-default border-none bg-transparent"
+            aria-label="Artikel schließen"
+            @click="closeReader"
+          ></button>
+
+          <article class="reader-sheet relative min-h-[66vh] rounded-t-[22px] bg-reader-bg px-6 pb-16 pt-3 text-accent-ink shadow-[0_-8px_30px_rgba(0,0,0,0.35)]">
+            <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-black/15"></div>
+
+            <div class="mb-3 flex items-center justify-between gap-3 text-[0.8rem] text-reader-muted">
+              <span>
+                <span class="font-semibold text-reader-accent">{{ article.category }}</span>
+                · {{ estimateReadingTime(article.content) }}
+              </span>
+              <button
+                type="button"
+                class="flex h-8 w-8 items-center justify-center rounded-full border-none bg-black/[0.06] text-accent-ink"
+                aria-label="Schließen"
+                @click="closeReader"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
             </div>
-            <ul class="m-0 pl-[1.2rem]">
-              <li v-for="point in parseKeyTakeaways(activeReaderArticle.keyTakeaways)" :key="point">{{ point }}</li>
-            </ul>
-          </div>
 
-          <div class="mb-12 whitespace-pre-wrap px-2 text-[1.1rem] leading-[1.8]">{{ activeReaderArticle.content }}</div>
+            <h1 class="m-0 mb-2 text-[1.65rem] font-extrabold leading-[1.2] tracking-[-0.01em]">{{ article.title }}</h1>
+            <p class="m-0 mb-6 text-[0.82rem] text-reader-muted">{{ article.author || 'Redaktion' }}<template v-if="published"> · {{ published }}</template></p>
+
+            <p v-if="article.teaser" class="m-0 mb-6 font-reader text-[1.08rem] font-medium leading-[1.55]">{{ article.teaser }}</p>
+
+            <section v-if="keyPoints.length" class="mb-7 border-l-[3px] border-accent-lime-deep pl-4">
+              <h2 class="m-0 mb-2 text-[0.78rem] font-bold uppercase tracking-[0.06em] text-reader-accent">Das Wichtigste</h2>
+              <ul class="m-0 flex list-disc flex-col gap-1 pl-4 font-reader text-[0.98rem] leading-[1.5]">
+                <li v-for="point in keyPoints" :key="point">{{ point }}</li>
+              </ul>
+            </section>
+
+            <div class="font-reader text-[1.05rem] leading-[1.75]">
+              <p v-for="(paragraph, i) in paragraphs" :key="i" class="m-0 mb-4">{{ paragraph }}</p>
+            </div>
+
+            <div v-if="article.tags && article.tags.length" class="mt-8 flex flex-wrap items-center gap-2 border-t border-black/[0.08] pt-5">
+              <span class="text-[0.8rem] text-reader-muted">Mehr zu</span>
+              <button
+                v-for="tag in article.tags"
+                :key="tag.id"
+                type="button"
+                class="cursor-pointer rounded-full border border-black/[0.12] bg-transparent px-3 py-1 text-[0.82rem] font-medium text-reader-accent hover:bg-black/[0.04]"
+                @click="filterByTag(tag.name)"
+              >
+                {{ tag.name }}
+              </button>
+            </div>
+          </article>
         </div>
       </div>
     </transition>
@@ -61,35 +74,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import {
   ShortformNewsFeed,
   parseKeyTakeaways,
   estimateReadingTime,
+  resolveImageUrl,
   type Article
 } from '@wb-news/shortform-news';
 
 const config = useRuntimeConfig();
 const feedRef = ref<InstanceType<typeof ShortformNewsFeed> | null>(null);
-const activeReaderArticle = ref<Article | null>(null);
+const scrollRef = ref<HTMLElement | null>(null);
+const article = ref<Article | null>(null);
+let openedAt = 0;
 
-// The module only ever signals an article ID when a user wants to read the
-// full text — resolving it to content is this host app's responsibility,
-// matching the briefing's "module never navigates itself" contract.
+const imageUrl = computed(() => resolveImageUrl(article.value?.imageUrl, config.public.apiUrl));
+const keyPoints = computed(() => parseKeyTakeaways(article.value?.keyTakeaways));
+const paragraphs = computed(() =>
+  (article.value?.content || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+);
+const published = computed(() => {
+  const date = article.value?.createdAt;
+  return date ? new Date(date).toLocaleDateString('de-AT', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+});
+
+// Das Feed-Modul meldet nur die Artikel-ID, anzeigen muss der Host selbst
 const openReader = (articleId: number) => {
-  const article = feedRef.value?.findArticle(articleId);
-  if (!article) return;
-  activeReaderArticle.value = article;
+  const found = feedRef.value?.findArticle(articleId);
+  if (!found) return;
+  article.value = found;
+  openedAt = Date.now();
+  scrollRef.value?.scrollTo({ top: 0 });
 
   if (window.parent) {
     window.parent.postMessage({ type: 'article_opened', articleId }, '*');
   }
 };
 
+// Die Lesedauer fliesst in "Für dich" ein
 const closeReader = () => {
-  if (isSpeaking.value) window.speechSynthesis.cancel();
-  isSpeaking.value = false;
-  activeReaderArticle.value = null;
+  if (article.value) feedRef.value?.recordReadTime(article.value.id, (Date.now() - openedAt) / 1000);
+  article.value = null;
 };
 
 const filterByTag = (tagName: string) => {
@@ -97,55 +123,33 @@ const filterByTag = (tagName: string) => {
   closeReader();
 };
 
-// TTS Audio Synthesis
-const isSpeaking = ref(false);
-const ttsSupported = ref(false);
-
-const toggleSpeech = () => {
-  if (!ttsSupported.value || !activeReaderArticle.value) return;
-
-  if (isSpeaking.value) {
-    window.speechSynthesis.cancel();
-    isSpeaking.value = false;
-    return;
-  }
-
-  const art = activeReaderArticle.value;
-  let textToRead = `${art.title}. `;
-  if (art.teaser) textToRead += `Zusammenfassung: ${art.teaser}. `;
-  if (art.keyTakeaways) {
-    textToRead += `Kernpunkte: ${parseKeyTakeaways(art.keyTakeaways).join('. ')}. `;
-  }
-
-  const utterance = new SpeechSynthesisUtterance(textToRead);
-  utterance.lang = 'de-DE';
-  utterance.rate = 1.05;
-
-  utterance.onend = () => {
-    isSpeaking.value = false;
-  };
-  utterance.onerror = () => {
-    isSpeaking.value = false;
-  };
-
-  window.speechSynthesis.speak(utterance);
-  isSpeaking.value = true;
-  feedRef.value?.track('tts_play', art.id);
+const onKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && article.value) closeReader();
 };
 
-onMounted(() => {
-  ttsSupported.value = 'speechSynthesis' in window;
-});
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 </script>
 
 <style scoped>
+.reader-enter-active .reader-image,
+.reader-leave-active .reader-image {
+  transition: opacity 0.25s ease;
+}
+.reader-enter-active .reader-sheet,
+.reader-leave-active .reader-sheet {
+  transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
 .reader-enter-active,
 .reader-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.32s;
 }
-.reader-enter-from,
-.reader-leave-to {
+.reader-enter-from .reader-image,
+.reader-leave-to .reader-image {
   opacity: 0;
-  transform: translateY(20px);
+}
+.reader-enter-from .reader-sheet,
+.reader-leave-to .reader-sheet {
+  transform: translateY(100%);
 }
 </style>
