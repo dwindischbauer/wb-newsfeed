@@ -6,13 +6,22 @@ import settingsRoutes from './routes/settings';
 import tagRoutes from './routes/tags';
 import analyticsRoutes from './routes/analytics';
 import engagementRoutes from './routes/engagement';
+import importRoutes from './routes/import';
 import './queue'; // Initialize worker
 
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import multipart from '@fastify/multipart';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import * as path from 'path';
 import * as fs from 'fs';
+
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  console.error('API_KEY fehlt. Bitte in .env setzen (Vorlage: .env.example).');
+  process.exit(1);
+}
 
 const server = Fastify({
   logger: true
@@ -29,7 +38,7 @@ server.register(cors, {
   credentials: true
 });
 
-// Public read-only/engagement sub-routes on articles — likes, shares and
+// Public read-only/engagement sub-routes on articles - likes, shares and
 // comments are called directly from the anonymous, account-less feed app.
 const PUBLIC_ARTICLE_ACTION = /^\/api\/articles\/\d+\/(like|unlike|share|comments)(\/|\?|$)/;
 
@@ -39,6 +48,7 @@ server.addHook('preHandler', async (request, reply) => {
   if (
     request.url.startsWith('/api/feed') ||
     request.url.startsWith('/api/sysinfo') ||
+    request.url.startsWith('/docs') ||
     request.url.startsWith('/images/') ||
     request.url.startsWith('/api/analytics/events') ||
     PUBLIC_ARTICLE_ACTION.test(request.url)
@@ -47,10 +57,7 @@ server.addHook('preHandler', async (request, reply) => {
   }
   
   // Require API key for everything else
-  const apiKey = request.headers['x-api-key'];
-  const validKey = process.env.API_KEY || 'diplomarbeit-secret-key';
-  
-  if (apiKey !== validKey) {
+  if (request.headers['x-api-key'] !== API_KEY) {
     reply.status(401).send({ error: 'Unauthorized' });
   }
 });
@@ -65,6 +72,16 @@ server.register(fastifyStatic, {
   prefix: '/'
 });
 
+// API-Doku: die handgeschriebene openapi.yaml, dargestellt mit Swagger UI unter /docs
+server.register(swagger, {
+  mode: 'static',
+  specification: { path: path.join(__dirname, '..', 'openapi.yaml'), baseDir: path.join(__dirname, '..') }
+});
+server.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: { docExpansion: 'none', deepLinking: true, persistAuthorization: true }
+});
+
 server.register(articleRoutes);
 server.register(jobRoutes);
 server.register(feedRoutes);
@@ -72,6 +89,7 @@ server.register(settingsRoutes);
 server.register(tagRoutes);
 server.register(analyticsRoutes);
 server.register(engagementRoutes);
+server.register(importRoutes);
 
 server.get('/api/sysinfo', async (request, reply) => {
   return {
@@ -89,6 +107,8 @@ const start = async () => {
     await seedTags().catch(e => server.log.warn('Could not seed initial tags: ' + e.message));
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3005;
     await server.listen({ port, host: '0.0.0.0' });
+    // Fehlende Embeddings im Hintergrund nachtragen
+    import('./services/embeddings').then(({ backfillEmbeddings }) => backfillEmbeddings()).catch(() => {});
     console.log(`Server listening on port ${port}`);
   } catch (err) {
     server.log.error(err, 'Failed to start API server');
