@@ -10,9 +10,13 @@ info:
     (`security: []`): Feed, Engagement (Like/Share/Kommentare), Analytics-Events,
     `/api/sysinfo` und statische Bilder unter `/images/`.
 
-    **KI-Generierung** läuft asynchron über BullMQ. Endpunkte, die eine
-    Generierung auslösen, liefern eine Job-ID; der Status ist über `/api/jobs/{id}`
-    abrufbar. Jedes Ergebnis wird als Version gespeichert (`/api/articles/{id}/versions`).
+    **Generierung** läuft asynchron über BullMQ. Teaser, Kernpunkte und Tags
+    erzeugt ein Sprachmodell über Ollama, Titelbilder der Bildserver in `services/image`
+    (Z-Image-Turbo oder FLUX.1-schnell) oder wahlweise Google Gemini. Endpunkte, die eine Generierung
+    auslösen, liefern eine Job-ID; der Status ist über `/api/jobs/{id}` abrufbar.
+    Jedes Textergebnis wird als Version gespeichert (`/api/articles/{id}/versions`).
+
+    **Ausprobieren:** Oben rechts auf *Authorize* klicken und den API-Key eintragen.
 
     Architektur und Abläufe: `docs/architektur.md`.
 servers:
@@ -25,13 +29,15 @@ tags:
     description: Öffentlicher Short-Form-Feed
   - name: Artikel
   - name: Versionen
-    description: Versionierte KI-Ergebnisse (Teaser, Kernpunkte)
+    description: Versionierte Generierungsergebnisse (Teaser, Kernpunkte)
   - name: Jobs
     description: Asynchrone Generierung (BullMQ)
   - name: Engagement
     description: Öffentliche Interaktionen aus dem Feed
   - name: Tags
   - name: Analytics
+  - name: Import
+    description: Artikel aus externen Quellen (RSS 1.0/2.0, Atom)
   - name: Einstellungen
   - name: System
 
@@ -82,8 +88,9 @@ paths:
       summary: Artikel anlegen
       description: |
         Fehlende Titel/Kategorie/Tags werden vorläufig heuristisch ergänzt.
-        Ohne mitgeschickten `teaser` wird automatisch eine KI-Generierung
+        Ohne mitgeschickten `teaser` wird automatisch eine Generierung
         eingereiht (`generationJobId`); mit `generate: false` unterbleibt sie.
+        Ohne `imageUrl` erzeugt derselbe Job auch ein Titelbild (`full_generation`).
         Ein mitgeschickter Teaser wird als manuelle Version gespeichert.
       requestBody:
         required: true
@@ -113,7 +120,7 @@ paths:
     post:
       tags: [Artikel]
       summary: Schnell-Ingest aus Rohtext
-      description: Legt einen veröffentlichten Artikel an; Titel, Kategorie, Teaser und Tags erzeugt die KI asynchron.
+      description: Legt einen veröffentlichten Artikel an; Titel, Kategorie, Teaser, Tags und Titelbild werden asynchron erzeugt.
       requestBody:
         required: true
         content:
@@ -141,7 +148,7 @@ paths:
     post:
       tags: [Artikel]
       summary: Artikel synchron generieren und anlegen
-      description: Wie `quick`, aber die KI läuft direkt im Request (kein Job-Polling). Optional mit Titelbild.
+      description: Wie `quick`, aber die Generierung läuft direkt im Request (kein Job-Polling). Optional mit Titelbild.
       requestBody:
         required: true
         content:
@@ -153,7 +160,6 @@ paths:
                   required: [content]
                   properties:
                     generateImage: { type: boolean, default: false }
-                    imageMode: { type: string, enum: [editorial, ai], default: editorial }
       responses:
         '200':
           description: Angelegter Artikel mit Generierungsergebnis
@@ -165,6 +171,7 @@ paths:
                   success: { type: boolean }
                   article: { $ref: '#/components/schemas/Article' }
                   imagePath: { type: [string, 'null'] }
+                  imageError: { type: string, description: 'Nur gesetzt, wenn das Bild nicht erzeugt werden konnte' }
                   summary:
                     type: object
                     properties:
@@ -177,7 +184,7 @@ paths:
   /api/articles/auto-extract:
     post:
       tags: [Artikel]
-      summary: Metadaten heuristisch vorschlagen (ohne KI, ohne Speichern)
+      summary: Metadaten heuristisch vorschlagen (ohne Sprachmodell, ohne Speichern)
       requestBody:
         required: true
         content:
@@ -274,14 +281,12 @@ paths:
     parameters: [{ $ref: '#/components/parameters/ArticleId' }]
     post:
       tags: [Artikel]
-      summary: Titelbild erzeugen (Redaktionsfoto oder KI-Bild)
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                mode: { type: string, enum: [editorial, ai], default: editorial }
+      summary: Titelbild erzeugen
+      description: |
+        Je nach Einstellung `imageProvider` über den eigenen Bildserver (Z-Image-Turbo oder
+        FLUX.1-schnell, vorher Szenenbeschreibung über Ollama) oder über Google Gemini
+        (Nano Banana Pro). Hochformat 9:16. Läuft synchron.
+        Ein vorhandenes Titelbild wird ersetzt und gelöscht.
       responses:
         '200':
           description: Bild erzeugt
@@ -295,6 +300,11 @@ paths:
                   article: { $ref: '#/components/schemas/Article' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/Error' }
+        '503':
+          description: Bildserver nicht erreichbar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /api/articles/{id}/versions:
     parameters: [{ $ref: '#/components/parameters/ArticleId' }]
@@ -420,7 +430,7 @@ paths:
     post:
       tags: [Jobs]
       summary: Generierung manuell einreihen
-      description: Ist Redis nicht erreichbar, wird der Job direkt (heuristisch, ohne KI) ausgeführt.
+      description: Ist Redis nicht erreichbar, wird der Job direkt ausgeführt (Text heuristisch, ohne Sprachmodell).
       requestBody:
         required: true
         content:
@@ -527,12 +537,86 @@ paths:
               type: object
               required: [eventType]
               properties:
-                eventType: { type: string, enum: [impression, read, scroll_depth, tts_play, share] }
+                eventType: { type: string, enum: [impression, read, scroll_depth, share, dwell, read_time] }
                 articleId: { type: [integer, 'null'] }
-                metadata: { description: Beliebiges JSON oder String }
+                metadata:
+                  description: 'Beliebiges JSON oder String. Bei `dwell` (Zeit auf der Karte) und `read_time` (Zeit in der Artikelansicht) `{ "seconds": 12.5 }`'
       responses:
         '200': { $ref: '#/components/responses/Success' }
         '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/analytics/articles:
+    get:
+      tags: [Analytics]
+      summary: Kennzahlen je Artikel
+      description: Aufrufe, Öffnungen, durchschnittliche Verweil- und Lesedauer, schnelles Weiterwischen (unter 1,5 s) sowie Likes, Kommentare und Teilungen.
+      responses:
+        '200':
+          description: Eine Zeile je Artikel
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    articleId: { type: integer }
+                    impressions: { type: integer }
+                    reads: { type: integer }
+                    avgDwellSeconds: { type: [number, 'null'] }
+                    avgReadSeconds: { type: [number, 'null'] }
+                    quickSkips: { type: integer }
+                    likes: { type: integer }
+                    comments: { type: integer }
+                    shares: { type: integer }
+
+  /api/import/rss:
+    post:
+      tags: [Import]
+      summary: Artikel aus einem RSS- oder Atom-Feed importieren
+      description: |
+        Legt für jeden noch nicht importierten Eintrag einen Artikel an (erkannt an der Quell-URL)
+        und reiht einen `full_generation`-Job ein: Kategorie, Tags, Teaser, Kernpunkte und Titelbild.
+        Mit `fullText` wird die Artikelseite geladen und der Fließtext übernommen, sonst nur die
+        Beschreibung aus dem Feed. Einträge unter 200 Zeichen werden übersprungen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri, example: 'https://rss.orf.at/news.xml' }
+                limit: { type: integer, minimum: 1, maximum: 100, default: 20 }
+                fullText: { type: boolean, default: false }
+                status: { type: string, enum: [draft, published], default: published }
+                author: { type: string, description: 'Standard: Titel des Feeds' }
+      responses:
+        '200':
+          description: Ergebnis des Imports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source: { type: string }
+                  found: { type: integer }
+                  skipped: { type: integer }
+                  imported:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        title: { type: string }
+                        jobId: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '502':
+          description: Feed nicht erreichbar oder nicht lesbar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /api/analytics:
     get:
@@ -548,7 +632,6 @@ paths:
                 properties:
                   totalImpressions: { type: integer }
                   totalReads: { type: integer }
-                  totalTtsPlays: { type: integer }
                   readThroughRate: { type: string, example: 12.5% }
                   popularArticles: { type: array, items: { type: object, additionalProperties: true } }
                   recentEventsCount: { type: integer }
@@ -579,7 +662,7 @@ paths:
     get:
       tags: [Einstellungen]
       summary: Verfügbare Text- und Bildmodelle
-      description: Fragt Ollama und LocalAI ab; sind sie nicht erreichbar, kommt eine Standardliste.
+      description: Fragt Ollama und den Bildserver ab. Ist ein Dienst nicht erreichbar, steht das in `errors`.
       responses:
         '200':
           description: Modelllisten
@@ -590,6 +673,12 @@ paths:
                 properties:
                   textModels: { type: array, items: { type: string } }
                   imageModels: { type: array, items: { type: string } }
+                  errors:
+                    type: object
+                    properties:
+                      ollama: { type: string }
+                      imageServer: { type: string }
+                  geminiKeySet: { type: boolean }
 
   /api/sysinfo:
     get:
@@ -677,7 +766,7 @@ components:
         teaser: { type: string }
         keyTakeaways: { type: string, description: 'Stichpunkte, getrennt durch •' }
         author: { type: string }
-        category: { type: string, description: '`Auto` = von KI/Heuristik bestimmen' }
+        category: { type: string, description: '`Auto` = vom Sprachmodell bzw. der Heuristik bestimmen' }
         status: { type: string, enum: [draft, published] }
         tags:
           type: array
@@ -705,11 +794,21 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         tags: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+        sourceUrl: { type: [string, 'null'], description: 'Herkunft bei importierten Artikeln' }
+        related:
+          type: array
+          description: 'Nur im Feed: inhaltlich ähnliche Artikel (Kosinus-Ähnlichkeit der bge-m3-Embeddings, ab 0,55)'
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              score: { type: number }
+        readCount: { type: integer, description: 'Nur im Feed: wie oft der Artikel geöffnet wurde' }
 
     GenerationSource:
       type: string
       enum: [ai, fallback, manual]
-      description: '`fallback` = Ollama nicht erreichbar, Heuristik ohne KI'
+      description: '`fallback` = Ollama nicht erreichbar, Heuristik ohne Sprachmodell'
 
     GenerationVersion:
       type: object
@@ -747,7 +846,7 @@ components:
         articleId: { type: [integer, 'null'] }
         type: { $ref: '#/components/schemas/JobType' }
         status: { $ref: '#/components/schemas/JobStatus' }
-        result: { type: [string, 'null'], description: 'z. B. „Text-Teaser generiert (Fallback ohne KI – …)“' }
+        result: { type: [string, 'null'], description: 'z. B. „Teaser und Bild generiert“' }
         error: { type: [string, 'null'] }
         processingTimeMs: { type: [integer, 'null'] }
         createdAt: { type: string, format: date-time }
@@ -770,6 +869,9 @@ components:
         timeout: { type: string, description: Millisekunden }
         temperature: { type: string, description: '0–2, Standard 0 (reproduzierbar)' }
         seed: { type: string, description: 'Ganzzahl, Standard 42' }
-        localAiUrl: { type: string }
-        imageModel: { type: string }
+        imageProvider: { type: string, enum: [local, gemini], description: 'local = eigener Bildserver, gemini = Google Gemini (Key in GEMINI_API_KEY)' }
+        imageServerUrl: { type: string, description: 'Standard http://localhost:8080' }
+        geminiModel: { type: string, example: gemini-3-pro-image-preview }
+        geminiImageSize: { type: string, enum: [1K, 2K, 4K] }
+        embeddingModel: { type: string, description: 'Ollama-Modell für Embeddings, Standard bge-m3' }
         imageTimeout: { type: string, description: Millisekunden }
