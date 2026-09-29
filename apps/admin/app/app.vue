@@ -1,8 +1,8 @@
 <template>
   <div class="flex min-h-screen flex-col bg-bg-main text-text-primary">
-    <header class="sticky top-0 z-[100] flex items-center justify-between border-b border-border-subtle bg-white/[0.78] px-8 py-[0.85rem] backdrop-blur-lg">
-      <div class="flex items-center gap-[0.85rem]">
-        <div class="flex h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-accent-ink text-accent-lime shadow-[0_4px_14px_rgba(20,20,20,0.18)]">
+    <header class="sticky top-0 z-[100] flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border-subtle bg-white px-4 py-3 md:px-8">
+      <div class="flex items-center gap-3">
+        <div class="flex h-[34px] w-[34px] items-center justify-center rounded-lg bg-accent-ink text-white">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
             <path d="M18 14h-8"/>
@@ -10,33 +10,27 @@
             <path d="M10 6h8v4h-8V6Z"/>
           </svg>
         </div>
-        <div class="flex flex-col">
-          <span class="text-[1.05rem] font-bold tracking-[-0.01em] text-text-primary">WB Newsfeed</span>
-          <span class="text-[0.72rem] font-medium text-text-muted">Redaktions-CMS & KI-Studio</span>
-        </div>
+        <span class="whitespace-nowrap text-[1.05rem] font-bold text-text-primary">WB Newsfeed <span class="font-normal text-text-muted">Redaktion</span></span>
       </div>
 
-      <nav class="flex items-center gap-2 rounded-full border border-border-subtle bg-bg-card-subtle p-[0.3rem]">
+      <nav class="order-3 flex w-full items-center gap-1 overflow-x-auto md:order-none md:w-auto">
         <NuxtLink
           to="/"
-          class="flex items-center gap-[0.45rem] rounded-full px-[1.1rem] py-[0.45rem] text-[0.82rem] font-medium text-text-secondary no-underline transition-all duration-200 hover:bg-black/5 hover:text-text-primary [&.router-link-active]:bg-accent-ink [&.router-link-active]:font-semibold [&.router-link-active]:text-accent-lime [&.router-link-active]:shadow-[0_2px_8px_rgba(20,20,20,0.2)]"
+          class="whitespace-nowrap rounded-md px-3 py-[0.4rem] text-[0.84rem] font-medium text-text-secondary no-underline hover:text-text-primary [&.router-link-exact-active]:bg-black/[0.06] [&.router-link-exact-active]:text-text-primary"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          <span>Dashboard</span>
+          Artikel
         </NuxtLink>
         <NuxtLink
           to="/jobs"
-          class="flex items-center gap-[0.45rem] rounded-full px-[1.1rem] py-[0.45rem] text-[0.82rem] font-medium text-text-secondary no-underline transition-all duration-200 hover:bg-black/5 hover:text-text-primary [&.router-link-active]:bg-accent-ink [&.router-link-active]:font-semibold [&.router-link-active]:text-accent-lime [&.router-link-active]:shadow-[0_2px_8px_rgba(20,20,20,0.2)]"
+          class="whitespace-nowrap rounded-md px-3 py-[0.4rem] text-[0.84rem] font-medium text-text-secondary no-underline hover:text-text-primary [&.router-link-exact-active]:bg-black/[0.06] [&.router-link-exact-active]:text-text-primary"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-          <span>Job-Queue</span>
+          Jobs
         </NuxtLink>
         <NuxtLink
           to="/settings"
-          class="flex items-center gap-[0.45rem] rounded-full px-[1.1rem] py-[0.45rem] text-[0.82rem] font-medium text-text-secondary no-underline transition-all duration-200 hover:bg-black/5 hover:text-text-primary [&.router-link-active]:bg-accent-ink [&.router-link-active]:font-semibold [&.router-link-active]:text-accent-lime [&.router-link-active]:shadow-[0_2px_8px_rgba(20,20,20,0.2)]"
+          class="whitespace-nowrap rounded-md px-3 py-[0.4rem] text-[0.84rem] font-medium text-text-secondary no-underline hover:text-text-primary [&.router-link-exact-active]:bg-black/[0.06] [&.router-link-exact-active]:text-text-primary"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span>Einstellungen</span>
+          Einstellungen
         </NuxtLink>
       </nav>
 
@@ -44,11 +38,9 @@
         <a
           href="http://localhost:3002"
           target="_blank"
-          class="flex items-center gap-[0.45rem] rounded-lg border border-[rgba(111,143,26,0.3)] bg-[rgba(111,143,26,0.1)] px-[0.95rem] py-[0.45rem] text-[0.78rem] font-semibold text-accent-lime-deep no-underline transition-all duration-200 hover:border-[rgba(111,143,26,0.5)] hover:bg-[rgba(111,143,26,0.18)] hover:shadow-[0_0_12px_rgba(111,143,26,0.2)]"
-          title="Mobile Snap-Feed Web-App öffnen"
+          class="flex items-center gap-[0.4rem] text-[0.82rem] font-medium text-text-secondary no-underline hover:text-text-primary"
         >
-          <span class="h-[7px] w-[7px] animate-pulse-dot rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
-          <span>Feed-App (3002)</span>
+          <span>Feed öffnen</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
         </a>
       </div>

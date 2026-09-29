@@ -4,7 +4,7 @@ import withNuxt from './.nuxt/eslint.config.mjs';
 export default withNuxt(
   {
     rules: {
-      // Prettier-style formatting rules — the codebase wasn't authored to
+      // Prettier-style formatting rules - the codebase wasn't authored to
       // these markup conventions, so enabling them is pure churn with no
       // functional benefit. Keep the bug-catching Vue rules enabled.
       'vue/html-self-closing': 'off',
