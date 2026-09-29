@@ -1,29 +1,25 @@
 <template>
-  <div class="mx-auto max-w-[1440px] px-8 pb-12 pt-6">
-    <div class="rounded-[22px] border border-border-subtle bg-bg-card p-6 shadow-[0_4px_20px_rgba(20,20,20,0.08)]">
+  <div class="mx-auto max-w-[1440px] px-4 pb-12 pt-6 md:px-8">
+    <div class="rounded-xl border border-border-subtle bg-bg-card p-6">
       <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 class="m-0 text-xl font-extrabold text-accent-ink">KI Job Queue</h2>
-          <p class="m-0 mt-[0.2rem] text-[0.78rem] text-text-muted">BullMQ Worker & Async Pipeline Monitoring</p>
-        </div>
+        <h2 class="m-0 text-xl font-bold text-accent-ink">Jobs</h2>
         <div class="flex items-center gap-[0.85rem]">
           <select
             v-model="statusFilter"
             class="rounded-lg border border-border-subtle bg-black/[0.04] px-[0.85rem] py-2 text-[0.82rem] text-accent-ink outline-none focus:border-border-focus"
           >
             <option value="">Alle Status</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
+            <option value="pending">Wartend</option>
+            <option value="processing">In Arbeit</option>
+            <option value="completed">Fertig</option>
+            <option value="failed">Fehlgeschlagen</option>
           </select>
           <Spinner v-if="isLoading" />
           <button
-            class="flex items-center gap-[0.4rem] rounded-full bg-accent-ink px-4 py-2 text-[0.82rem] font-semibold text-accent-lime shadow-[0_4px_14px_rgba(20,20,20,0.2)] transition-all duration-200 hover:opacity-[0.92] hover:shadow-[0_6px_18px_rgba(20,20,20,0.28)]"
+            class="rounded-lg border border-border-subtle bg-white px-4 py-2 text-[0.82rem] font-semibold text-accent-ink hover:bg-black/[0.04]"
             @click="fetchJobs"
           >
-            <span>⟳</span>
-            <span>Aktualisieren</span>
+            Aktualisieren
           </button>
         </div>
       </div>
@@ -33,17 +29,17 @@
           <thead>
             <tr>
               <th class="w-[70px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">ID</th>
-              <th class="border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Typ</th>
-              <th class="w-[110px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Artikel-ID</th>
+              <th class="w-[150px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Typ</th>
+              <th class="border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Artikel</th>
               <th class="w-[140px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Status</th>
               <th class="w-[100px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Dauer</th>
               <th class="w-[160px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Datum</th>
-              <th class="w-[160px] border-b border-border-subtle px-4 py-3 text-right text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted">Aktion</th>
+              <th class="w-[160px] border-b border-border-subtle px-4 py-3 text-right text-[0.72rem] font-semibold uppercase tracking-[0.04em] text-text-muted"></th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredJobs.length === 0">
-              <td colspan="7" class="!py-12 bg-black/[0.02] text-center text-text-muted">Keine Jobs in der Warteschlange gefunden.</td>
+              <td colspan="7" class="!py-12 bg-black/[0.02] text-center text-text-muted">Keine Jobs.</td>
             </tr>
             <tr v-for="job in filteredJobs" :key="job.id" class="group">
               <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle font-mono text-[0.8rem] text-[#5c7a14] group-hover:bg-black/[0.04]">#{{ job.id }}</td>
@@ -51,15 +47,22 @@
                 <span class="rounded-md bg-black/5 px-[0.55rem] py-[0.2rem] text-[0.74rem] font-semibold text-[#3f4046]">{{ job.type }}</span>
               </td>
               <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle group-hover:bg-black/[0.04]">
-                <span class="text-[0.72rem] text-text-secondary">Artikel #{{ job.articleId }}</span>
+                <NuxtLink
+                  :to="`/?article=${job.articleId}`"
+                  class="block max-w-[340px] truncate text-[0.8rem] font-medium text-accent-ink underline decoration-black/20 underline-offset-2 hover:decoration-black/60"
+                  :title="articleTitles.get(job.articleId)"
+                >
+                  {{ articleTitles.get(job.articleId) || `Artikel #${job.articleId}` }}
+                </NuxtLink>
+                <span v-if="job.result || job.error" class="mt-[2px] block max-w-[340px] truncate text-[0.72rem]" :class="job.error ? 'text-[#c0392b]' : 'text-text-muted'" :title="job.error || job.result || ''">{{ job.error || job.result }}</span>
               </td>
               <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle group-hover:bg-black/[0.04]">
                 <span
-                  class="inline-flex items-center gap-[0.35rem] rounded-full px-[0.65rem] py-[0.25rem] text-[0.72rem] font-bold uppercase tracking-[0.04em]"
+                  class="inline-flex items-center gap-[0.35rem] rounded-full px-[0.65rem] py-[0.25rem] text-[0.72rem] font-semibold"
                   :class="statusBadgeClasses[job.status]"
                 >
                   <span class="h-[6px] w-[6px] rounded-full" :class="statusDotClasses[job.status]"></span>
-                  <span>{{ job.status }}</span>
+                  <span>{{ statusLabels[job.status] }}</span>
                 </span>
               </td>
               <td class="bg-black/[0.02] px-4 py-[0.85rem] align-middle font-mono text-[0.8rem] text-[#5c7a14] group-hover:bg-black/[0.04]">
@@ -105,6 +108,8 @@ interface Job {
   articleId: number;
   status: JobStatus;
   processingTimeMs: number | null;
+  result: string | null;
+  error: string | null;
   createdAt: string;
 }
 
@@ -112,6 +117,13 @@ const config = useRuntimeConfig();
 const jobs = ref<Job[]>([]);
 const isLoading = ref(false);
 const statusFilter = ref<JobStatus | ''>('');
+
+const statusLabels: Record<JobStatus, string> = {
+  pending: 'Wartend',
+  processing: 'In Arbeit',
+  completed: 'Fertig',
+  failed: 'Fehlgeschlagen'
+};
 
 const statusBadgeClasses: Record<JobStatus, string> = {
   pending: 'bg-[rgba(245,158,11,0.15)] text-[#fbbf24]',
@@ -131,6 +143,20 @@ const filteredJobs = computed(() => {
   if (!statusFilter.value) return jobs.value;
   return jobs.value.filter((j) => j.status === statusFilter.value);
 });
+
+// Titel fuer die Links in der Artikel-Spalte
+const articleTitles = ref(new Map<number, string>());
+const fetchArticleTitles = async () => {
+  try {
+    const res = await apiFetch(`${config.public.apiUrl}/api/articles`);
+    if (res.ok) {
+      const list: Array<{ id: number; title: string }> = await res.json();
+      articleTitles.value = new Map(list.map((a) => [a.id, a.title]));
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
 
 const fetchJobs = async () => {
   isLoading.value = true;
@@ -174,6 +200,7 @@ const deleteJob = async (jobId: number) => {
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
+  fetchArticleTitles();
   fetchJobs();
   intervalId = setInterval(fetchJobs, 5000);
 });
