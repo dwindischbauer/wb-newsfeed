@@ -7,6 +7,7 @@ import { inMemoryArticles, type StoredArticle } from './articles';
 import { autoExtractArticleMetadata } from '../utils/metadata';
 import { generateArticleImage } from '../services/imageGenerator';
 import { recordGenerationVersion } from '../services/versions';
+import { generationQueue, type GenerationJobData, type GenerationType } from '../queue';
 
 type JobRecord = InferSelectModel<typeof jobs>;
 
@@ -21,7 +22,7 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
     try {
       await db.update(jobs).set(fields).where(eq(jobs.id, jobId));
     } catch {
-      // best-effort DB update — in-memory mirror below is always kept in sync
+      // best-effort DB update - in-memory mirror below is always kept in sync
     }
     const mem = inMemoryJobs.get(jobId);
     if (mem) {
@@ -69,7 +70,7 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
           jobId
         });
       } catch {
-        // best-effort — in-memory mirror below still gets the update
+        // best-effort - in-memory mirror below still gets the update
       }
 
       const mem = inMemoryArticles.get(articleId);
@@ -82,19 +83,19 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
     }
 
     if (type === 'image_generation' || type === 'full_generation') {
-      const tagsList = (article.tags || []).map(tagInputName);
-      const imgUrl = await generateArticleImage(
-        article.title,
-        article.category,
-        article.id,
-        article.teaser ?? undefined,
-        tagsList
-      );
+      const { imageUrl: imgUrl, prompt: imagePrompt } = await generateArticleImage({
+        id: article.id,
+        title: article.title,
+        category: article.category,
+        teaser: article.teaser,
+        content: article.content,
+        tags: (article.tags || []).map(tagInputName)
+      });
       if (imgUrl) {
         try {
-          await db.update(articles).set({ imageUrl: imgUrl }).where(eq(articles.id, articleId));
+          await db.update(articles).set({ imageUrl: imgUrl, imagePrompt }).where(eq(articles.id, articleId));
         } catch {
-          // best-effort — in-memory mirror below still gets the new image
+          // best-effort - in-memory mirror below still gets the new image
         }
         const mem = inMemoryArticles.get(articleId);
         if (mem) {
@@ -105,7 +106,7 @@ export async function executeDirectJob(jobId: number, articleId: number, type: s
 
     await updateJob({
       status: 'completed',
-      result: type === 'image_generation' ? 'KI-Bild generiert' : 'Erfolgreich generiert',
+      result: type === 'image_generation' ? 'Bild generiert' : 'Erfolgreich generiert',
       processingTimeMs: Date.now() - startTime
     });
   } catch (err) {
@@ -190,9 +191,31 @@ export default async function (server: FastifyInstance) {
       return reply.code(404).send({ error: 'Job not found' });
     }
 
-    setImmediate(() => {
-      executeDirectJob(parsedId, jobRecord.articleId!, jobRecord.type);
-    });
+    // Erneut ueber die Queue, damit derselbe Worker (Sprachmodell, Bild, Embedding) laeuft.
+    // Nur wenn Redis fehlt, bleibt der direkte Weg.
+    const [article] = await db.select().from(articles).where(eq(articles.id, jobRecord.articleId));
+    try {
+      await db.update(jobs).set({ status: 'pending', error: null, result: null }).where(eq(jobs.id, parsedId));
+      const data: GenerationJobData = {
+        jobId: parsedId,
+        articleId: jobRecord.articleId,
+        type: jobRecord.type as GenerationType,
+        autoTitle: article?.title === '[Auto-Titel ausstehend]',
+        autoCategory: article?.category === 'Auto' || article?.category === 'Allgemein',
+        trigger: 'retry'
+      };
+      await generationQueue.add(jobRecord.type, data, {
+        jobId: `job-${parsedId}-retry-${Date.now()}`,
+        removeOnComplete: 100,
+        removeOnFail: 100,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 }
+      });
+    } catch {
+      setImmediate(() => {
+        executeDirectJob(parsedId, jobRecord.articleId!, jobRecord.type);
+      });
+    }
 
     return { success: true };
   });

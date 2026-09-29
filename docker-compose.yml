@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
@@ -50,29 +49,7 @@ services:
       timeout: 5s
       retries: 3
 
-  localai:
-    # CPU image: no NVIDIA GPU on the dev machine. Core image is multi-arch,
-    # but LocalAI's image-generation backends (diffusers, stablediffusion-ggml)
-    # are currently amd64-only — they fail to install on Apple Silicon (arm64)
-    # hosts with "no child with platform linux/arm64 in index". Works fine on
-    # amd64 (Intel/AMD Windows, Linux, Intel Mac).
-    image: localai/localai:latest
-    container_name: wb_newsfeed_localai
-    ports:
-      - "8080:8080"
-    environment:
-      - MODELS_PATH=/models
-    volumes:
-      - localai_models:/models
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/readyz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5m
-
 volumes:
   postgres_data:
   redis_data:
   ollama_data:
-  localai_models:
