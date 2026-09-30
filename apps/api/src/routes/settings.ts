@@ -6,7 +6,7 @@ import { getSettings } from '../utils/settings';
 
 const VALID_KEYS = [
   'ollamaUrl', 'aiModel', 'embeddingModel', 'timeout', 'temperature', 'seed',
-  'imageProvider', 'imageServerUrl', 'imageModel', 'imageTimeout', 'imagePromptModel', 'imagePromptThinking',
+  'autoImage', 'imageProvider', 'imageServerUrl', 'imageModel', 'imageTimeout', 'imagePromptModel', 'imagePromptThinking',
   'geminiModel', 'geminiImageSize'
 ];
 

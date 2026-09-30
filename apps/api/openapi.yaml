@@ -90,7 +90,8 @@ paths:
         Fehlende Titel/Kategorie/Tags werden vorläufig heuristisch ergänzt.
         Ohne mitgeschickten `teaser` wird automatisch eine Generierung
         eingereiht (`generationJobId`); mit `generate: false` unterbleibt sie.
-        Ohne `imageUrl` erzeugt derselbe Job auch ein Titelbild (`full_generation`).
+        Ein Titelbild erzeugt derselbe Job nur, wenn die Einstellung `autoImage` auf `true` steht
+        (`full_generation`), sonst über `POST /api/articles/{id}/generate-image`.
         Ein mitgeschickter Teaser wird als manuelle Version gespeichert.
       requestBody:
         required: true
@@ -576,7 +577,7 @@ paths:
       summary: Artikel aus einem RSS- oder Atom-Feed importieren
       description: |
         Legt für jeden noch nicht importierten Eintrag einen Artikel an (erkannt an der Quell-URL)
-        und reiht einen `full_generation`-Job ein: Kategorie, Tags, Teaser, Kernpunkte und Titelbild.
+        und reiht einen Generierungsjob ein: Kategorie, Tags, Teaser, Kernpunkte, mit `autoImage` auch das Titelbild.
         Mit `fullText` wird die Artikelseite geladen und der Fließtext übernommen, sonst nur die
         Beschreibung aus dem Feed. Einträge unter 200 Zeichen werden übersprungen.
       requestBody:
@@ -869,6 +870,7 @@ components:
         timeout: { type: string, description: Millisekunden }
         temperature: { type: string, description: '0–2, Standard 0 (reproduzierbar)' }
         seed: { type: string, description: 'Ganzzahl, Standard 42' }
+        autoImage: { type: string, enum: ['true', 'false'], description: 'Neue Artikel bekommen automatisch ein Titelbild, Standard false' }
         imageProvider: { type: string, enum: [local, gemini], description: 'local = eigener Bildserver, gemini = Google Gemini (Key in GEMINI_API_KEY)' }
         imageServerUrl: { type: string, description: 'Standard http://localhost:8080' }
         geminiModel: { type: string, example: gemini-3-pro-image-preview }

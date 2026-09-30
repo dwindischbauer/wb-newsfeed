@@ -110,7 +110,9 @@ Bis auf die Endpunkte, die der Feed ohne Anmeldung braucht (Feed, Likes, Komment
 Analytics-Events, Bilder), verlangt jeder Aufruf den Header `x-api-key` mit dem Wert aus `API_KEY`.
 Ohne `API_KEY` startet die API nicht.
 
-Beispiel: Artikel anlegen. Teaser, Tags, Embedding und Titelbild entstehen danach im Hintergrund.
+Beispiel: Artikel anlegen. Teaser, Kernpunkte, Tags und Embedding entstehen danach im Hintergrund.
+Ein Titelbild entsteht auf Klick im Admin (`POST /api/articles/{id}/generate-image`) oder automatisch,
+wenn unter Einstellungen „Bei neuen Artikeln automatisch ein Titelbild erzeugen“ aktiv ist.
 
 ```bash
 curl -X POST http://localhost:3005/api/articles \

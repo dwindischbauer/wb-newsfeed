@@ -53,8 +53,9 @@ graph LR
 ## Ablauf: Artikel anlegen und generieren
 
 Die Generierung läuft asynchron. Die API antwortet sofort, der Worker erledigt die Arbeit im Hintergrund.
-Neue Artikel ohne Bild bekommen einen `full_generation`-Job (Text und Titelbild), bei geändertem Text
-wird nur der Teaser neu erzeugt (`teaser_generation`).
+Neue Artikel bekommen einen `teaser_generation`-Job (Teaser, Kernpunkte, Tags, Embedding). Ein Titelbild
+entsteht nur auf Klick im Admin oder, wenn in den Einstellungen `autoImage` eingeschaltet ist, gleich mit
+(`full_generation`). Bei geändertem Text wird nur der Teaser neu erzeugt.
 Egal ob der Artikel über das Admin, `POST /api/articles` oder `POST /api/articles/quick` kommt:
 die API reiht den Job selbst ein (`enqueueGeneration`), kein Client muss `/api/jobs` extra aufrufen.
 
@@ -71,7 +72,7 @@ sequenceDiagram
     C->>API: POST /api/articles {title, content}
     API->>DB: INSERT articles (vorläufige Heuristik-Werte)
     API->>DB: INSERT jobs (pending)
-    API->>Q: add full_generation
+    API->>Q: add teaser_generation
     API-->>C: 200 {id, generationJobId}
     Q->>W: Job
     W->>DB: jobs.status = processing
@@ -79,10 +80,12 @@ sequenceDiagram
     O-->>W: JSON {teaser, keyTakeaways, tags, ...}
     W->>DB: UPDATE articles (Teaser, Kernpunkte)
     W->>DB: INSERT generation_versions (Quelle ai, Modell, Parameter)
-    W->>O: Szenenbeschreibung fürs Bild (keep_alive 0)
-    W->>B: POST /v1/images/generations
-    B-->>W: JPEG (Base64)
-    W->>DB: UPDATE articles.image_url
+    opt autoImage eingeschaltet (full_generation)
+        W->>O: Bildprompt planen und prüfen
+        W->>B: POST /v1/images/generations
+        B-->>W: JPEG (Base64)
+        W->>DB: UPDATE articles.image_url
+    end
     W->>DB: jobs.status = completed
     C->>API: GET /api/jobs/{id} bzw. /api/articles/{id}/versions
 ```
@@ -186,8 +189,8 @@ des Feed-Caches (Kosinus-Ähnlichkeit, ab 0,55, höchstens 8 je Artikel).
 ## Import
 
 `POST /api/import/rss` liest RSS 1.0 (RDF), RSS 2.0 und Atom. Neue Einträge (erkannt an
-`articles.source_url`) werden mit Kategorie `Auto` angelegt und bekommen einen
-`full_generation`-Job. Mit `fullText` holt der Import die Absätze aus dem Hauptinhalt der
+`articles.source_url`) werden mit Kategorie `Auto` angelegt und bekommen denselben Job wie
+neue Artikel (Bild nur mit `autoImage`). Mit `fullText` holt der Import die Absätze aus dem Hauptinhalt der
 Artikelseite.
 
 ## Authentifizierung

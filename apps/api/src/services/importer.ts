@@ -2,7 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { articles } from '../db/schema';
-import { enqueueGeneration } from '../queue';
+import { enqueueGeneration, newArticleGenerationType } from '../queue';
 import { logger } from '../utils/logger';
 
 export interface ImportOptions {
@@ -119,6 +119,7 @@ export async function importFeed(url: string, options: ImportOptions = {}): Prom
     : new Set<string | null>();
 
   const result: ImportResult = { source: feed.title, found: feed.items.length, imported: [], skipped: 0 };
+  const generationType = await newArticleGenerationType();
 
   for (const item of feed.items) {
     if (result.imported.length >= limit) break;
@@ -158,7 +159,7 @@ export async function importFeed(url: string, options: ImportOptions = {}): Prom
     if (!row) continue;
 
     // Kategorie und Tags bestimmt das Sprachmodell, der Titel der Quelle bleibt
-    const { jobId } = await enqueueGeneration(row.id, 'full_generation', { autoCategory: true, trigger: 'import' });
+    const { jobId } = await enqueueGeneration(row.id, generationType, { autoCategory: true, trigger: 'import' });
     result.imported.push({ id: row.id, title: row.title, jobId });
   }
 

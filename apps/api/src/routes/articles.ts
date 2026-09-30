@@ -4,7 +4,7 @@ import { db } from '../db';
 import { articles, tags, articleTags, generationVersions } from '../db/schema';
 import { eq, desc, inArray, and } from 'drizzle-orm';
 import { stripHtml } from '../utils/format';
-import { enqueueGeneration } from '../queue';
+import { enqueueGeneration, newArticleGenerationType } from '../queue';
 import { listGenerationVersions, recordGenerationVersion } from '../services/versions';
 import { autoExtractArticleMetadata } from '../utils/metadata';
 import { generateArticleImage, ImageServerError } from '../services/imageGenerator';
@@ -589,8 +589,9 @@ export default async function (server: FastifyInstance) {
           source: 'manual'
         });
       } else if (body.generate !== false) {
-        // Ohne mitgeschicktes Bild wird auch gleich ein Titelbild erzeugt
-        const { jobId } = await enqueueGeneration(inserted.id, body.imageUrl ? 'teaser_generation' : 'full_generation', {
+        // Titelbild nur, wenn keins mitgeschickt wurde und autoImage eingeschaltet ist
+        const type = body.imageUrl ? 'teaser_generation' : await newArticleGenerationType();
+        const { jobId } = await enqueueGeneration(inserted.id, type, {
           autoTitle: !(body.title && body.title.trim() && body.title !== '[Auto-Titel ausstehend]'),
           autoCategory: !(body.category && body.category !== 'Auto' && body.category !== 'Allgemein'),
           trigger: 'created'
@@ -652,7 +653,7 @@ export default async function (server: FastifyInstance) {
       return { success: false, error: 'Insert fehlgeschlagen' };
     }
     // Title/category are placeholders here, so the model may replace them
-    const { jobId, queued } = await enqueueGeneration(inserted.id, 'full_generation', {
+    const { jobId, queued } = await enqueueGeneration(inserted.id, await newArticleGenerationType(), {
       autoTitle: true,
       autoCategory: true,
       trigger: 'created'

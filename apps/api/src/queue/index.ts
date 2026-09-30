@@ -26,6 +26,16 @@ export interface GenerationJobData {
 }
 
 /**
+ * Job-Typ fuer neue Artikel: nur Text, ausser in den Einstellungen ist
+ * "Bild automatisch erzeugen" (autoImage) eingeschaltet.
+ */
+export async function newArticleGenerationType(): Promise<GenerationType> {
+  const { getSettings } = await import('../utils/settings');
+  const settings = await getSettings();
+  return settings['autoImage'] === 'true' ? 'full_generation' : 'teaser_generation';
+}
+
+/**
  * Creates a job row and puts it on the BullMQ queue. Used wherever an article
  * is created or its content changes, so generation starts without the client
  * having to call /api/jobs itself. If Redis is unreachable the job row is

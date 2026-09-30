@@ -392,7 +392,7 @@
             Volltext von der Artikelseite laden
           </label>
         </div>
-        <p class="m-0 text-[0.76rem] text-text-muted">Bereits importierte Artikel werden übersprungen. Teaser, Kategorie, Tags und Bild entstehen danach im Hintergrund.</p>
+        <p class="m-0 text-[0.76rem] text-text-muted">Bereits importierte Artikel werden übersprungen. Teaser, Kategorie und Tags entstehen danach im Hintergrund.</p>
         <p v-if="importResult" class="m-0 text-[0.8rem] text-[#24252a]">{{ importResult }}</p>
         <div class="flex justify-end gap-3">
           <button type="button" class="cursor-pointer rounded-lg border border-border-subtle bg-transparent px-4 py-[0.55rem] text-[0.82rem] text-text-secondary" @click="isImportOpen = false">Schließen</button>
@@ -1143,7 +1143,7 @@ const saveArticle = async () => {
     const article = isEdit ? newArticle.value : data;
 
     if (!isEdit) {
-      showToast('Artikel angelegt, Teaser und Bild werden erzeugt');
+      showToast('Artikel angelegt, Teaser wird erzeugt');
     } else {
       if (selectedArticle.value && selectedArticle.value.id === article.id) {
         const { tags: formTags, ...rest } = newArticle.value;

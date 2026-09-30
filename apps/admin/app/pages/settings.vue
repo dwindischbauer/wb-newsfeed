@@ -41,6 +41,11 @@
         <p v-if="modelErrors.ollama" class="m-0 text-[0.76rem] text-[#c0392b]">{{ modelErrors.ollama }}</p>
       </div>
 
+      <label class="mb-5 flex items-center gap-2 text-[0.85rem] text-accent-ink">
+        <input v-model="settings.autoImage" type="checkbox" />
+        Bei neuen Artikeln automatisch ein Titelbild erzeugen
+      </label>
+
       <div class="mb-5 flex flex-col gap-[0.4rem]">
         <label class="text-[0.78rem] font-semibold text-text-secondary">Bilder erzeugen mit</label>
         <select v-model="settings.imageProvider" class="rounded-lg border border-border-subtle bg-black/[0.03] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.85rem] text-accent-ink outline-none focus:border-border-focus">
@@ -211,6 +216,7 @@ const config = useRuntimeConfig();
 const settings = ref({
   ollamaUrl: 'http://localhost:11434',
   imageServerUrl: 'http://localhost:8080',
+  autoImage: false,
   imageProvider: 'local',
   imageModel: 'z-image-turbo',
   imagePromptModel: '',
@@ -272,6 +278,7 @@ const loadSettings = async () => {
       const data = await res.json();
       if (data.ollamaUrl) settings.value.ollamaUrl = data.ollamaUrl;
       if (data.imageServerUrl) settings.value.imageServerUrl = data.imageServerUrl;
+      if (data.autoImage !== undefined) settings.value.autoImage = data.autoImage === 'true';
       if (data.imageProvider) settings.value.imageProvider = data.imageProvider;
       if (data.imageModel) settings.value.imageModel = data.imageModel;
       if (data.imagePromptModel !== undefined) settings.value.imagePromptModel = data.imagePromptModel;
@@ -299,6 +306,7 @@ const saveSettings = async () => {
     const payload = {
       ollamaUrl: settings.value.ollamaUrl,
       imageServerUrl: settings.value.imageServerUrl,
+      autoImage: String(settings.value.autoImage),
       imageProvider: settings.value.imageProvider,
       imageModel: settings.value.imageModel,
       imagePromptModel: settings.value.imagePromptModel,
