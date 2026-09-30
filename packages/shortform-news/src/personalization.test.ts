@@ -82,13 +82,24 @@ describe('personalization', () => {
     expect(profile.categories.Sport).toBeCloseTo(1.5);
   });
 
-  it('avoids more than two articles of the same category in a row', () => {
+  it('allows up to three articles of one topic in a row, then switches', () => {
     const profile = createProfile(NOW);
     applySignal(profile, politik, 'like', NOW);
-    const many = [1, 2, 3, 4].map((id) => ({ id: 10 + id, category: 'Politik', createdAt: hoursAgo(id) }));
+    const many = [1, 2, 3, 4, 5].map((id) => ({ id: 10 + id, category: 'Politik', createdAt: hoursAgo(id) }));
     const order = rankForYou([...many, { id: 20, category: 'Kultur', createdAt: hoursAgo(9) }], profile, { now: NOW });
-    const kulturPos = order.findIndex((a) => a.id === 20);
-    expect(kulturPos).toBeLessThan(3);
+    expect(order.slice(0, 3).every((a) => a.category === 'Politik')).toBe(true);
+    expect(order[3]!.id).toBe(20);
+  });
+
+  it('after a like the very next card is from the same topic', () => {
+    const profile = createProfile(NOW);
+    const wirtschaft: RankableArticle = { id: 30, category: 'Wirtschaft', createdAt: hoursAgo(1) };
+    const nochWirtschaft: RankableArticle = { id: 31, category: 'Wirtschaft', createdAt: hoursAgo(10) };
+    const current = [wirtschaft, politik, sport, tech, nochWirtschaft];
+    applySignal(profile, wirtschaft, 'like', NOW);
+    const next = rerankTail(current, current, profile, 1, NOW);
+    expect(next[0]!.id).toBe(30);
+    expect(next[1]!.id).toBe(31);
   });
 
   it('rerankTail keeps the visible head and reorders the rest', () => {

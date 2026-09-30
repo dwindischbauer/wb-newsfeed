@@ -184,9 +184,10 @@ Der Feed lernt aus dem Verhalten auf dem Gerät, ohne Konto. Das Profil bleibt i
 Daraus entstehen Interessen je Kategorie, Tag und Artikel. Alle Werte halbieren sich nach drei Tagen.
 Sortiert wird nach diesen Interessen, nach **inhaltlicher Ähnlichkeit** zu gelesenen Artikeln
 (Embeddings mit bge-m3, die API liefert je Artikel die ähnlichsten mit), nach Aktualität und
-Beliebtheit. Gesehene Artikel rutschen nach hinten, mehr als zwei Artikel derselben Kategorie
-hintereinander werden vermieden, und jeder fünfte Platz zeigt etwas außerhalb der bisherigen
-Interessen. Nach jedem Signal wird alles hinter der aktuellen Karte neu gereiht.
+Beliebtheit. Gesehene Artikel rutschen nach hinten, bis zu drei Artikel eines Themas dürfen
+hintereinander kommen, und jeder fünfte Platz zeigt etwas außerhalb der bisherigen Interessen.
+Nach einem Like, Kommentar, Teilen oder Öffnen wird sofort neu gereiht, schon die nächste Karte
+passt dann zum Thema. Beim Wischen passiert das nach einer Viertelsekunde.
 
 Likes, Kommentare und Teilungen landen zusätzlich in der Datenbank (Zähler am Artikel,
 Tabelle `comments`), Verweil- und Lesedauer in `analytics_events`. Das Admin zeigt pro Artikel

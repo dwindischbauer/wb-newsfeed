@@ -182,7 +182,8 @@ sequenceDiagram
 Score je Artikel: Interesse an der Kategorie (×3), an den Tags (×2), Ähnlichkeit zu Artikeln mit
 Interesse über `related` (×3), Aktualität mit 24 Stunden Halbwertszeit (×1,5) und Beliebtheit
 (×0,7). Gesehene Artikel verlieren 2,5, geöffnete 4 Punkte. Beim Sortieren kostet dieselbe
-Kategorie wie auf den beiden Plätzen davor 1,2 × Anzahl², jeder fünfte Platz geht an die
+Kategorie, je nachdem wie oft sie auf den drei Plätzen davor vorkam, 0 / 0,3 / 1,2 / 6 Punkte
+(also höchstens drei Artikel eines Themas in Folge), jeder fünfte Platz geht an die
 Kategorie mit dem geringsten Interesse. Die Ähnlichkeitslisten berechnet die API beim Aufbau
 des Feed-Caches (Kosinus-Ähnlichkeit, ab 0,55, höchstens 8 je Artikel).
 

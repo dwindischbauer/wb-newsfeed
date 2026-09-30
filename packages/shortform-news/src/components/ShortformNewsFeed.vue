@@ -249,12 +249,17 @@ const saveProfile = () => {
   }
 };
 
+// Nach Like, Kommentar, Teilen oder Oeffnen sofort neu sortieren, damit schon
+// die naechste Karte zum Interesse passt. Wischen und Verweilen etwas verzoegert.
+const IMMEDIATE_SIGNALS: SignalType[] = ['like', 'unlike', 'comment', 'share', 'open', 'read'];
+
 const recordSignal = (article: Article | undefined, signal: SignalType) => {
   if (!article) return;
   markReached(article);
   applySignal(profile.value, article, signal);
   saveProfile();
-  scheduleRerank();
+  if (IMMEDIATE_SIGNALS.includes(signal)) rerank();
+  else scheduleRerank();
 };
 
 const isPublished = (a: Article) => !a.status || a.status === 'published';
@@ -265,7 +270,7 @@ const isPublished = (a: Article) => !a.status || a.status === 'published';
 const personalizedOrder = ref<Article[]>([]);
 
 // Hoechste Position in "Für dich", die schon zu sehen war oder angefasst wurde.
-// Alles bis dahin (plus die naechste Karte) bleibt beim Neusortieren stehen.
+// Alles bis dahin bleibt beim Neusortieren stehen, ab der naechsten Karte wird neu gereiht.
 let reachedPosition = -1;
 const markReached = (article: Article | undefined) => {
   if (!article || activeCategory.value !== FOR_YOU) return;
@@ -275,7 +280,7 @@ const markReached = (article: Article | undefined) => {
 
 const rerank = () => {
   markReached(visibleArticles.value[activeIndex.value]);
-  const fixed = activeCategory.value === FOR_YOU ? reachedPosition + 2 : 0;
+  const fixed = activeCategory.value === FOR_YOU ? reachedPosition + 1 : 0;
   personalizedOrder.value = rerankTail(personalizedOrder.value, articles.value.filter(isPublished), profile.value, fixed);
 };
 

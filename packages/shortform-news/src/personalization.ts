@@ -70,8 +70,9 @@ const W_FRESH = 1.5;
 const W_POPULAR = 0.7;
 const SEEN_PENALTY = 2.5;
 const OPENED_PENALTY = 4;
-// Quadratisch: eine Wiederholung kostet wenig, die dritte gleiche Kategorie in Folge viel
-const SAME_CATEGORY_PENALTY = 1.2;
+// Abzug je nachdem, wie viele der letzten drei Plaetze dieselbe Kategorie hatten:
+// bis zu drei Artikel eines Themas hintereinander sind moeglich, ein vierter kaum
+const REPEAT_PENALTY = [0, 0.3, 1.2, 6];
 /** Jede n-te Position zeigt bewusst etwas ausserhalb der bisherigen Interessen */
 const EXPLORE_EVERY = 5;
 
@@ -202,7 +203,7 @@ export function scoreArticle(article: RankableArticle, profile: InterestProfile,
 
 /**
  * Sortiert fuer "Fuer dich". Waehlt Schritt fuer Schritt den besten Artikel,
- * bestraft dabei dieselbe Kategorie wie in den beiden Plaetzen davor und setzt
+ * bestraft dabei eine Kategorie, die schon mehrmals direkt davor kam, und setzt
  * auf jede fuenfte Position den besten Artikel aus einer bisher wenig
  * beachteten Kategorie. Ohne Signale bestimmen Aktualitaet und Beliebtheit.
  */
@@ -218,7 +219,7 @@ export function rankForYou<T extends RankableArticle>(
 
   const learned = profile.signals >= 3;
   const result: T[] = [];
-  const recentCategories = (options.previous || []).slice(-2).map((a) => a.category);
+  const recentCategories = (options.previous || []).slice(-3).map((a) => a.category);
   let position = (options.previous || []).length;
 
   while (scored.length > 0) {
@@ -242,7 +243,7 @@ export function rankForYou<T extends RankableArticle>(
       let best = -Infinity;
       scored.forEach((s, i) => {
         const repeats = recentCategories.filter((c) => c && c === s.a.category).length;
-        const adjusted = s.score - repeats * repeats * SAME_CATEGORY_PENALTY;
+        const adjusted = s.score - REPEAT_PENALTY[repeats]!;
         const newer = best === adjusted && pick >= 0
           && new Date(s.a.createdAt ?? 0).getTime() > new Date(scored[pick]!.a.createdAt ?? 0).getTime();
         if (adjusted > best || newer) {
@@ -255,7 +256,7 @@ export function rankForYou<T extends RankableArticle>(
     const [chosen] = scored.splice(pick, 1);
     result.push(chosen!.a);
     recentCategories.push(chosen!.a.category);
-    if (recentCategories.length > 2) recentCategories.shift();
+    if (recentCategories.length > 3) recentCategories.shift();
   }
   return result;
 }
