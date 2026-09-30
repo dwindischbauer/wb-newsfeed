@@ -60,7 +60,12 @@ def load_z_image():
     repo = os.getenv("ZIMAGE_REPO", "Tongyi-MAI/Z-Image-Turbo")
     log.info("Lade %s", repo)
     pipe = ZImagePipeline.from_pretrained(repo, torch_dtype=torch.bfloat16)
-    # Transformer in bf16: 6 Mrd. Parameter * 2 Byte
+    if os.getenv("ZIMAGE_FP8", "1") == "1":
+        # Gewichte in fp8 ablegen, gerechnet wird in bf16. 6 statt 12 GB: passt
+        # dann neben Desktop und Ollama auf eine 16-GB-Karte, ohne dass Windows
+        # in den langsamen gemeinsamen Speicher auslagert.
+        pipe.transformer.enable_layerwise_casting(storage_dtype=torch.float8_e4m3fn, compute_dtype=torch.bfloat16)
+        return pipe, 6 * 1024**3
     return pipe, 12 * 1024**3
 
 
@@ -132,7 +137,8 @@ def load_pipeline(model: str = IMAGE_MODEL):
         pipe, transformer_bytes = load_z_image() if model == "z-image-turbo" else load_flux()
 
         free_vram, _ = torch.cuda.mem_get_info()
-        needed = transformer_bytes + 3 * 1024**3
+        # Reserve fuer Zwischenergebnisse bei 768x1344 (gemessen gut 1 GB)
+        needed = transformer_bytes + 2 * 1024**3
         mode = OFFLOAD if OFFLOAD in ("model", "group") else ("model" if free_vram > needed else "group")
         if mode == "model":
             pipe.enable_model_cpu_offload()
