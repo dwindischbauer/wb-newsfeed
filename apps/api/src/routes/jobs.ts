@@ -204,8 +204,11 @@ export default async function (server: FastifyInstance) {
         autoCategory: article?.category === 'Auto' || article?.category === 'Allgemein',
         trigger: 'retry'
       };
+      // Gleiche Queue-ID wie beim ersten Lauf, sonst haelt die Aufraeumroutine beim
+      // Start den Job fuer verwaist. Den alten Eintrag dafuer vorher entfernen.
+      await (await generationQueue.getJob(`job-${parsedId}`))?.remove();
       await generationQueue.add(jobRecord.type, data, {
-        jobId: `job-${parsedId}-retry-${Date.now()}`,
+        jobId: `job-${parsedId}`,
         removeOnComplete: 100,
         removeOnFail: 100,
         attempts: 3,
