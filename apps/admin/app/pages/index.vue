@@ -464,10 +464,24 @@
               v-model="newArticle.title"
               type="text"
               placeholder="Leer lassen, dann wird er erzeugt"
-              required
               class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"
             />
           </div>
+
+          <!-- Generierte Inhalte, beim Bearbeiten frei aenderbar -->
+          <template v-if="newArticle.id">
+            <div class="flex flex-col gap-[0.4rem]">
+              <label class="text-[0.78rem] font-semibold text-text-secondary">Teaser</label>
+              <textarea v-model="newArticle.teaser" rows="3" placeholder="Wird aus dem Text erzeugt" class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] leading-[1.5] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"></textarea>
+            </div>
+            <div class="flex flex-col gap-[0.4rem]">
+              <label class="text-[0.78rem] font-semibold text-text-secondary">Kernpunkte <span class="font-normal text-text-muted">(ein Punkt pro Zeile)</span></label>
+              <textarea v-model="keyPointsText" rows="4" placeholder="Wird aus dem Text erzeugt" class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] leading-[1.5] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"></textarea>
+            </div>
+            <p class="-mt-2 m-0 text-[0.74rem] text-text-muted">
+              Geänderter Teaser oder geänderte Kernpunkte werden als eigene Version gespeichert. Wird nur der Text geändert, erzeugt das System Teaser und Kernpunkte neu.
+            </p>
+          </template>
 
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-[0.4rem]">
@@ -1094,11 +1108,17 @@ const openModal = () => {
   isModalOpen.value = true;
 };
 
+// Kernpunkte im Formular zeilenweise, gespeichert als "• Punkt" je Zeile
+const keyPointsText = ref('');
+let originalGenerated = { teaser: '', keyPoints: '' };
+
 const editArticle = (article: DashboardArticle) => {
   newArticle.value = {
     ...article,
     tags: (article.tags || []).map((t) => t.name)
   };
+  keyPointsText.value = parseKeyTakeaways(article.keyTakeaways).join('\n');
+  originalGenerated = { teaser: (article.teaser || '').trim(), keyPoints: keyPointsText.value };
   isModalOpen.value = true;
 };
 
@@ -1128,10 +1148,24 @@ const saveArticle = async () => {
     const url = isEdit ? `${config.public.apiUrl}/api/articles/${newArticle.value.id}` : `${config.public.apiUrl}/api/articles`;
     const method = isEdit ? 'PUT' : 'POST';
 
+    // Teaser und Kernpunkte nur mitschicken, wenn sie wirklich geaendert wurden.
+    // Sonst wuerde eine reine Textaenderung keine Neugenerierung mehr ausloesen.
+    const payload: Record<string, unknown> = { ...newArticle.value };
+    if (isEdit) {
+      delete payload.teaser;
+      delete payload.keyTakeaways;
+      const points = keyPointsText.value.split('\n').map((line) => line.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean);
+      const teaser = (newArticle.value.teaser || '').trim();
+      if (teaser !== originalGenerated.teaser || points.join('\n') !== originalGenerated.keyPoints) {
+        payload.teaser = teaser || null;
+        payload.keyTakeaways = points.length ? points.map((point) => `• ${point}`).join('\n') : null;
+      }
+    }
+
     const res = await apiFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newArticle.value)
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
@@ -1150,6 +1184,7 @@ const saveArticle = async () => {
         selectedArticle.value = { ...selectedArticle.value, ...rest, tags: resolveTagObjects(formTags) };
       }
       showToast(data.generationJobId ? 'Gespeichert, Teaser wird neu erzeugt' : 'Gespeichert');
+      if (selectedArticle.value?.id === article.id) fetchVersions(article.id);
     }
 
     closeModal();

@@ -1,8 +1,8 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { db } from '../db';
-import { jobs, articles, tags, articleTags } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { jobs, articles, tags, articleTags, generationVersions } from '../db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
 const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
@@ -105,7 +105,19 @@ export const worker = new Worker('generation_jobs', async job => {
     }
     const article = articleRes[0];
 
-    if (job.name === 'teaser_generation' || job.name === 'full_generation') {
+    // Wurden Teaser/Kernpunkte nach dem Einreihen von Hand bearbeitet, bleibt
+    // die Handarbeit stehen. Ein Bild wird trotzdem erzeugt, falls angefordert.
+    const [latestVersion] = await db
+      .select({ source: generationVersions.source, createdAt: generationVersions.createdAt })
+      .from(generationVersions)
+      .where(eq(generationVersions.articleId, articleId))
+      .orderBy(desc(generationVersions.version))
+      .limit(1);
+    const editedByHand = latestVersion?.source === 'manual'
+      && (latestVersion.createdAt?.getTime() ?? 0) > job.timestamp;
+    if (editedByHand) logger.info(`Artikel ${articleId} wurde von Hand bearbeitet, Text bleibt`);
+
+    if ((job.name === 'teaser_generation' || job.name === 'full_generation') && !editedByHand) {
       const { summarizeArticle } = await import('../services/summarizer');
       const resultObj = await summarizeArticle(
         article.content,
@@ -212,6 +224,7 @@ export const worker = new Worker('generation_jobs', async job => {
     if (job.name === 'image_generation') resultMsg = 'Bild generiert';
     if (job.name === 'full_generation') resultMsg = imageError ? 'Teaser generiert, Bild fehlgeschlagen' : 'Teaser und Bild generiert';
     if (generationSource === 'fallback') resultMsg += ' (Fallback, Ollama nicht erreichbar)';
+    if (editedByHand) resultMsg = job.name === 'full_generation' ? 'Bild generiert, Text von Hand bearbeitet' : 'Text von Hand bearbeitet, nicht überschrieben';
 
     await db.update(jobs).set({ 
       status: 'completed', 
