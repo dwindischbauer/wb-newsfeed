@@ -1,0 +1,21 @@
+Nachrichten erreichen ihr Publikum heute zu einem großen Teil nicht mehr über die Startseite einer Zeitung, sondern über soziale Plattformen, Suchmaschinen und Smartphone-Apps.\kihinweis{}
+Der Reuters Institute Digital News Report 2025 zeigt, dass der Anteil der Befragten, die pro Woche Nachrichten in Form von Social-Media-Videos nutzen, über alle untersuchten Märkte von 52\,\% im Jahr 2020 auf 65\,\% im Jahr 2025 gestiegen ist \cite{newman2025dnr}.
+Bei den 18- bis 24-Jährigen geben 44\,\% an, dass soziale Netzwerke und Videoplattformen ihre wichtigste Nachrichtenquelle sind \cite{newman2025dnr}.
+Plattformen wie TikTok oder Instagram haben dabei ein eigenes Format geprägt: kurze Inhalte im Hochformat, die einzeln den ganzen Bildschirm füllen und mit einer Wischbewegung gewechselt werden.
+
+Klassische Nachrichtenangebote passen nur bedingt zu diesem Nutzungsverhalten.
+Ein Artikel auf einer Nachrichtenseite besteht aus Überschrift, Vorspann und mehreren Absätzen Fließtext und ist für das Lesen am Stück gedacht.
+Um denselben Inhalt in einem Short-Form-Feed anzubieten, braucht es zusätzlich eine kurze Fassung, ein passendes Bild im Hochformat und eine Einordnung in Themen.
+Werden diese Inhalte von Hand erstellt, entsteht für jeden Artikel zusätzlicher Aufwand in der Redaktion.
+Sprachmodelle können diese Aufgabe inzwischen in einer Qualität übernehmen, die in Studien mit von Menschen geschriebenen Zusammenfassungen vergleichbar ist \cite{zhang2024benchmarking}.
+Gleichzeitig bleiben sie fehleranfällig und erfinden mitunter Inhalte, die nicht im Ausgangstext stehen \cite{maynez2020faithfulness}.
+
+Aus dieser Ausgangslage ist gemeinsam mit dem Projektpartner Werbeberg die vorliegende Diplomarbeit entstanden.
+Ziel ist ein System, das aus bestehenden Nachrichtenartikeln automatisch einen Teaser, Kernpunkte, Themen-Tags und ein Titelbild erzeugt und diese Inhalte als vertikalen Feed ausliefert.
+Der Feed soll nicht als eigenständige App enden, sondern als Komponente in bestehende Nuxt-Websites eingebaut werden können.
+Die generierten Inhalte sollen nachvollziehbar und reproduzierbar bleiben und von einer Redaktion geprüft und korrigiert werden können.
+
+Die Arbeit gliedert sich wie folgt.
+Kapitel~\ref{chapter:related} ordnet das Projekt in bestehende Angebote und in die Forschung zu automatischer Zusammenfassung und Personalisierung ein.
+Kapitel~\ref{chapter:requirements} beschreibt den Projektauftrag und die daraus abgeleiteten Anforderungen.
+Kapitel~\ref{chapter:architecture} gibt einen Überblick über die Bausteine des Systems und deren Zusammenspiel, bevor die folgenden Kapitel auf die Umsetzung im Detail eingehen.

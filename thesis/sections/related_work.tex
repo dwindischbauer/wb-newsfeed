@@ -1,0 +1,142 @@
+Bevor die Anforderungen an das eigene System festgelegt werden, ordnet dieses Kapitel das Projekt in sein Umfeld ein.\kihinweis{}
+Ausgangspunkt ist die Frage nach dem Publikum: wie Nachrichten heute auf mobilen Geräten genutzt werden und welche Angebote es für kurze Nachrichtenformate bereits gibt.
+Danach folgen die zwei technischen Themen, auf denen wb-newsfeed aufbaut.
+Das erste ist die automatische Zusammenfassung von Nachrichtentexten mit Sprachmodellen, das zweite die Personalisierung von Nachrichtenfeeds.
+Zu beiden Themen gibt es umfangreiche Forschung, deren Ergebnisse mehrere Entscheidungen in diesem Projekt direkt beeinflusst haben.
+
+\section{Nachrichtenkonsum auf mobilen Geräten}
+\setauthor{\secondauthor}
+
+Der jährlich erscheinende Digital News Report des Reuters Institute for the Study of Journalism beruht auf einer Online-Befragung in 48 Märkten und erlaubt dadurch Vergleiche über Länder und Jahre hinweg \cite{newman2025dnr}.
+Die Ausgabe 2025 beschreibt eine deutliche Verschiebung hin zu sozialen Plattformen und Videoinhalten.
+Der Anteil der Befragten, die mindestens einmal pro Woche Nachrichten als Social-Media-Video konsumieren, ist über alle Märkte von 52\,\% im Jahr 2020 auf 65\,\% im Jahr 2025 gestiegen.
+Unter den 18- bis 24-Jährigen nennen 44\,\% soziale Netzwerke und Videoplattformen als ihre wichtigste Nachrichtenquelle \cite{newman2025dnr}.
+
+Für Medienhäuser bedeutet diese Entwicklung, dass ein großer Teil des jungen Publikums Nachrichten zuerst in einem Feed sieht und nicht auf der eigenen Website.
+Feeds auf Plattformen wie TikTok, Instagram Reels oder YouTube Shorts folgen einem gemeinsamen Muster: Ein Beitrag füllt den gesamten Bildschirm, der nächste erscheint nach einer Wischbewegung, und die Reihenfolge bestimmt ein Empfehlungsalgorithmus.
+Ein Beitrag hat damit nur wenige Sekunden Zeit, um zu zeigen, worum es geht.
+
+Ein weiterer Befund betrifft die Nachrichtenvermeidung.
+Laut demselben Bericht geben 40\,\% der Befragten an, Nachrichten manchmal oder oft bewusst zu meiden, im Jahr 2017 waren es noch 29\,\% \cite{newman2025dnr}.
+Der Bericht fragt außerdem, welche Angebote Nachrichten für die Befragten attraktiver machen würden.
+27\,\% wünschen sich zusammengefasste Fassungen von Nachrichtenartikeln \cite{newman2025dnr}.
+Zum ersten Mal wurde 2025 auch nach KI-Chatbots als Nachrichtenquelle gefragt.
+Insgesamt nutzen 7\,\% solche Werkzeuge wöchentlich für Nachrichten, bei den unter 25-Jährigen sind es 15\,\% \cite{newman2025dnr}.
+
+Aus diesen Zahlen lassen sich drei Folgerungen für einen Short-Form-Feed ableiten.
+Erstens muss der Kern einer Nachricht ohne Öffnen des Artikels erkennbar sein, also in einer Überschrift, wenigen Sätzen und einem Bild.
+Zweitens muss die Darstellung für Smartphones im Hochformat ausgelegt sein, weil dort die Nutzung stattfindet.
+Drittens ist eine Kurzfassung kein Ersatz für den Artikel.
+Wer sich für ein Thema interessiert, soll ohne Umweg zum vollständigen Text kommen.
+Diese Folgerungen finden sich in den Anforderungen in Kapitel~\ref{chapter:requirements} wieder.
+Offen bleibt, in welcher Form Medienhäuser solche Inhalte heute bereits anbieten, worum es im nächsten Abschnitt geht.
+
+\section{Bestehende Short-Form-Angebote}
+\setauthor{\secondauthor}
+
+Kurze Nachrichtenformate sind nicht neu.
+Die indische App Inshorts fasst Nachrichten aus verschiedenen Quellen in Texten mit höchstens 60 Wörtern zusammen und wirbt mit genau dieser Begrenzung \cite{inshorts}.
+Das Angebot zeigt, dass ein Publikum für stark verkürzte Nachrichten existiert.
+Es ist allerdings ein eigenständiges Produkt mit eigener Marke.
+Ein Medienhaus, das seine Artikel dort erscheinen lassen möchte, hat keinen Einfluss darauf, wie die Kurzfassung entsteht, wie sie aussieht und welche Daten über die Nutzung gesammelt werden.
+
+Der zweite verbreitete Weg ist die Veröffentlichung auf sozialen Plattformen.
+Ein Medienhaus kann dafür eigene Kurzvideos oder Bildstrecken für Instagram und TikTok produzieren.
+Damit erreichen sie das Publikum dort, wo es sich ohnehin aufhält, wie der vorige Abschnitt gezeigt hat.
+Die Inhalte entstehen dabei aber in Handarbeit, meist zusätzlich zum eigentlichen Artikel.
+Außerdem liegen Reichweite, Reihenfolge im Feed und Nutzungsdaten bei der Plattform und nicht beim Medium selbst.
+Wer auf TikTok eine Kurzmeldung sieht, landet nicht automatisch auf der Website, von der die Meldung stammt.
+
+Ein dritter Ansatz sind Feeds auf der eigenen Website oder in der eigenen App.
+Hier behält das Medium die Kontrolle über Darstellung und Daten, muss aber Kurzfassungen und Bilder ebenfalls erst erstellen.
+Für kleinere Redaktionen ist dieser zusätzliche Aufwand pro Artikel ein wesentliches Hindernis.
+
+Tabelle~\ref{tab:related:comparison} stellt die drei Ansätze den Zielen von wb-newsfeed gegenüber.
+Die Einträge der ersten drei Spalten beschreiben die Ansätze allgemein und nicht ein bestimmtes Produkt.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{Kriterium} & \textbf{Aggregator-App} & \textbf{Soziale Plattform} & \textbf{Eigener Feed (manuell)} & \textbf{wb-newsfeed} \\
+        \midrule
+        Kurzfassung & extern erstellt & von Hand & von Hand & automatisch, von der Redaktion prüfbar \\
+        Ort der Darstellung & fremde App & fremde Plattform & eigene Website & eigene Website \\
+        Reihenfolge & Anbieter & Plattform-Algorithmus & Redaktion & Personalisierung im Browser \\
+        Nutzungsdaten & beim Anbieter & bei der Plattform & beim Medium & beim Medium \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Vergleich verbreiteter Ansätze für Short-Form-Nachrichten}
+    \label{tab:related:comparison}
+\end{table}
+
+Die Lücke, die das Projekt schließen soll, liegt in der Kombination aus der letzten Spalte.
+Bestehende Artikel sollen ohne zusätzliche Handarbeit zu Feed-Inhalten werden, und der Feed soll als Teil der bestehenden Website laufen.
+Damit das gelingt, muss die Kurzfassung automatisch entstehen.
+Wie gut Sprachmodelle diese Aufgabe erfüllen und wo ihre Grenzen liegen, behandelt der folgende Abschnitt.
+
+\section{Automatische Zusammenfassung mit Sprachmodellen}\label{sec:related:summarization}
+\setauthor{\firstauthor}
+
+In der Forschung zur automatischen Textzusammenfassung werden zwei Verfahren unterschieden.
+Extraktive Verfahren wählen Sätze aus dem Originaltext aus und setzen sie zusammen.
+Abstraktive Verfahren formulieren eine neue, kürzere Fassung in eigenen Worten \cite{maynez2020faithfulness}.
+Für einen Teaser in einem Feed ist nur der zweite Weg sinnvoll, weil die ersten Sätze eines Nachrichtenartikels selten eine in sich geschlossene Kurzfassung ergeben.
+
+Mit großen Sprachmodellen (\gls{llm}) hat sich die abstraktive Zusammenfassung stark verändert.
+Goyal, Li und Durrett verglichen Zusammenfassungen von GPT-3, die ohne Training auf die Aufgabe nur durch eine Anweisung im Prompt entstanden, mit Modellen, die speziell für Nachrichtenzusammenfassung trainiert worden waren \cite{goyal2022news}.
+Die befragten Personen bevorzugten in ihrer Studie deutlich die Texte von GPT-3.
+Gleichzeitig zeigten die Autor:innen, dass gängige automatische Metriken diesen Unterschied nicht abbilden \cite{goyal2022news}.
+Zhang et al.\ untersuchten zehn Sprachmodelle in einer großen Studie mit menschlicher Bewertung \cite{zhang2024benchmarking}.
+Entscheidend für die Qualität war dabei nicht die Größe des Modells, sondern ob es auf das Befolgen von Anweisungen trainiert wurde.
+Die Zusammenfassungen dieser Modelle wurden ähnlich gut bewertet wie Texte, die freiberufliche Autor:innen für die Studie geschrieben hatten \cite{zhang2024benchmarking}.
+Für dieses Projekt ist der erste Befund besonders wichtig.
+Er spricht dafür, dass auch ein mittelgroßes Modell, das lokal auf einer einzelnen Grafikkarte läuft, für Teaser ausreicht, solange es auf Anweisungen trainiert ist.
+
+Das größte Problem abstraktiver Zusammenfassungen sind sogenannte Halluzinationen.
+Maynez et al.\ zeigten an Nachrichtenzusammenfassungen, dass Modelle regelmäßig Inhalte erzeugen, die nicht durch den Ausgangstext gedeckt sind \cite{maynez2020faithfulness}.
+Ji et al.\ unterscheiden in ihrer Übersichtsarbeit zwei Arten \cite{ji2023hallucination}.
+Intrinsische Halluzinationen widersprechen dem Ausgangstext, etwa durch eine vertauschte Zahl.
+Extrinsische Halluzinationen fügen Informationen hinzu, die sich aus dem Ausgangstext weder bestätigen noch widerlegen lassen.
+Im Nachrichtenbereich sind beide Arten heikel, weil ein Teaser unter dem Namen der Redaktion erscheint.
+
+Aus diesen Ergebnissen leiten sich mehrere Entscheidungen für wb-newsfeed ab, die in den folgenden Kapiteln genauer beschrieben werden.
+Das Modell bekommt eine eng begrenzte Aufgabe mit festem Ausgabeformat: höchstens drei Sätze Teaser, drei Kernpunkte und Tags ausschließlich aus einer vorgegebenen Liste.
+Titel und Kategorie, die die Redaktion bereits gesetzt hat, darf das Modell nicht überschreiben.
+Jedes Ergebnis wird mit Modell und Parametern versioniert, damit sich nachvollziehen lässt, wie ein Text entstanden ist.
+Die Redaktion kann jeden generierten Text im Admin-\gls{cms} prüfen und von Hand korrigieren.
+Eingesetzt wird ein Modell der Qwen3-Familie, das sowohl einen Modus mit vorgeschaltetem Denkprozess als auch einen Modus für direkte Antworten bietet \cite{qwen2025qwen3}.
+Für Teaser genügt der direkte Modus, für die anspruchsvollere Planung von Bildmotiven wird der Denkmodus genutzt.
+
+Die Kurzfassung allein macht aber noch keinen Feed.
+Ebenso wichtig ist, in welcher Reihenfolge die Beiträge erscheinen, was Thema des nächsten Abschnitts ist.
+
+\section{Personalisierung von Nachrichtenfeeds}\label{sec:related:personalization}
+\setauthor{\firstauthor}
+
+Empfehlungssysteme für Nachrichten unterscheiden sich in einigen Punkten von Systemen für Filme oder Produkte.
+Raza und Ding nennen in ihrer Übersichtsarbeit unter anderem die kurze Lebensdauer von Nachrichten, das Fehlen von Informationen über neue Nutzer:innen und neue Artikel sowie den Umstand, dass Interessen meist nur indirekt aus dem Verhalten ablesbar sind \cite{raza2022news}.
+Ein Artikel über ein Fußballspiel ist am nächsten Tag kaum noch relevant, während ein Film jahrelang empfohlen werden kann.
+
+Wu et al.\ veröffentlichten mit MIND einen großen Datensatz für Nachrichtenempfehlung, der aus den Klickdaten von Microsoft News entstanden ist und rund eine Million Nutzer:innen sowie über 160\,000 englischsprachige Artikel umfasst \cite{wu2020mind}.
+Ihre Vergleiche bestehender Verfahren zeigen, dass die Qualität der Empfehlungen stark davon abhängt, wie gut ein System den Inhalt der Artikel versteht und wie gut es die Interessen der Nutzer:innen modelliert \cite{wu2020mind}.
+Inhaltsbasierte Verfahren, die Artikel über ihren Text vergleichen, haben hier einen Vorteil.
+Sie funktionieren auch für Artikel, die gerade erst veröffentlicht wurden und noch keine Klicks haben.
+
+Eine verbreitete Technik für den inhaltlichen Vergleich sind \glspl{embedding}.
+Ein Embedding-Modell bildet einen Text auf einen Vektor ab, und die Ähnlichkeit zweier Texte lässt sich dann über den Winkel zwischen ihren Vektoren bestimmen.
+wb-newsfeed verwendet dafür das Modell BGE-M3, das über 100 Sprachen unterstützt und Texte mit bis zu 8\,192 Tokens verarbeiten kann \cite{chen2024bgem3}.
+Für deutschsprachige Nachrichtenartikel ist die Mehrsprachigkeit eine Voraussetzung, die rein englischsprachige Modelle nicht erfüllen.
+
+Personalisierung hat auch eine Kehrseite.
+Pariser beschreibt unter dem Begriff Filterblase die Gefahr, dass Nutzer:innen durch personalisierte Auswahl nur noch Inhalte sehen, die ihre bisherigen Interessen bestätigen \cite{pariser2011filter}.
+Ein bekanntes Gegenmittel aus dem Information Retrieval ist die Maximal Marginal Relevance von Carbonell und Goldstein \cite{carbonell1998mmr}.
+Dabei wird bei der Sortierung nicht nur die Relevanz eines Dokuments berücksichtigt, sondern auch, wie sehr es sich von den bereits gewählten Dokumenten unterscheidet.
+
+Für wb-newsfeed ergeben sich daraus zwei Leitlinien.
+Die Personalisierung soll ohne Benutzerkonto funktionieren, weil ein eingebetteter Feed auf einer fremden Website keine Anmeldung voraussetzen kann.
+Das Interessenprofil bleibt deshalb im Browser und wird nur aus dem Verhalten im Feed gelernt, etwa aus Verweildauer, Likes und gelesenen Artikeln.
+Außerdem soll der Feed bewusst Abwechslung erzeugen.
+Er begrenzt daher, wie viele Artikel desselben Themas hintereinander erscheinen, und reserviert regelmäßig Plätze für Themen außerhalb der bisherigen Interessen.
+Wie diese Leitlinien in konkrete Anforderungen übersetzt wurden, beschreibt das nächste Kapitel.

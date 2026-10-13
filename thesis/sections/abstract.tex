@@ -1,0 +1,45 @@
+% both abstracts are required, independent of the thesis language
+\selectlanguage{english}
+\begin{spacing}{1}
+    \chapter*{Abstract}
+\end{spacing}
+\begin{wrapfigure}{r}{0.3\textwidth}
+    \begin{center}
+      % TODO: durch einen Screenshot einer Feed-Karte ersetzen (z. B. pics/feed_card.png)
+      \includegraphics[width=0.2\textwidth]{pics/question_mark.png}
+    \end{center}
+\end{wrapfigure}
+News websites publish long articles, while a growing share of readers, especially younger ones, consume news as short, vertically scrolling content on social media platforms.
+This thesis describes the development of wb-newsfeed, a system that turns regular news articles into short-form content and delivers it as a swipeable feed that can be embedded into existing websites.
+The project was carried out together with Werbeberg as project partner.
+
+A backend based on Fastify, PostgreSQL and a BullMQ job queue processes every new or changed article asynchronously.
+A locally hosted large language model (Qwen3 via Ollama) generates a teaser of at most three sentences, three key points and up to two topic tags.
+A separate image server creates a cover image in portrait format with the diffusion model Z-Image-Turbo.
+Every generated result is stored as an immutable version together with the model and its sampling parameters, so that results can be reproduced, compared and restored.
+On the client side, the complete feed is shipped as a reusable Vue and Nuxt package.
+It loads articles page by page, renders only the cards close to the visible one, and sorts the feed for each reader based on dwell time, likes and the content similarity of articles, without requiring a user account.
+An admin interface allows editors to review, edit and regenerate the generated content.
+\newpage
+\selectlanguage{ngerman}
+\begin{spacing}{1}
+    \chapter*{Zusammenfassung}
+\end{spacing}
+\begin{wrapfigure}{r}{0.3\textwidth}
+    \begin{center}
+      % TODO: dasselbe Bild wie im Abstract
+      \includegraphics[width=0.2\textwidth]{pics/question_mark.png}
+    \end{center}
+\end{wrapfigure}
+Nachrichtenseiten veröffentlichen lange Artikel, während ein wachsender Teil des Publikums, vor allem jüngere Menschen, Nachrichten als kurze, vertikal scrollbare Inhalte auf sozialen Plattformen konsumiert.
+Diese Arbeit beschreibt die Entwicklung von wb-newsfeed, einem System, das gewöhnliche Nachrichtenartikel automatisch in Short-Form-Inhalte umwandelt und sie als wischbaren Feed bereitstellt, der sich in bestehende Websites einbauen lässt.
+Projektpartner der Arbeit ist Werbeberg.
+
+Ein Backend auf Basis von Fastify, PostgreSQL und einer BullMQ-Warteschlange verarbeitet jeden neuen oder geänderten Artikel asynchron.
+Ein lokal betriebenes Sprachmodell (Qwen3 über Ollama) erzeugt daraus einen Teaser mit höchstens drei Sätzen, drei Kernpunkte und bis zu zwei Themen-Tags.
+Ein eigener Bildserver erstellt mit dem Diffusionsmodell Z-Image-Turbo ein Titelbild im Hochformat.
+Jedes generierte Ergebnis wird als unveränderliche Version mit Modell und Parametern gespeichert, sodass Ergebnisse nachvollziehbar, vergleichbar und wiederherstellbar bleiben.
+Auf der Client-Seite steht der komplette Feed als wiederverwendbares Vue- und Nuxt-Package zur Verfügung.
+Er lädt Artikel seitenweise, rendert nur die Karten in der Nähe der sichtbaren und sortiert den Feed für jede:n Leser:in anhand von Verweildauer, Likes und inhaltlicher Ähnlichkeit der Artikel, ohne dass ein Benutzerkonto nötig ist.
+Über ein Admin-CMS prüft, bearbeitet und erneuert die Redaktion die generierten Inhalte.
+\langselect{\selectlanguage{ngerman}}{\selectlanguage{english}}

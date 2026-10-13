@@ -1,0 +1,254 @@
+Die Anforderungen an wb-newsfeed stammen aus zwei Dokumenten.\kihinweis{}
+Das erste ist das Briefing des Projektpartners Werbeberg vom 30.~Jänner 2026, das den Funktionsumfang und die technischen Rahmenbedingungen festlegt.
+Das zweite ist der Diplomarbeitsantrag vom 19.~Februar 2026, in dem die geplanten Ergebnisse auf die beiden Autoren aufgeteilt sind.
+Dieses Kapitel fasst beide Quellen zusammen, beschreibt die Personen, die mit dem System arbeiten, und ordnet die Anforderungen in funktionale und nicht-funktionale Anforderungen.
+Jede Anforderung trägt eine Kennung, über die in späteren Kapiteln auf sie verwiesen wird.
+
+\section{Projektauftrag und Rahmenbedingungen}
+\setauthor{\firstauthor}
+
+\reminder{Ein bis zwei Sätze zum Projektpartner Werbeberg ergänzen: Tätigkeitsfeld, Ansprechperson, warum das Thema für das Unternehmen interessant ist.}
+
+Der Auftrag lässt sich in einem Satz zusammenfassen: Aus gewöhnlichen Nachrichtenartikeln sollen automatisch Short-Form-Inhalte entstehen, die in einem vertikal scrollbaren Feed angezeigt werden, und dieser Feed soll sich als Komponente in bestehende Nuxt-Projekte einbauen lassen.
+Das Briefing beschreibt damit nicht nur eine Anwendung, sondern einen Baustein, den eine Website übernehmen kann, ohne ihr bestehendes \gls{cms} zu ersetzen.
+
+Daraus ergeben sich drei Teilaufgaben.
+Die erste ist die Generierung: Aus Titel, Text und Kategorie eines Artikels entstehen ein \gls{teaser}, Kernpunkte und weitere Metadaten, die gespeichert werden.
+Die zweite ist die Bereitstellung über eine \gls{rest}-Schnittstelle, die neue und geänderte Inhalte ausliefert.
+Die dritte ist die Darstellung im Feed selbst, die als wiederverwendbares Package gebaut wird.
+Möchte jemand einen Artikel vollständig lesen, übergibt der Feed lediglich eine eindeutige Kennung an die einbindende Website.
+Wie diese den Artikel anzeigt, bleibt ihr überlassen.
+
+Das Briefing gibt außerdem den technischen Rahmen vor, der in Tabelle~\ref{tab:req:tech} zusammengefasst ist.
+Für die Oberfläche sind Nuxt~4 mit \gls{ssr}, TypeScript und Tailwind CSS in Version~4 vorgegeben.
+Für das Backend schreibt das Briefing keine Sprache vor.
+Verlangt wird nur, dass es die Generierung asynchron verarbeitet und die Inhalte verwaltet und bereitstellt.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{ID} & \textbf{Rahmenbedingung} \\
+        \midrule
+        T1 & Oberfläche mit Nuxt~4 (\gls{ssr}) und TypeScript \\
+        T2 & Gestaltung mit Tailwind CSS in Version~4 \\
+        T3 & Einheitliche Code-Prüfung mit ESLint im gesamten Projekt \\
+        T4 & Feed-Oberfläche als wiederverwendbares Package \\
+        T5 & Backend für asynchrone Generierung, Verwaltung und Bereitstellung der Inhalte \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Technische Rahmenbedingungen laut Briefing}
+    \label{tab:req:tech}
+\end{table}
+
+Die Arbeit ist entlang dieser Teilaufgaben aufgeteilt.
+\firstauthor{} verantwortet das Backend mit Schnittstelle, Datenbank, Warteschlange, Text- und Bildgenerierung sowie die Dokumentation der Schnittstellen.
+\secondauthor{} verantwortet die Feed-App, das Admin-\gls{cms}, das Komponenten-Package und dessen Einbindung in fremde Websites.
+Die Entwicklung fand zwischen Juli und September 2026 statt.
+Das gemeinsame Git-Repository umfasst in diesem Zeitraum 258 Commits.
+
+Zur Abgrenzung wurden zu Projektbeginn einige Punkte festgelegt.
+Das System ist kein Ersatz für ein Redaktionssystem, Artikel entstehen weiterhin in der Redaktion und gelangen über eine Schnittstelle oder einen Import in wb-newsfeed.
+Benutzerkonten für das Publikum sind nicht vorgesehen.
+Mehrere Erweiterungsideen, etwa eine Audiofassung oder Teaser-Varianten für unterschiedliche Zielgruppen, sind als optional markiert.
+Sie werden in Abschnitt~\ref{sec:req:functional} getrennt von den Pflichtanforderungen geführt.
+Wer mit dem System im Alltag arbeitet, beschreibt der nächste Abschnitt.
+
+\section{Rollen und Anwendungsfälle}
+\setauthor{\secondauthor}
+
+Mit wb-newsfeed arbeiten drei Gruppen von Personen, deren Erwartungen sich deutlich unterscheiden.
+
+\begin{compactdesc}
+    \item[Leser:innen] sehen den Feed auf dem Smartphone, meist eingebettet in die Website eines Mediums. Sie haben kein Konto und erwarten, dass der Feed sofort lädt und sich wie gewohnte Short-Form-Plattformen bedienen lässt.
+    \item[Redakteur:innen] arbeiten im Admin-\gls{cms}. Sie legen Artikel an oder importieren sie, prüfen die generierten Inhalte, korrigieren sie bei Bedarf und veröffentlichen die Artikel.
+    \item[Entwickler:innen der Host-Website] binden den Feed in ihre bestehende Nuxt-Website ein. Für sie zählt eine überschaubare Einrichtung, eine klare Dokumentation und die Möglichkeit, das Aussehen an die eigene Marke anzupassen.
+\end{compactdesc}
+
+Die Anforderungen wurden für jede dieser Gruppen als User Stories formuliert.
+Tabelle~\ref{tab:req:stories} zeigt eine Auswahl, die den Kern des Systems abdeckt.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{Rolle} & \textbf{User Story} \\
+        \midrule
+        Leser:in & Als Leser:in möchte ich durch kurze Zusammenfassungen wischen, um in kurzer Zeit einen Überblick über die aktuellen Nachrichten zu bekommen. \\
+        Leser:in & Als Leser:in möchte ich einen Artikel mit einem Tippen vollständig öffnen, um mehr über ein Thema zu erfahren. \\
+        Leser:in & Als Leser:in möchte ich den Feed nach Kategorien filtern, um nur Themen zu sehen, die mich gerade interessieren. \\
+        Leser:in & Als Leser:in möchte ich, dass der Feed mit der Zeit mehr Artikel zeigt, die zu meinen Interessen passen, ohne dass ich mich anmelden muss. \\
+        Leser:in & Als Leser:in möchte ich Artikel liken, kommentieren und teilen können. \\
+        Redakteur:in & Als Redakteur:in möchte ich einen Artikel anlegen und automatisch Teaser, Kernpunkte und Tags erhalten, um keine Kurzfassung selbst schreiben zu müssen. \\
+        Redakteur:in & Als Redakteur:in möchte ich generierte Texte korrigieren und frühere Fassungen wiederherstellen können. \\
+        Redakteur:in & Als Redakteur:in möchte ich Artikel aus einem bestehenden \gls{rss}-Feed übernehmen, um sie nicht abtippen zu müssen. \\
+        Redakteur:in & Als Redakteur:in möchte ich sehen, wie oft ein Artikel angesehen und wie lange er gelesen wurde. \\
+        Entwickler:in & Als Entwickler:in möchte ich den Feed mit einer einzigen Komponente in mein Nuxt-Projekt einbauen. \\
+        Entwickler:in & Als Entwickler:in möchte ich Farben und Schriften des Feeds an meine Website anpassen. \\
+        Entwickler:in & Als Entwickler:in möchte ich selbst entscheiden, was beim Öffnen eines Artikels passiert. \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Auswahl der User Stories je Rolle}
+    \label{tab:req:stories}
+\end{table}
+
+Aus den User Stories ergeben sich zwei zentrale Anwendungsfälle, die das ganze System durchlaufen.
+Im ersten legt ein:e Redakteur:in einen Artikel an.
+Das System übernimmt Titel, Text und Kategorie, erzeugt im Hintergrund Teaser, Kernpunkte und Tags und zeigt den Fortschritt im Admin-\gls{cms} an.
+Nach der Prüfung wird der Artikel veröffentlicht und erscheint beim nächsten Abruf im Feed.
+Ändert sich später der Artikeltext, wird der Teaser neu erzeugt, während eine von Hand geänderte Fassung erhalten bleibt.
+
+Im zweiten Anwendungsfall öffnet eine Person die Website eines Mediums auf dem Smartphone.
+Der Feed lädt die ersten Artikel, zeigt die erste Karte und lädt weitere Karten nach, während gewischt wird.
+Aus dem Verhalten, etwa wie lange eine Karte betrachtet oder ob ein Artikel geöffnet wird, lernt der Feed Interessen und ordnet die folgenden Karten neu.
+Tippt die Person auf \glqq Weiterlesen\grqq{}, meldet der Feed die Kennung des Artikels an die Website, die den vollständigen Text anzeigt.
+
+Beide Anwendungsfälle zeigen, dass Generierung und Darstellung nur über die Schnittstelle miteinander verbunden sind.
+Die genauen Anforderungen an beide Seiten folgen im nächsten Abschnitt.
+
+\section{Funktionale Anforderungen}\label{sec:req:functional}
+\setauthor{\firstauthor}
+
+Tabelle~\ref{tab:req:functional} listet die funktionalen Pflichtanforderungen.
+Die Kennungen mit F, G und E stammen aus dem Briefing, jene mit D aus dem Diplomarbeitsantrag.
+Anforderungen, die in beiden Dokumenten vorkommen, sind nur einmal angeführt.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{ID} & \textbf{Anforderung} \\
+        \midrule
+        F1 & Vertikal scrollbarer Short-Form-Feed mit einer Karte pro Artikel \\
+        F2 & Anzeige von KI-generierten Kurzinhalten (Teaser) auf den Karten \\
+        F3 & Übergabe einer eindeutigen Kennung an die Host-Website, wenn ein Artikel geöffnet wird \\
+        G1 & Generierung der Kurzinhalte aus strukturierten Artikeldaten \\
+        G2 & Dauerhafte Speicherung der generierten Inhalte \\
+        E1 & Einbindung des Feeds als Nuxt-Komponente in bestehende Nuxt-Projekte \\
+        E2 & Erkennung neuer und geänderter Inhalte im Feed \\
+        E3 & Bereitstellung der Inhalte über eine \gls{rest}-Schnittstelle \\
+        D1 & Reproduzierbare und konfigurierbare KI-Generierung \\
+        D2 & Asynchrone Verarbeitung neuer und geänderter Inhalte \\
+        D3 & Versionierung der generierten Inhalte \\
+        D4 & Unabhängigkeit von einem bestimmten \gls{cms} \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Funktionale Pflichtanforderungen}
+    \label{tab:req:functional}
+\end{table}
+
+Einige dieser Anforderungen sind im Briefing bewusst knapp formuliert und mussten für die Umsetzung präzisiert werden.
+
+\textbf{F3} legt fest, dass der Feed beim Öffnen eines Artikels nur eine Kennung übergibt.
+Der Feed zeigt also nicht selbst eine eigene Artikelseite an, sondern meldet über ein Ereignis die Artikel-ID an die einbindende Website.
+Damit bleibt die Website für Navigation, Layout und gegebenenfalls Bezahlschranken zuständig.
+
+\textbf{G1} wurde so präzisiert, dass aus Titel, Text und Kategorie eines Artikels ein Teaser mit höchstens drei Sätzen, drei Kernpunkte und ein bis zwei Tags entstehen.
+Die Tags stammen aus einer festen Liste von Unterkategorien je Hauptkategorie.
+Freie Schlagwörter wie Personen- oder Firmennamen würden zu sehr vielen Tags mit jeweils nur einem Artikel führen und wären für die Filterung im Feed unbrauchbar.
+Als Hauptkategorien sind Politik, Wirtschaft, Sport, Technologie, Kultur und Chronik festgelegt.
+Zusätzlich zum Text entsteht auf Wunsch ein Titelbild im Hochformat.
+
+\textbf{E2} verlangt, dass der Feed neue oder geänderte Inhalte erkennt, ohne dass die Seite neu geladen werden muss.
+Das Briefing lässt offen, ob das über regelmäßige Abfragen oder über eine Push-Verbindung geschieht.
+
+\textbf{D1} verlangt, dass derselbe Artikel mit denselben Einstellungen dasselbe Ergebnis liefert.
+Bei Sprachmodellen ist das nicht selbstverständlich, weil die Ausgabe standardmäßig zufällig gezogen wird.
+Modell, Temperatur und Seed müssen deshalb einstellbar sein und bei jedem Ergebnis mitgespeichert werden.
+
+\textbf{D3} geht über das bloße Speichern hinaus.
+Jede generierte oder von Hand geänderte Fassung soll als eigene, unveränderliche Version erhalten bleiben und wiederhergestellt werden können.
+Das ist die Grundlage dafür, dass Redakteur:innen Ergebnisse vergleichen und die in Abschnitt~\ref{sec:related:summarization} beschriebenen Fehler eines Sprachmodells nachvollziehen können.
+
+\textbf{D4} bedeutet, dass Artikel aus beliebigen Quellen ins System gelangen können.
+Neben der direkten Anlage über die Schnittstelle ist dafür ein Import aus \gls{rss}- und Atom-Feeds vorgesehen, sodass bestehende Nachrichtenquellen ohne eigene Anpassung angebunden werden können.
+
+Neben den Pflichtanforderungen nennt das Briefing mehrere Erweiterungsideen, die in Tabelle~\ref{tab:req:optional} zusammengefasst sind.
+Sie fließen nicht in die Bewertung der Pflichtanforderungen ein, wurden aber bei der Architektur von Anfang an berücksichtigt.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{ID} & \textbf{Optionale Erweiterung} \\
+        \midrule
+        O1 & Personalisierung der Reihenfolge im Feed \\
+        O2 & Personalisierung der Inhalte, etwa Teaser-Varianten je Zielgruppe \\
+        O3 & Admin-Dashboard auf Basis von Nuxt~4 \\
+        O4 & Weitergabe von Nutzungsdaten über Client-Ereignisse oder Webhooks \\
+        O5 & Audiofassung der Inhalte \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Optionale Erweiterungen laut Briefing}
+    \label{tab:req:optional}
+\end{table}
+
+Die funktionalen Anforderungen beschreiben, was das System leisten soll.
+Wie schnell, wie sicher und wie gut wartbar es dabei sein muss, legen die nicht-funktionalen Anforderungen im folgenden Abschnitt fest.
+
+\section{Nicht-funktionale Anforderungen}
+\setauthor{\secondauthor}
+
+Neben den technischen Rahmenbedingungen aus Tabelle~\ref{tab:req:tech} enthält der Diplomarbeitsantrag mehrere Ziele, die die Qualität des Systems betreffen.
+Sie sind in Tabelle~\ref{tab:req:nonfunctional} zusammengefasst und werden anschließend erläutert.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{ID} & \textbf{Anforderung} \\
+        \midrule
+        S1 & Responsive Oberfläche, ausgelegt für Smartphones im Hochformat \\
+        S2 & Performantes Rendering und schrittweises Nachladen der Inhalte \\
+        S3 & Konfigurierbare Darstellung und Gestaltung des Feeds \\
+        S4 & Ereignisse für Tracking und Analytics \\
+        S5 & Technische Dokumentation zur Einbindung \\
+        D5 & Performance des Backends durch Caching und Warteschlangen \\
+        D6 & Dokumentation von Schnittstellen und Architektur \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Nicht-funktionale Anforderungen}
+    \label{tab:req:nonfunctional}
+\end{table}
+
+\textbf{Benutzbarkeit auf dem Smartphone (S1).}
+Der Feed muss auf Bildschirmen ab einer Breite von 375 Pixeln vollständig bedienbar sein.
+Jede Karte füllt die Höhe des Bildschirms aus und rastet beim Wischen ein, sodass immer genau ein Artikel sichtbar ist.
+Bedienelemente wie Like oder Teilen müssen mit dem Daumen erreichbar sein.
+
+\textbf{Ladezeit und Speicherbedarf (S2, D5).}
+Ein Feed kann sehr viele Artikel enthalten, und jede Karte trägt ein großes Bild.
+Würden beim Start alle Artikel geladen und alle Karten gezeichnet, stiegen Datenmenge und Speicherbedarf mit jedem neuen Artikel.
+Der Feed soll daher Artikel in Seiten laden und nur die Karten rendern, die sich in der Nähe der sichtbaren Karte befinden.
+Auf der Seite des Backends darf eine langsame Generierung keine Anfrage an den Feed blockieren.
+Generierung und Auslieferung müssen deshalb getrennt sein, und häufig abgefragte Daten sollen zwischengespeichert werden.
+Da der Feed regelmäßig auf Änderungen prüft (E2), soll eine unveränderte Antwort ohne erneute Übertragung des Inhalts beantwortet werden können.
+
+\textbf{Anpassbarkeit (S3).}
+Websites, die den Feed einbinden, haben eigene Farben und Schriften.
+Das Aussehen des Feeds muss daher ohne Änderung am Code des Packages anpassbar sein.
+Einzelne Bereiche einer Karte sollen sich zusätzlich durch eigene Inhalte ersetzen lassen.
+
+\textbf{Messbarkeit (S4).}
+Für Redaktionen ist es wichtig zu wissen, welche Artikel im Feed funktionieren.
+Der Feed muss deshalb Ereignisse wie das erste Sichtbarwerden einer Karte, das Öffnen eines Artikels oder ein Like nach außen melden.
+Die einbindende Website kann diese Ereignisse an ein eigenes Analysewerkzeug weitergeben.
+
+\textbf{Dokumentation (S5, D6).}
+Die Schnittstelle soll vollständig und maschinenlesbar beschrieben sein, sodass andere Entwickler:innen sie ohne Blick in den Quellcode nutzen können.
+Für das Package ist eine Anleitung nötig, die alle Schritte der Einbindung, die Konfiguration und alle Ereignisse beschreibt.
+
+\textbf{Sicherheit und Datenschutz.}
+Diese Punkte sind im Briefing nicht ausdrücklich genannt, ergeben sich aber aus dem Einsatz auf öffentlichen Websites.
+Schreibende Zugriffe auf die Schnittstelle, etwa das Anlegen oder Löschen von Artikeln, dürfen nur mit einem Schlüssel möglich sein.
+Der Feed selbst muss ohne Anmeldung funktionieren.
+Das Interessenprofil für die Personalisierung soll das Gerät der Leser:innen nicht verlassen, an den Server gehen nur anonyme Ereignisse für die Statistik.
+Eine weitere Vorgabe des Projektteams betrifft die Kosten: Text- und Bildgenerierung sollen lokal auf eigener Hardware laufen können, damit keine laufenden Kosten pro Artikel bei einem externen Anbieter entstehen.
+
+Mit diesen Anforderungen steht fest, was das System leisten muss.
+Wie die einzelnen Bausteine aufgebaut sind, um sie zu erfüllen, zeigt das folgende Kapitel.

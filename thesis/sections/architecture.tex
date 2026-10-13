@@ -1,0 +1,211 @@
+Dieses Kapitel beschreibt, aus welchen Bausteinen wb-newsfeed besteht und wie sie zusammenarbeiten.\kihinweis{}
+Es dient als Landkarte für die folgenden Kapitel, in denen die einzelnen Teile genauer behandelt werden.
+Zuerst werden die Komponenten und ihre Verbindungen vorgestellt.
+Danach folgt der Weg eines Artikels von der Anlage bis zur fertigen Karte im Feed und zuletzt die Auslieferung des Feeds an eine einbindende Website.
+
+\section{Bausteine des Systems}\label{sec:arch:components}
+\setauthor{\firstauthor}
+
+Abbildung~\ref{fig:arch:overview} zeigt die Bausteine des Systems und ihre Verbindungen.
+Im oberen Bereich liegen die Oberflächen, über die Menschen mit dem System arbeiten.
+In der Mitte steht die zentrale Schnittstelle, darunter die Dienste für Datenhaltung und Generierung.
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}[
+        box/.style={draw, rounded corners=2pt, align=center, minimum height=1.1cm, font=\small},
+        arr/.style={-{Stealth[length=2mm]}, thick},
+        dline/.style={thick, dashed}
+    ]
+        % Oberflächen
+        \node[box, text width=3.0cm] (admin) at (1.8,0) {Admin-CMS\\Nuxt 4};
+        \node[box, text width=3.0cm] (feed) at (5.4,0) {Feed-App\\Nuxt 4};
+        \node[box, text width=3.0cm] (host) at (9.0,0) {Host-Website\\Nuxt-Projekt};
+        \node[box, text width=5.0cm, fill=lightblue, minimum height=0.8cm] (pkg) at (7.2,-1.6) {Package \texttt{shortform-news}};
+        % Schnittstelle
+        \node[box, text width=5.0cm, fill=lightgray] (api) at (5.4,-3.2) {Fastify-API\\mit BullMQ-Worker};
+        % Dienste
+        \node[box, text width=2.8cm] (db) at (0,-5.2) {PostgreSQL\\Datenbank};
+        \node[box, text width=2.8cm] (redis) at (3.6,-5.2) {Redis\\Warteschlange};
+        \node[box, text width=2.8cm] (ollama) at (7.2,-5.2) {Ollama\\Qwen3, BGE-M3};
+        \node[box, text width=2.8cm] (img) at (10.8,-5.2) {Bildserver\\Z-Image-Turbo};
+        % Verbindungen
+        \draw[dline] (feed) -- (pkg);
+        \draw[dline] (host) -- (pkg);
+        \draw[arr] (admin) -- (api);
+        \draw[arr] (pkg) -- (api);
+        \draw[arr] (api) -- (db);
+        \draw[arr] (api) -- (redis);
+        \draw[arr] (api) -- (ollama);
+        \draw[arr] (api) -- (img);
+    \end{tikzpicture}
+    \caption{Bausteine von wb-newsfeed und ihre Verbindungen}
+    \label{fig:arch:overview}
+\end{figure}
+
+\textbf{Admin-CMS.}
+Über das Admin-\gls{cms} legen Redakteur:innen Artikel an, importieren \gls{rss}-Feeds, prüfen generierte Inhalte und ändern die Einstellungen für die Modelle.
+Es ist eine eigene Nuxt-Anwendung.
+Anfragen an die Schnittstelle laufen nicht direkt aus dem Browser, sondern über eine Server-Route der Nuxt-Anwendung.
+Diese ergänzt den geheimen Schlüssel für schreibende Zugriffe, sodass er nie im Browser landet.
+
+\textbf{Feed-App und Package.}
+Der eigentliche Feed ist im Package \texttt{@wb-news/\allowbreak shortform-news} umgesetzt.
+Die Feed-App des Projekts ist selbst nur eine dünne Hülle um dieses Package und verhält sich damit genauso wie jede fremde Website, die den Feed einbindet.
+Dadurch wird jede Änderung am Package automatisch in derselben Form getestet, in der sie später bei einem Host ankommt.
+
+\textbf{Schnittstelle und Worker.}
+Die Schnittstelle ist mit dem Node.js-Framework Fastify umgesetzt und in einer OpenAPI-3.1-Spezifikation mit 35 Operationen beschrieben.
+Lesende Endpunkte, die der Feed ohne Anmeldung braucht, sind öffentlich.
+Alle anderen verlangen einen Schlüssel im Header \texttt{x-api-key}, ohne konfigurierten Schlüssel startet die Schnittstelle gar nicht.
+Im selben Prozess läuft ein Worker der Bibliothek BullMQ, der Aufträge aus der Warteschlange abarbeitet.
+Die Trennung von Schnittstelle und Worker erfolgt damit nicht über getrennte Prozesse, sondern über die Warteschlange.
+Ein Worker kann bei Bedarf trotzdem als eigener Prozess ausgelagert werden, weil beide Seiten nur über Redis miteinander sprechen.
+
+\textbf{Datenhaltung.}
+Artikel, Aufträge, Versionen, Tags, Kommentare, Nutzungsereignisse und Einstellungen liegen in einer PostgreSQL-Datenbank.
+Der Zugriff erfolgt über das \gls{orm} Drizzle, in dem das Schema als TypeScript-Code definiert ist.
+Redis dient ausschließlich als Speicher für die Warteschlange.
+
+\textbf{Generierung.}
+Für Texte und \glspl{embedding} läuft Ollama als lokaler Dienst.
+Standardmäßig werden das Sprachmodell \texttt{qwen3:14b} \cite{qwen2025qwen3} und das Embedding-Modell \texttt{bge-m3} \cite{chen2024bgem3} verwendet.
+Titelbilder erzeugt ein eigener Bildserver in Python.
+Er verwendet standardmäßig das Diffusionsmodell Z-Image-Turbo mit sechs Milliarden Parametern \cite{zimage2025}, alternativ FLUX.1-schnell.
+Der Bildserver bietet denselben Endpunkt wie die Bild-\gls{api} von OpenAI an, sodass er sich bei Bedarf gegen einen anderen kompatiblen Dienst tauschen lässt.
+Optional kann statt des lokalen Servers die kostenpflichtige Bildgenerierung von Google Gemini verwendet werden.
+
+Der gesamte Code liegt in einem Monorepo, das mit pnpm-Workspaces verwaltet wird.
+Die drei Anwendungen liegen unter \texttt{apps/}, das Package unter \texttt{packages/} und der Bildserver unter \texttt{services/}.
+PostgreSQL, Redis und Ollama starten über Docker Compose.
+Der Bildserver läuft dagegen direkt auf dem Entwicklungsrechner, damit er ohne zusätzliche Schicht auf die \gls{gpu} zugreifen kann.
+Entwickelt und getestet wurde auf einer Grafikkarte mit 16~GB \gls{vram}.
+Damit Text- und Bildmodell auf dieser Karte Platz finden, gibt Ollama den Speicher nach jeder Anfrage für ein Bildmotiv sofort wieder frei, und der Bildserver lädt, sofern genug Speicher frei ist, jeweils nur die gerade rechnende Komponente des Modells auf die Grafikkarte.
+
+Wie diese Bausteine bei der Verarbeitung eines einzelnen Artikels zusammenspielen, zeigt der nächste Abschnitt.
+
+\section{Vom Artikel zur Feed-Karte}\label{sec:arch:flow}
+\setauthor{\firstauthor}
+
+Die Generierung von Inhalten dauert je nach Modell und Auslastung zwischen einigen Sekunden und über einer Minute.\reminder{Mit eigenen Messwerten belegen, z.\,B. aus \texttt{jobs.processing\_time\_ms}.}
+Würde die Schnittstelle so lange auf das Ergebnis warten, wäre das Admin-\gls{cms} blockiert, und bei einem Import vieler Artikel würden Anfragen in eine Zeitüberschreitung laufen.
+Die Generierung läuft deshalb asynchron, wie Abbildung~\ref{fig:arch:flow} zeigt.
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}[
+        flowstep/.style={draw, rounded corners=2pt, align=center, text width=3.6cm, minimum height=1.3cm, font=\small},
+        arr/.style={-{Stealth[length=2mm]}, thick}
+    ]
+        \node[flowstep] (s1) at (0,0) {1. Artikel anlegen\\\texttt{POST /api/articles}};
+        \node[flowstep] (s2) at (4.6,0) {2. Artikel und Auftrag speichern};
+        \node[flowstep] (s3) at (9.2,0) {3. Auftrag in die Warteschlange};
+        \node[flowstep] (s4) at (9.2,-2.4) {4. Worker erzeugt Teaser, Kernpunkte, Tags};
+        \node[flowstep] (s5) at (4.6,-2.4) {5. Ergebnis und Version speichern};
+        \node[flowstep] (s6) at (0,-2.4) {6. Auslieferung beim nächsten Feed-Abruf};
+        \draw[arr] (s1) -- (s2);
+        \draw[arr] (s2) -- (s3);
+        \draw[arr] (s3) -- (s4);
+        \draw[arr] (s4) -- (s5);
+        \draw[arr] (s5) -- (s6);
+    \end{tikzpicture}
+    \caption{Ablauf der asynchronen Generierung eines Artikels}
+    \label{fig:arch:flow}
+\end{figure}
+
+Legt ein:e Redakteur:in einen Artikel an, speichert die Schnittstelle ihn sofort in der Datenbank.
+Bis das Sprachmodell geantwortet hat, erhält der Artikel vorläufige Werte aus einer einfachen Heuristik, die anhand von Schlüsselwörtern eine Kategorie bestimmt und den Textanfang als Teaser verwendet.
+Gleichzeitig entsteht ein Eintrag in der Tabelle der Aufträge mit dem Status \texttt{pending}, und der Auftrag wird in die Warteschlange gestellt.
+Die Antwort an das Admin-\gls{cms} enthält die Kennung des Artikels und die Kennung des Auftrags, über die sich der Fortschritt abfragen lässt.
+Dieser Ablauf ist für alle Wege gleich, über die Artikel ins System kommen, also für das Admin-\gls{cms}, für direkte Aufrufe der Schnittstelle und für den \gls{rss}-Import.
+
+Der Worker holt den Auftrag aus der Warteschlange, setzt den Status auf \texttt{processing} und schickt den Artikeltext mit einer festen Anweisung an Ollama.
+Listing~\ref{lst:arch:ollama} zeigt den Aufruf.
+Das Modell muss im \gls{json}-Format antworten, der Denkmodus ist für Teaser abgeschaltet, und Temperatur und Seed stammen aus den Einstellungen.
+Standardmäßig sind das eine Temperatur von 0 und der Seed 42, womit gleiche Eingaben zu gleichen Ausgaben führen (Anforderung D1).
+
+\begin{lstlisting}[language=TypeScript,caption={Aufruf des Sprachmodells über Ollama (gekürzt aus \texttt{summarizer.ts})},label=lst:arch:ollama]
+const response = await fetch(`${ollamaUrl}/api/generate`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    model: aiModel,             // Standard: qwen3:14b
+    prompt: promptText,
+    stream: false,
+    format: 'json',             // Antwort als JSON-Objekt
+    think: false,               // kein Denkmodus fuer Teaser
+    options: generationOptions  // { temperature, seed }
+  }),
+  signal: controller.signal     // Abbruch nach Zeitlimit
+});
+\end{lstlisting}
+
+Das Ergebnis schreibt der Worker in den Artikel und legt zusätzlich eine neue Version in der Tabelle \texttt{generation\_versions} an.
+Eine Version enthält Teaser, Kernpunkte, Titel, Kategorie und Tags sowie das verwendete Modell, Temperatur, Seed und einen SHA-256-Hash des Artikeltexts.
+Über den Hash lässt sich später feststellen, auf welchem Stand des Textes eine Fassung beruht.
+Versionen werden nie verändert.
+Wird eine ältere Fassung wiederhergestellt, entsteht dafür eine neue Version, die auf die alte verweist (Anforderung D3).
+
+Für den Fall, dass ein Schritt fehlschlägt, gibt es mehrere Rückfallebenen.
+Ist Ollama nicht erreichbar, liefert die Heuristik ein Ergebnis, das in Auftrag und Version ausdrücklich als Fallback markiert wird.
+Schlägt ein Auftrag aus anderen Gründen fehl, wiederholt BullMQ ihn bis zu dreimal mit wachsendem Abstand.
+Scheitert nur das Titelbild, bleibt der Text trotzdem gespeichert, und der Auftrag vermerkt den Fehler beim Bild.
+
+Ein Titelbild entsteht standardmäßig nur auf Anforderung im Admin-\gls{cms} oder automatisch, wenn diese Option in den Einstellungen aktiviert ist.
+In diesem Fall plant das Sprachmodell zuerst das Bildmotiv in zwei Schritten, einem Entwurf und einer Prüfung gegen die Schlagzeile.
+Danach rendert der Bildserver ein Bild mit $768 \times 1344$ Pixeln, was dem Seitenverhältnis 9:16 einer Feed-Karte entspricht.
+Die Gründe für dieses zweistufige Vorgehen und die Wahl des Bildmodells werden im Kapitel zur Bildgenerierung erläutert.
+
+Ändert ein:e Redakteur:in später den Text eines Artikels, vergleicht die Schnittstelle den neuen mit dem gespeicherten Stand und stellt bei Bedarf automatisch einen neuen Auftrag ein (Anforderung D2).
+Werden dagegen Teaser oder Kernpunkte von Hand geändert, entsteht eine Version mit der Quelle \texttt{manual}, und es wird nichts neu generiert.
+Ein Auftrag, der bereits in der Warteschlange wartet, überschreibt eine solche Handarbeit ebenfalls nicht.
+
+Am Ende dieses Ablaufs liegt ein veröffentlichter Artikel mit allen Inhalten für eine Feed-Karte in der Datenbank.
+Wie er von dort in den Feed auf einer fremden Website gelangt, beschreibt der folgende Abschnitt.
+
+\section{Auslieferung und Einbindung des Feeds}\label{sec:arch:delivery}
+\setauthor{\secondauthor}
+
+Der Feed bezieht alle Artikel über den öffentlichen Endpunkt \texttt{GET /api/feed}.
+Dieser liefert veröffentlichte Artikel samt Tags, Zählern für Likes, Kommentare und Teilungen sowie einer Liste inhaltlich ähnlicher Artikel.
+Die Liste der ähnlichen Artikel berechnet die Schnittstelle aus den \glspl{embedding} und stellt sie der Personalisierung im Browser zur Verfügung.
+Die Artikel kommen seitenweise, gesteuert über die Parameter \texttt{limit} und \texttt{offset}.
+
+Weil der Feed regelmäßig auf Änderungen prüft, standardmäßig alle 60 Sekunden, kommen viele Anfragen, deren Antwort sich nicht geändert hat.
+Die Schnittstelle hält die Liste der veröffentlichten Artikel deshalb im Arbeitsspeicher und prüft pro Anfrage nur mit einer kleinen Abfrage, ob sich etwas geändert hat.
+Zusätzlich trägt jede Antwort ein \texttt{ETag}, also eine Kennung ihres Inhalts.
+Schickt der Browser diese Kennung bei der nächsten Anfrage mit und hat sich nichts geändert, antwortet die Schnittstelle mit dem Statuscode \texttt{304 Not Modified} ohne Inhalt, wie es die HTTP-Spezifikation vorsieht \cite{rfc9110}.
+Damit erfüllt die Auslieferung die Anforderung E2 mit regelmäßigen Abfragen, ohne bei jeder Abfrage die gesamte Liste zu übertragen.
+
+Auf der Seite des Browsers übernimmt die Komponente \texttt{ShortformNewsFeed} aus dem Package alle Aufgaben des Feeds.
+Sie lädt die erste Seite mit zehn Artikeln und holt weitere, sobald nur noch drei Karten unter der sichtbaren liegen.
+Gerendert werden nur die sichtbare Karte und je zwei davor und danach, alle anderen Karten sind leere Platzhalter mit derselben Höhe.
+Bilder werden dadurch erst geladen, wenn ihre Karte in die Nähe kommt.
+Ebenfalls im Browser läuft die Personalisierung: Das Interessenprofil wird im \texttt{localStorage} gespeichert, und nur anonyme Ereignisse wie Verweildauer oder Lesedauer gehen an die Schnittstelle.
+
+Für einen \gls{host} besteht die Einbindung im Kern aus wenigen Schritten.
+Das Package wird installiert und als Nuxt-Modul registriert, das die Komponenten global zur Verfügung stellt.
+Weil die Komponenten mit Tailwind CSS gestaltet sind, muss der Host Tailwind die Dateien des Packages bekannt machen.
+Die Adresse des Hosts muss außerdem in der Konfiguration der Schnittstelle freigeschaltet sein, da der Browser Anfragen an eine fremde Adresse sonst über \gls{cors} blockiert.
+Listing~\ref{lst:arch:host} zeigt, wie der Feed danach in einer Seite des Hosts verwendet wird.
+
+\begin{lstlisting}[language=HTML,caption={Einbindung des Feeds in eine Seite der Host-Website},label=lst:arch:host]
+<template>
+  <ShortformNewsFeed
+    api-url="https://api.example.at"
+    @article-read="openArticle" />
+</template>
+
+<script setup lang="ts">
+// Der Feed liefert nur die Artikel-ID (Anforderung F3),
+// der Host entscheidet selbst, was passiert.
+const openArticle = (id: number) => navigateTo(`/artikel/${id}`);
+</script>
+\end{lstlisting}
+
+Der Host muss nur auf ein einziges Ereignis reagieren, nämlich \texttt{article-read}, das beim Öffnen eines Artikels die Kennung liefert.
+Alle anderen Ereignisse, etwa für Likes oder das erste Sichtbarwerden einer Karte, sind optional und dienen der Anbindung eigener Analysewerkzeuge (Anforderung S4).
+Farben, Schriften und Abstände lassen sich über CSS-Variablen anpassen, einzelne Bereiche einer Karte über Slots durch eigene Inhalte ersetzen (Anforderung S3).
+
+Mit diesem Überblick sind alle Bausteine und ihre Aufgaben eingeführt.
+Welche Technologien für die einzelnen Bausteine zur Auswahl standen und warum die Entscheidung jeweils so gefallen ist, behandelt das nächste Kapitel.

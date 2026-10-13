@@ -1,0 +1,119 @@
+% !TEX root = thesis.tex
+\documentclass[12pt,a4paper,titlepage,listof=totoc,bibliography=totoc,chapteratlists=0pt]{scrreprt}
+\input{global-const.tex}
+\input{header}
+
+\makeatletter
+\def\bstctlcite{\@ifnextchar[{\@bstctlcite}{\@bstctlcite[@auxout]}}
+\def\@bstctlcite[#1]#2{\@bsphack
+	\@for\@citeb:=#2\do{%
+		\edef\@citeb{\expandafter\@firstofone\@citeb}%
+		\if@filesw\immediate\write\csname #1\endcsname{\string\citation{\@citeb}}\fi}%
+	\@esphack}
+\makeatother
+
+\clubpenalty=10000 
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\interfootnotelinepenalty=10000
+
+\title{\thesistitle}
+\author{\joinauthors{, }{, }}
+
+\makeindex
+\makeglossaries
+\begin{document}
+\bstctlcite{IEEEexample:BSTcontrol}
+\newcommand{\reminder}[1]
+{ \textcolor{red}{<[{\bfseries\marginpar{\mbox{$<==$}} #1 }]>} }
+\newcommand{\icode}[1]{\lstinline$#1$}
+%\urlstyle{same}
+%\setstretch{1.5}
+\setstretch {1.433}
+\renewcommand{\arraystretch}{1.2}
+
+\includepdf{./titlepage/coversheet}
+\pagenumbering{Roman}
+\newpage
+\input{oath}
+\input{./sections/abstract}
+\input{glossary}
+
+\pagestyle{plain}
+
+\IfStrEq{\thesislang}{de}
+{
+	\renewcommand{\lstlistlistingname}{Quellcodeverzeichnis}
+}
+{
+ % keep at list of listing
+}
+
+\tableofcontents
+\newpage
+\setcounter{RPages}{\value{page}}
+\setcounter{page}{0}
+\pagenumbering{arabic}
+\pagestyle{scrheadings}
+
+\begin{spacing}{1}
+\chapter{\langselect{Einleitung}{Introduction}}\label{chapter:introduction} % fixed chapter
+\end{spacing}
+\input{./sections/introduction}
+
+% content chapters: adapt, add or remove as needed
+% use \langselect{German}{English} or simply write the title in the thesis language
+\begin{spacing}{1}
+\chapter{Umfeldanalyse}\label{chapter:related}
+\end{spacing}
+\input{./sections/related_work}
+
+\begin{spacing}{1}
+\chapter{Anforderungen}\label{chapter:requirements}
+\end{spacing}
+\input{./sections/requirements}
+
+\begin{spacing}{1}
+\chapter{Systemüberblick}\label{chapter:architecture}
+\end{spacing}
+\input{./sections/architecture}
+
+% geplante weitere Kapitel (noch nicht geschrieben):
+% Technologieentscheidungen (C2), Umsetzung Backend, Umsetzung Feed und Package,
+% Admin-CMS, Qualitätssicherung und Tests, Benutzerhandbuch (C4), Arbeitsweise
+
+\begin{spacing}{1}
+\chapter{\langselect{Zusammenfassung}{Summary}}\label{chapter:summary} % fixed chapter
+\end{spacing}
+\input{./sections/summary}
+
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{\value{RPages}}
+%\setlength{\glsdescwidth}{0.8\linewidth}
+\glsnogroupskiptrue
+\IfStrEq{\thesislang}{de}
+{
+	\printglossary[title=Glossar,toctitle=Glossar] %,style=long]
+}
+{
+	\printglossary[title=Glossary,toctitle=Glossary] %,style=long]
+}
+\spacing{1}{
+\IfStrEq{\thesislang}{de}
+{
+	\bibliographystyle{ieeetrande}
+}
+{
+	\bibliographystyle{IEEEtran}
+}
+\bibliography{bib}
+}
+\listoffigures
+\listoftables
+\lstlistoflistings
+\appendix
+\addchap{\langselect{Anhang}{Appendix}}
+\input{./sections/appendix}
+\end{document}
+
