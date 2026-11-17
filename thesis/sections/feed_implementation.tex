@@ -60,7 +60,7 @@ Sie sind reine TypeScript-Funktionen ohne Bezug zu Vue und lassen sich dadurch o
 
 Die Aufteilung folgt dem Grundsatz, dass Daten von außen nach innen fließen und Ereignisse von innen nach außen.
 Eine Karte meldet ein Like an den Feed, der Feed an \texttt{ShortformNewsFeed}, und erst diese Komponente sendet die Anfrage an die Schnittstelle.
-Wie dieser Fluss im Detail umgesetzt ist, behandelt der Abschnitt über Komponenten und Zustand.
+Wie dieser Fluss im Detail umgesetzt ist, behandelt Abschnitt~\ref{sec:feed:state}.
 Zunächst steht im Vordergrund, wie die Komponenten als Package gebaut und an einen \gls{host} ausgeliefert werden.
 
 \subsection{Build und Auslieferung}
@@ -185,3 +185,135 @@ Nach diesen Korrekturen zeigt das Beispielprojekt auf Port 3099 denselben Feed w
 Die Schritte, die ein \gls{host} durchführen muss, sind in der Datei \texttt{README.md} des Packages dokumentiert: das Package installieren, das Modul eintragen, \texttt{tailwind.css} importieren und die eigene Adresse in der Einstellung \texttt{CORS\_ORIGIN} der Schnittstelle freischalten, damit der Browser die Anfragen an die fremde Adresse zulässt (\gls{cors}).
 Damit ist die Grundlage beschrieben, auf der alle weiteren Teile des Feeds aufbauen.
 Welche Daten zwischen den drei Komponenten fließen und wo der Zustand des Feeds gehalten wird, ist Gegenstand des nächsten Abschnitts.
+
+\section{Komponenten und Zustand}\label{sec:feed:state}
+\setauthor{\secondauthor}
+
+Ein Feed, der durchgewischt wird, besteht aus mehr als einer Liste von Artikeln.
+Er muss sich merken, welche Kategorie gewählt ist, welche Karte gerade sichtbar ist, welche Artikel bereits geliked wurden und welche Interessen aus dem bisherigen Verhalten abgeleitet wurden.
+Laut Diplomarbeitsantrag ist zu untersuchen, welche Komponenten- und State-Management-Strukturen sich für ein solches Modul eignen.
+Dieser Abschnitt beschreibt, wie Daten zwischen den drei Komponenten aus Abschnitt~\ref{sec:feed:package} fließen, warum bewusst auf eine globale Zustandsverwaltung verzichtet wurde und wie der Zustand aktuell gehalten wird, ohne dass die Oberfläche flackert.
+
+\subsection{Datenfluss zwischen den Komponenten}
+
+Vue gibt für die Kommunikation zwischen Komponenten eine klare Richtung vor.
+Daten gelangen über Props von einer übergeordneten Komponente zu einer untergeordneten, aber nicht in umgekehrter Richtung; eine Komponente darf ihre Props nicht selbst verändern~\cite{vueprops}.
+Will eine untergeordnete Komponente etwas bewirken, meldet sie ein Ereignis, und die übergeordnete Komponente entscheidet, was damit geschieht.
+
+Im Feed bedeutet das: \texttt{ShortformNewsFeed} hält die Liste der Artikel und reicht die aktuell anzuzeigende Teilmenge als Prop \texttt{articles} an \texttt{ShortformFeed} weiter, das wiederum jeder \texttt{ShortformCard} ihren einzelnen Artikel übergibt.
+Tippt jemand auf das Herz einer Karte, ändert die Karte weder die Zahl der Likes noch speichert sie etwas.
+Sie meldet nur das Ereignis \texttt{like} mit dem betroffenen Artikel.
+\texttt{ShortformFeed} reicht das Ereignis unverändert nach oben weiter, und erst \texttt{ShortformNewsFeed} erhöht den Zähler, speichert das Like, aktualisiert die Interessen und sendet die Anfrage an die Schnittstelle.
+
+Diese Aufteilung hat den Vorteil, dass die beiden inneren Komponenten keinen Zustand besitzen, der über die Darstellung hinausgeht.
+Sie lassen sich dadurch auch mit Daten aus einer völlig anderen Quelle verwenden, wie in Abschnitt~\ref{sec:feed:package} für Websites mit eigener Schnittstelle beschrieben.
+Ein \gls{host}, der nur \texttt{ShortformFeed} verwendet, erhält dieselben Ereignisse und kann selbst festlegen, was bei einem Like passiert.
+
+Der Weg in die andere Richtung, vom \gls{host} in den Feed, ist ebenfalls möglich.
+Komponenten mit \texttt{<script setup>} geben standardmäßig nichts von ihrem Inneren preis~\cite{vuescriptsetup}.
+Mit \texttt{defineExpose} stellt \texttt{ShortformNewsFeed} deshalb gezielt sieben Methoden bereit, die ein \gls{host} über eine Template-Referenz aufrufen kann.
+Dazu gehören \texttt{findArticle}, das zu einer Artikel-ID den vollständigen geladenen Artikel liefert, \texttt{refresh} für ein sofortiges Neuladen und \texttt{resetProfile}, das alle gelernten Interessen löscht.
+Interne Daten wie die Artikelliste bleiben dagegen von außen unsichtbar und können vom \gls{host} nicht versehentlich verändert werden.
+
+\subsection{Verzicht auf eine globale Zustandsverwaltung}
+
+Für Vue-Anwendungen ist Pinia die Standardbibliothek zur Zustandsverwaltung; sie wird vom Kernteam von Vue gepflegt und hat die frühere offizielle Lösung Vuex abgelöst.
+Sie stellt einen zentralen Speicher bereit, auf den beliebige Komponenten zugreifen können, und bietet unter anderem eine Anbindung an die Entwicklerwerkzeuge von Vue~\cite{vuestate}.
+Im Admin-\gls{cms} oder in einer großen Anwendung mit vielen Seiten wäre das eine naheliegende Wahl.
+Für das Package wurde trotzdem darauf verzichtet, aus drei Gründen.
+
+Erstens würde ein zentraler Speicher jedem \gls{host} eine zusätzliche Abhängigkeit aufzwingen.
+Ein \gls{host}, der selbst kein Pinia verwendet, müsste es nur für den Feed installieren und einrichten.
+Ein \gls{host}, der Pinia bereits verwendet, hätte plötzlich fremde Daten in seinem eigenen Speicher.
+
+Zweitens ist ein gemeinsamer Speicher beim serverseitigen Rendering (\gls{ssr}) heikel.
+Die Vue-Dokumentation weist darauf hin, dass ein einfacher, global angelegter Speicher auf dem Server von allen gleichzeitigen Anfragen geteilt wird und Daten dadurch zwischen Besucher:innen vermischt werden können~\cite{vuestate}.
+Da Nuxt Seiten standardmäßig auf dem Server rendert, müsste das Package diesen Fall eigens behandeln.
+
+Drittens braucht der Feed keinen Zustand, den mehrere voneinander unabhängige Teile einer Seite teilen.
+Die Vue-Dokumentation nennt als einfachste Lösung für gemeinsam genutzten Zustand, ihn in die nächste gemeinsame übergeordnete Komponente zu verlagern~\cite{vuestate}.
+Genau diese Rolle übernimmt \texttt{ShortformNewsFeed}: Alle Daten, die mehr als eine Karte betreffen, liegen dort als reaktive Variablen.
+Tabelle~\ref{tab:feed:state} gibt einen Überblick über die wichtigsten davon.
+Würde ein \gls{host} zwei Feeds auf derselben Seite einbinden, etwa einen für Sport und einen für Politik, hätte jeder seinen eigenen, unabhängigen Zustand.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X l}
+        \toprule
+        \textbf{Zustand} & \textbf{Bedeutung} & \textbf{Lebensdauer} \\
+        \midrule
+        \texttt{articles} & Alle bisher geladenen Artikel & Seitenaufruf \\
+        \texttt{activeCategory} & Gewählte Kategorie, etwa \glqq Sport\grqq{} oder \glqq Für dich\grqq{} & Seitenaufruf \\
+        \texttt{activeIndex} & Position der sichtbaren Karte & Seitenaufruf \\
+        \texttt{personalizedOrder} & Reihenfolge der Karten in \glqq Für dich\grqq{} & Seitenaufruf \\
+        \texttt{likedArticleIds} & IDs der gelikten Artikel & dauerhaft (Gerät) \\
+        \texttt{profile} & Gelerntes Interessenprofil & dauerhaft (Gerät) \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Wichtige Zustandsvariablen von \texttt{ShortformNewsFeed}}
+    \label{tab:feed:state}
+\end{table}
+
+Der Nachteil dieser Entscheidung zeigt sich an der Größe von \texttt{ShortformNewsFeed}.
+Mit 776 Zeilen ist sie mit Abstand die größte Datei des Packages, weil Laden, Kategorien, Likes, Kommentare und Analytics in einer Komponente zusammenkommen.
+Um sie überschaubar zu halten, wurde die Logik ohne Bezug zur Oberfläche in eigene Dateien ausgelagert, wie in Abschnitt~\ref{sec:feed:package} beschrieben.
+Eine weitere Aufteilung in Composables, also wiederverwendbare Funktionen mit eigenem reaktivem Zustand, wäre ein möglicher nächster Schritt.
+
+\subsection{Dauerhafter Zustand im Browser}
+
+Zwei Teile des Zustands sollen einen Seitenaufruf überdauern: die gelikten Artikel und das Interessenprofil für \glqq Für dich\grqq{}.
+Würden die Likes beim nächsten Besuch fehlen, könnte derselbe Artikel erneut geliked und damit doppelt gezählt werden.
+Das Profil wäre wertlos, wenn es bei jedem Aufruf wieder leer beginnen würde.
+
+Beide Daten liegen im \texttt{localStorage} des Browsers, unter den Schlüsseln \texttt{wb\_\allowbreak{}liked\_\allowbreak{}articles} und \texttt{wb\_\allowbreak{}profile}.
+Der \texttt{localStorage} speichert Daten pro Ursprung, also pro Kombination aus Protokoll, Domain und Port, und behält sie über das Schließen des Browsers hinaus~\cite{mdnlocalstorage}.
+Für ein eingebettetes Modul hat das eine wichtige Folge: Die Daten gehören zum Ursprung des \gls{host}s und nicht zur Adresse der Schnittstelle.
+Bindet eine zweite Website den Feed ein, beginnt dort ein eigenes, leeres Profil.
+
+Diese Lösung erfüllt die Vorgabe aus Kapitel~\ref{chapter:requirements}, dass das Interessenprofil das Gerät der Leser:innen nicht verlässt.
+Es gibt kein Benutzerkonto und keine Kennung, mit der der Server ein Profil einer Person zuordnen könnte.
+An die Schnittstelle gehen nur das Like selbst und anonyme Ereignisse für die Statistik.
+
+Der Zugriff auf den \texttt{localStorage} ist nicht immer möglich.
+Laut MDN wirft der Browser einen Fehler, wenn das Speichern von Daten durch die Einstellungen der Person untersagt ist~\cite{mdnlocalstorage}.
+Jeder Lese- und Schreibzugriff ist deshalb in einen \texttt{try}-Block gefasst.
+Schlägt er fehl, startet der Feed mit einem leeren Profil und hält Likes nur für die Dauer des Seitenaufrufs im Speicher.
+Der Feed funktioniert damit auch in solchen Fällen, nur ohne Erinnerung an frühere Besuche.
+
+\subsection{Aktualisierung ohne Flackern}
+
+Der Zustand im Browser muss mit dem Stand der Schnittstelle übereinstimmen, obwohl sich dieser laufend ändert.
+Drei Vorgänge verändern die Artikelliste: das erste Laden, das Nachladen weiterer Seiten beim Wischen und die regelmäßige Prüfung auf Änderungen, standardmäßig alle 60 Sekunden (Anforderung E2).
+Bei der Umsetzung traten dabei zwei Probleme auf.
+
+Das erste Problem waren sich überschneidende Anfragen.
+Startet die regelmäßige Prüfung, während noch eine weitere Seite nachgeladen wird, kann die langsamere der beiden Antworten das Ergebnis der schnelleren überschreiben.
+Im ungünstigen Fall verschwindet dadurch eine gerade geladene Seite wieder aus der Liste.
+Alle drei Vorgänge laufen deshalb über eine gemeinsame Warteschlange, die sie streng nacheinander ausführt.
+Technisch ist das eine Kette von Promises: Jeder neue Vorgang wird an das Ende der Kette angehängt und beginnt erst, wenn der vorherige abgeschlossen ist, auch wenn dieser fehlgeschlagen ist.
+
+Das zweite Problem war Flackern.
+Die regelmäßige Prüfung lädt alle bisher geladenen Artikel neu.
+Würde die Liste dabei einfach durch die neue ersetzt, wären alle Artikel für Vue neue Objekte, und jede sichtbare Karte würde neu gezeichnet, obwohl sich an ihr nichts geändert hat.
+Die Prüfung vergleicht deshalb jeden neuen Artikel mit dem bisherigen und übernimmt das alte Objekt, wenn beide inhaltlich gleich sind (Listing~\ref{lst:feed:poll}).
+Nur tatsächlich geänderte Artikel werden ausgetauscht, und nur deren Karten zeichnet Vue neu.
+
+\begin{lstlisting}[float=tbp,language=TypeScript,caption={Übernahme unveränderter Artikel bei der regelmäßigen Prüfung (gekürzt)},label=lst:feed:poll]
+const currentById = new Map(articles.value.map((a) => [a.id, a]));
+articles.value = fresh.map((f) => {
+  const existing = currentById.get(f.id);
+  return existing && JSON.stringify(existing) === JSON.stringify(f)
+    ? existing
+    : f;
+});
+\end{lstlisting}
+
+Ein verwandtes Problem betrifft das seitenweise Nachladen.
+Wird zwischen zwei Anfragen ein neuer Artikel veröffentlicht, verschieben sich alle Positionen auf dem Server um eins, und die nächste Seite enthält einen Artikel, der bereits geladen ist.
+Die Hilfsfunktion \texttt{appendUniqueArticles} hängt daher nur Artikel an, deren ID noch nicht in der Liste vorkommt.
+Sie ist als reine Funktion in \texttt{utils.ts} umgesetzt und mit Unit-Tests abgesichert.
+
+Mit diesen Maßnahmen bleibt die Artikelliste aktuell, ohne dass Karten springen oder doppelt erscheinen.
+Offen bleibt die Frage, wie viele dieser Artikel tatsächlich als Karten gezeichnet werden und wann weitere Seiten geladen werden.
+Das ist Gegenstand des nächsten Abschnitts über Lade- und Darstellungsstrategien.
