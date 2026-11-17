@@ -5,7 +5,7 @@ Nicht bewertet: `rechtliche-erklaerung.pdf`, schriftliche/formale Teile, Recherc
 
 Bewertung: erfüllt = 1, teilweise = 0,5, offen = 0. Pflicht (A–D, 24 Punkte) ergibt den Prozentwert, Optional (E) wird separat gezählt.
 
-Status: bestätigt am 2026-09-22 · letzter Check: 2026-09-24 (Commit `d62bc0b`)
+Status: bestätigt am 2026-09-22 · letzter Check: 2026-11-17 (Stand nach `fc778c2`)
 
 ## A. Funktionale Anforderungen (Briefing)
 
@@ -47,7 +47,7 @@ Status: bestätigt am 2026-09-22 · letzter Check: 2026-09-24 (Commit `d62bc0b`)
 | D1 | KI-Generierung reproduzierbar und konfigurierbar | erfüllt | `temperature` (Default 0) und `seed` (Default 42) aus Settings `apps/api/src/services/summarizer.ts:30`, als Ollama-`options` gesendet; im Admin einstellbar `apps/admin/app/pages/settings.vue:118`. Modell/Temperatur/Seed + Content-Hash je Version gespeichert (`generation_versions`, siehe D3) |
 | D2 | Async Verarbeitung neuer **und geänderter** Inhalte | erfüllt | `enqueueGeneration` `apps/api/src/queue/index.ts:34`: `POST /api/articles` queued selbst (`routes/articles.ts:584`), `PUT` bei geändertem `content` (`:272`), Quick-Route ebenso. E2E getestet (Job 12/13 automatisch) |
 | D3 | Versionierung generierter Inhalte | erfüllt | Tabelle `generation_versions` `apps/api/src/db/schema.ts:73` (Quelle ai/fallback/manual, Modell, Parameter, Content-Hash, Job), geschrieben in Worker `queue/index.ts:115`, `/generate`, Retry, manuelle Teaser-Edits; `GET /api/articles/:id/versions` `routes/articles.ts:322`, Restore als neue Version `:333`; Admin-Drawer `apps/admin/app/pages/index.vue:564`. E2E + Browser getestet |
-| D4 | CMS-unabhängig und modular | teilweise | Generischer REST-Ingest `POST /api/articles`, Package ohne CMS-Bezug. Kein Quell-Adapter/Import-Schnittstelle; Schema-Default `ORF.at Redaktion` `schema.ts:11` |
+| D4 | CMS-unabhängig und modular | erfüllt | Generischer REST-Ingest `POST /api/articles`, `/api/articles/quick` und `/api/articles/generate`; RSS-2.0-, RSS-1.0-(RDF)- und Atom-Importer mit optionaler Volltext-Extraktion `POST /api/import/rss` (`apps/api/src/services/importer.ts:56`, `:83`, `:110`, `routes/import.ts:7`); neutraler Schema-Default `Redaktion` in `apps/api/src/db/schema.ts:13`; Package ohne CMS-Bezug |
 | D5 | Performance: Caching und Queueing | erfüllt | Queueing: BullMQ `apps/api/src/queue/index.ts`. Caching: Feed-Liste im Speicher, invalidiert per Fingerprint (`count`/`max(updated_at)` + Tag-Links, TTL 60 s) `apps/api/src/routes/feed.ts:19`, `:73`; ETag + `no-cache` → 304 `:108`. Getestet: MISS→HIT, 304 bei If-None-Match, neuer ETag nach Like |
 | D6 | Doku von Schnittstellen und Architektur | erfüllt | OpenAPI 3.1 `apps/api/openapi.yaml` (alle 33 Endpunkte, Auth, Schemas; per Skript gegen Routen im Code abgeglichen, 0 Abweichungen); Abläufe/Datenmodell `docs/architektur.md` (3 Mermaid-Diagramme, Syntax geprüft); verlinkt in `README.md` |
 
@@ -58,20 +58,20 @@ Status: bestätigt am 2026-09-22 · letzter Check: 2026-09-24 (Commit `d62bc0b`)
 | O1 | Feed-Personalisierung | erfüllt | „Für dich“-Ranking `rankPersonalizedArticles`, `ShortformNewsFeed.vue:257`; Unlike nimmt den Like-Boost zurück `:419`; Tests `utils.test.ts:110` |
 | O2 | Content-Personalisierung | offen | Ein Teaser für alle, keine Zielgruppen-Varianten |
 | O3 | Admin-Dashboard (Nuxt 4 SSR, bevorzugt PrimeVue) | erfüllt | `apps/admin/app/pages/{index,jobs,settings}.vue`; ohne PrimeVue (nur „bevorzugt“) |
-| O4 | Analytics: Webhooks und/oder Client-Events | teilweise | Client-Events + `POST /api/analytics/events` `routes/analytics.ts:12`; keine konfigurierbaren Webhooks |
+| O4 | Analytics: Webhooks und/oder Client-Events | erfüllt | Client-Events im Package (`article-impression`, `article-read`, `scroll-depth`, `like`, `unlike`, `share`, `comment`) + `POST /api/analytics/events` und Artikel-Auswertung `GET /api/analytics/articles` mit Impressions, Reads, Verweil- und Lesedauer sowie Quick-Skips (`apps/api/src/routes/analytics.ts:12`, `:47`) |
 | O5 | Audio Content | offen | Die Vorlesefunktion (Browser-Web-Speech) wurde am 2026-09-29 auf Wunsch entfernt |
 
-## Rechnung (2026-09-24, nach S2)
+## Rechnung (2026-11-17)
 
 | Block | erfüllt | teilweise | offen | Punkte |
 |-------|----|----|----|--------|
 | A (8) | 8 | 0 | 0 | 8 |
 | B (5) | 5 | 0 | 0 | 5 |
 | C (5) | 5 | 0 | 0 | 5 |
-| D (6) | 5 | 1 | 0 | 5,5 |
-| **Pflicht (24)** | 23 | 1 | 0 | **23,5** |
+| D (6) | 6 | 0 | 0 | 6 |
+| **Pflicht (24)** | 24 | 0 | 0 | **24** |
 
-23,5 / 24 = **97,9 %**, Optional: 2 erfüllt + 1 teilweise = 2,5 / 5 (O5 seit 2026-09-29 offen)
+24 / 24 = **100,0 %**, Optional: 3 erfüllt = 3 / 5 (O1, O3, O4 erfüllt; O2, O5 offen)
 
 ## Funktionstest (2026-09-23)
 
@@ -105,6 +105,7 @@ Laufzeit-Prüfung, nicht im Prozentwert. Umgebung: Postgres/Redis healthy, api/a
 | 2026-09-24 | `d62bc0b` | 23 / 24 | 95,8 % | E1 jetzt belastbar: kompletter Feed `ShortformNewsFeed` im Package, `examples/nuxt-host` = gleiche Ansicht wie 3002; Escape-Fix, Unlike-Boost-Fix |
 | 2026-09-24 | `d62bc0b` | 23 / 24 | 95,8 % | Übergabe-Check für David: kein Code-Diff, offene Belege (S2, D4, O2, O4, O5, Sicherheit) erneut verifiziert; lint/typecheck/25 Tests grün; Ollama weiterhin nicht installiert |
 | 2026-09-24 | `ea4ac77` | 23,5 / 24 | 97,9 % | S2 erfüllt Pagination, gefenstertes Rendering (Bilder nur nahe Karten), Polling über geladenen Bereich; im Browser geprüft; lint/typecheck/27 Tests/build grün |
+| 2026-11-17 | `fc778c2` | 24 / 24 | 100,0 % | D4 erfüllt (RSS/Atom-Importer + Volltext-Extraktion, neutraler Autor-Default); O4 erfüllt (Client-Events + Artikel-Analytics); Thesis-Kapitel 5 & 6 ergänzt |
 
 ## Übergabe an David (2026-09-24)
 
@@ -115,7 +116,7 @@ Alle Punkte hier sind Backend (Davids Teil); S2 (Frontend, Stefan) ist erledigt.
 
 | Prio | ID | Aufgabe | Wo | Fertig, wenn |
 |------|----|---------|----|--------------|
-| 1 | D4 | Quell-Adapter/Import-Schnittstelle (z. B. RSS oder JSON-Mapping) auf `POST /api/articles` aufsetzen; Schema-Default-Autor `ORF.at Redaktion` entfernen (Default leer/konfigurierbar) | `apps/api/src/routes/articles.ts`, neuer `apps/api/src/services/…`, `apps/api/src/db/schema.ts:11`, `openapi.yaml`, `docs/architektur.md` | Zwei unterschiedliche Quellen importieren ohne Codeänderung am Kern; Doku + OpenAPI ergänzt → Pflicht 24/24 |
+| 1 | D4 | **Erledigt.** Quell-Adapter/Import-Schnittstelle (`POST /api/import/rss`) implementiert, neutraler Autor-Default `Redaktion` gesetzt (`apps/api/src/db/schema.ts:13`, `routes/articles.ts:129`) | `apps/api/src/services/importer.ts`, `routes/import.ts`, `openapi.yaml`, `docs/architektur.md` | Zwei unterschiedliche Quellen importieren ohne Codeänderung am Kern; Doku + OpenAPI ergänzt → Pflicht 24/24 |
 | 2 | – | **Erledigt 2026-09-29** (Ollama im Docker-Container, `qwen2.5:7b-instruct`). Ollama installieren und D1 mit echtem Modell prüfen: gleicher Artikel + gleiche Settings → gleicher Teaser | `apps/api/src/services/summarizer.ts:30` | Zwei Generierungen, identischer Output, Versionsquelle `ai` statt `fallback` |
 | 3 | – | **Erledigt 2026-09-29.** Sicherheit: Fallback-Key entfernen, API beim Start ohne `API_KEY` abbrechen | `apps/api/src/server.ts:51` | Start ohne `API_KEY` schlägt mit klarer Meldung fehl |
 | 4 | – | **Erledigt 2026-09-29.** `/api/settings/models` meldet nicht erreichbares Ollama als Fehler statt hartcodierter Defaults | `apps/api/src/routes/settings.ts:51` | Admin zeigt Fehlermeldung, wenn Ollama aus ist |

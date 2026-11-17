@@ -146,8 +146,8 @@ Anbieter laut Einstellung `imageProvider`:
 
 - **local:** eigener Bildserver unter `services/image` (FastAPI, `diffusers`) mit demselben Endpunkt wie
   die OpenAI-Bild-API (`POST /v1/images/generations`). Standardmodell Z-Image-Turbo (Apache 2.0),
-  alternativ FLUX.1-schnell (Apache 2.0, Transformer als GGUF Q8_0, T5 in fp8).
-- **gemini:** Google Gemini API, z. B. Nano Banana Pro. Der Key kommt nur aus `GEMINI_API_KEY`.
+  alternativ FLUX.1-schnell (Apache 2.0, Transformer als GGUF Q8_0, T5 in fp8) oder FLUX.2 [klein] 4B (Apache 2.0, ab `diffusers>=0.38`).
+- **gemini:** Google Gemini API, z. B. Nano Banana Pro (`gemini-3-pro-image-preview`) oder Nano Banana 2 (`gemini-3.1-flash-image-preview`). Der Key kommt nur aus `GEMINI_API_KEY`.
 
 Ablauf beim lokalen Bildserver:
 
@@ -196,8 +196,8 @@ Artikelseite.
 
 ## Authentifizierung
 
-Ein `preHandler`-Hook in `apps/api/src/server.ts` prüft den Header `x-api-key` gegen `API_KEY`.
-Ausgenommen sind die Endpunkte, die der anonyme Feed braucht: `/api/feed`, Like/Unlike/Share/Kommentare,
+Ein `preHandler`-Hook in `apps/api/src/server.ts` prüft den Header `x-api-key` oder `Authorization: Bearer <key>` gegen `API_KEY`.
+Ausgenommen sind die öffentlichen Einstiegs- und Feed-Endpunkte: `/`, `/api`, `/api/feed`, Like/Unlike/Share/Kommentare,
 `/api/analytics/events`, `/api/sysinfo`, `/images/` und die Doku unter `/docs`.
 Ohne `API_KEY` in der `.env` startet die API nicht.
 Das Admin ruft die API über seinen Nuxt-Server-Proxy (`apps/admin/server/api/[...].ts`) auf,

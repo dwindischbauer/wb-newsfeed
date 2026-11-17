@@ -37,6 +37,7 @@ OFFLOAD = os.getenv("IMAGE_OFFLOAD", "auto")
 MODELS = {
     "z-image-turbo": {"label": "Z-Image-Turbo (6B, Apache 2.0)", "steps": 9, "guidance": 0.0, "max_sequence_length": 512},
     "flux-schnell": {"label": "FLUX.1-schnell (12B, Apache 2.0)", "steps": 4, "guidance": 0.0, "max_sequence_length": 256},
+    "flux-2-klein": {"label": "FLUX.2 [klein] (4B, Apache 2.0)", "steps": 4, "guidance": 1.0, "max_sequence_length": None},
 }
 if IMAGE_MODEL not in MODELS:
     raise SystemExit(f"Unbekanntes IMAGE_MODEL {IMAGE_MODEL}, erlaubt: {', '.join(MODELS)}")
@@ -114,6 +115,18 @@ def load_flux():
     return pipe, os.path.getsize(gguf_path)
 
 
+def load_flux2_klein():
+    try:
+        from diffusers import Flux2KleinPipeline
+    except ImportError as exc:
+        raise HTTPException(500, "FLUX.2 [klein] benoetigt diffusers>=0.38") from exc
+
+    repo = os.getenv("FLUX2_KLEIN_REPO", "black-forest-labs/FLUX.2-klein-4B")
+    log.info("Lade %s", repo)
+    pipe = Flux2KleinPipeline.from_pretrained(repo, torch_dtype=torch.bfloat16)
+    return pipe, 8 * 1024**3
+
+
 def unload_pipeline():
     global _pipe, _pipe_model, _offload_mode
     _pipe = None
@@ -134,7 +147,12 @@ def load_pipeline(model: str = IMAGE_MODEL):
             unload_pipeline()
 
         started = time.time()
-        pipe, transformer_bytes = load_z_image() if model == "z-image-turbo" else load_flux()
+        if model == "z-image-turbo":
+            pipe, transformer_bytes = load_z_image()
+        elif model == "flux-2-klein":
+            pipe, transformer_bytes = load_flux2_klein()
+        else:
+            pipe, transformer_bytes = load_flux()
 
         free_vram, _ = torch.cuda.mem_get_info()
         # Reserve fuer Zwischenergebnisse bei 768x1344 (gemessen gut 1 GB)
@@ -221,15 +239,17 @@ def generate(req: GenerationRequest):
     with _gen_lock:
         pipe = load_pipeline(model)
         started = time.time()
-        image = pipe(
-            prompt=req.prompt,
-            width=width,
-            height=height,
-            num_inference_steps=steps,
-            guidance_scale=config["guidance"],
-            max_sequence_length=config["max_sequence_length"],
-            generator=torch.Generator("cpu").manual_seed(seed),
-        ).images[0]
+        pipe_kwargs = {
+            "prompt": req.prompt,
+            "width": width,
+            "height": height,
+            "num_inference_steps": steps,
+            "guidance_scale": config["guidance"],
+            "generator": torch.Generator("cpu").manual_seed(seed),
+        }
+        if config["max_sequence_length"] is not None:
+            pipe_kwargs["max_sequence_length"] = config["max_sequence_length"]
+        image = pipe(**pipe_kwargs).images[0]
         duration = time.time() - started
 
     buffer = io.BytesIO()

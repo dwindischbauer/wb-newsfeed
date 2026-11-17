@@ -1,43 +1,39 @@
 <template>
-  <div class="relative h-screen overflow-hidden bg-[var(--sf-bg-color,#000)] text-[var(--sf-text-color,#fff)]">
-    <div class="absolute inset-x-0 top-0 z-50 pb-3 [background:linear-gradient(to_bottom,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.3)_55%,rgba(0,0,0,0)_100%)]">
-      <div v-if="categories.length > 0" class="flex overflow-x-auto px-4 pt-[0.85rem] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-        <div class="flex items-center gap-1 rounded-full border border-white/[0.16] bg-black/40 p-[0.3rem] backdrop-blur-[14px]">
-          <button
-            v-for="cat in categories"
-            :key="cat"
-            type="button"
-            class="cursor-pointer whitespace-nowrap rounded-full border-none px-4 py-[0.48rem] text-[0.86rem] transition-all duration-200"
-            :class="activeCategory === cat
-              ? 'bg-[var(--sf-primary-color,#4ade80)] font-bold text-[var(--sf-primary-text,#000)]'
-              : 'bg-transparent font-semibold text-white/[0.82] [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]'"
-            @click="selectCategory(cat)"
-          >
-            {{ cat }}
-          </button>
-        </div>
+  <div class="relative h-screen max-h-full overflow-hidden bg-[var(--sf-bg-color,#12110f)] text-[var(--sf-text-color,#f4efe6)]">
+    <div class="absolute inset-x-0 top-0 z-50 border-b border-white/[0.08] bg-[var(--sf-bg-color,#12110f)]/85 backdrop-blur-[10px]">
+      <div v-if="categories.length > 0" class="flex items-center gap-1 overflow-x-auto px-4 pt-3 pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+        <button
+          v-for="cat in categories"
+          :key="cat"
+          type="button"
+          class="cursor-pointer whitespace-nowrap rounded-[7px] border-none px-3 py-1.5 text-[0.82rem] transition-colors duration-150"
+          :class="activeCategory === cat
+            ? 'bg-[var(--sf-primary-color,#4ade80)] font-semibold text-[var(--sf-primary-text,#000)]'
+            : 'bg-transparent font-medium text-white/75 hover:bg-white/[0.06] hover:text-white'"
+          @click="selectCategory(cat)"
+        >
+          {{ cat }}
+        </button>
       </div>
 
       <!-- Subcategory chips for the active main category -->
-      <div v-if="activeSubtags.length > 0" class="flex overflow-x-auto px-4 pt-2 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-        <div class="flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.28] p-[0.22rem]">
-          <button
-            v-for="sub in activeSubtags"
-            :key="sub.slug"
-            type="button"
-            class="cursor-pointer whitespace-nowrap rounded-full border-none px-[0.8rem] py-[0.36rem] text-[0.76rem] transition-all duration-200"
-            :class="activeTagFilter === sub.name
-              ? 'bg-[var(--sf-primary-color,#4ade80)] font-bold text-[var(--sf-primary-text,#000)]'
-              : 'bg-transparent font-medium text-white/[0.68] [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]'"
-            @click="activeTagFilter = activeTagFilter === sub.name ? '' : sub.name"
-          >
-            {{ sub.name }}
-          </button>
-        </div>
+      <div v-if="activeSubtags.length > 0" class="flex items-center gap-1.5 overflow-x-auto border-t border-white/[0.06] px-4 py-1.5 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+        <button
+          v-for="sub in activeSubtags"
+          :key="sub.slug"
+          type="button"
+          class="cursor-pointer whitespace-nowrap rounded-[6px] border px-2.5 py-1 text-[0.74rem] transition-colors duration-150"
+          :class="activeTagFilter === sub.name
+            ? 'border-[var(--sf-primary-color,#4ade80)] bg-[var(--sf-primary-color,#4ade80)]/15 font-medium text-[var(--sf-primary-color,#4ade80)]'
+            : 'border-white/10 bg-transparent font-normal text-white/65 hover:text-white'"
+          @click="activeTagFilter = activeTagFilter === sub.name ? '' : sub.name"
+        >
+          {{ sub.name }}
+        </button>
       </div>
 
       <!-- Progress bar: how far through the current category/filter the user has scrolled -->
-      <div class="mt-2 h-[2px] w-full bg-white/10">
+      <div class="h-[2px] w-full bg-white/[0.06]">
         <div class="h-full bg-[var(--sf-primary-color,#4ade80)] transition-[width] duration-150" :style="{ width: `${feedScrollPercent}%` }"></div>
       </div>
     </div>
@@ -46,10 +42,13 @@
          the subcategory chips above already show their own active state -->
     <div
       v-if="activeTagFilter && !activeSubtags.some((s) => s.name === activeTagFilter)"
-      class="absolute left-4 right-4 top-[60px] z-[45] flex items-center justify-between rounded-full border border-white/30 bg-black/[0.55] px-4 py-2 text-[0.85rem] text-white backdrop-blur-[12px]"
+      class="absolute left-4 right-4 top-14 z-[45] flex items-center justify-between rounded-[8px] border border-white/20 bg-[var(--sf-bg-color,#12110f)]/90 px-3.5 py-2 text-[0.82rem] text-white"
     >
-      <span>Tag-Filter: <strong>{{ activeTagFilter }}</strong></span>
-      <button type="button" class="rounded-[10px] border-none bg-white/20 px-2 py-[2px] text-[0.75rem] font-bold text-white hover:bg-white/[0.35]" @click="activeTagFilter = ''">✕ Entfernen</button>
+      <span>Tag-Filter: <strong class="font-medium">{{ activeTagFilter }}</strong></span>
+      <button type="button" class="inline-flex cursor-pointer items-center gap-1 rounded-[6px] border-none bg-white/15 px-2.5 py-1 text-[0.74rem] font-medium text-white transition-colors duration-150 hover:bg-white/25" @click="activeTagFilter = ''">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        Entfernen
+      </button>
     </div>
 
     <ShortformFeed
@@ -70,61 +69,63 @@
       @open-comments="openComments"
     >
       <template #loading>
-        <div class="flex h-screen flex-col justify-end gap-3 p-8">
-          <div class="mb-2 h-7 w-24 animate-pulse rounded-full bg-white/10"></div>
-          <div class="h-8 w-4/5 animate-pulse rounded-lg bg-white/10"></div>
-          <div class="h-8 w-3/5 animate-pulse rounded-lg bg-white/10"></div>
-          <div class="mt-2 h-4 w-full animate-pulse rounded bg-white/10"></div>
-          <div class="h-4 w-5/6 animate-pulse rounded bg-white/10"></div>
-          <div class="mt-4 h-12 w-44 animate-pulse rounded-full bg-white/10"></div>
+        <div class="flex h-full flex-col justify-end gap-3 p-6">
+          <div class="mb-1 h-5 w-20 rounded-[5px] bg-white/[0.08]"></div>
+          <div class="h-7 w-4/5 rounded-[6px] bg-white/[0.08]"></div>
+          <div class="h-7 w-3/5 rounded-[6px] bg-white/[0.08]"></div>
+          <div class="mt-2 h-4 w-full rounded bg-white/[0.06]"></div>
+          <div class="h-4 w-5/6 rounded bg-white/[0.06]"></div>
+          <div class="mt-4 h-12 w-full rounded-[10px] bg-white/[0.08]"></div>
         </div>
       </template>
       <template #empty>
-        <template v-if="loadError">Nachrichten konnten nicht geladen werden.</template>
-        <template v-else>Keine aktiven Nachrichten für '{{ activeTagFilter || activeCategory }}'.</template>
+        <template v-if="loadError">Nachrichten konnten nicht geladen werden</template>
+        <template v-else>Keine aktiven Nachrichten für „{{ activeTagFilter || activeCategory }}“</template>
       </template>
     </ShortformFeed>
 
     <!-- Share toast -->
     <transition name="sf-fade">
-      <div v-if="shareToast" class="fixed bottom-[6.5rem] left-1/2 z-[150] -translate-x-1/2 rounded-full bg-[var(--sf-toast-bg,#14151a)] px-5 py-[0.6rem] text-[0.85rem] font-semibold text-[var(--sf-primary-color,#4ade80)] shadow-[0_8px_24px_rgba(0,0,0,0.4)]">{{ shareToast }}</div>
+      <div v-if="shareToast" class="fixed bottom-20 left-1/2 z-[150] -translate-x-1/2 rounded-[8px] border border-white/10 bg-[var(--sf-toast-bg,#171512)] px-4 py-2 text-[0.82rem] font-medium text-[var(--sf-primary-color,#4ade80)] shadow-[0_8px_24px_rgba(0,0,0,0.4)]">{{ shareToast }}</div>
     </transition>
 
     <!-- Comments sheet -->
     <transition name="sf-sheet">
-      <div v-if="commentsArticle" class="fixed inset-0 z-[140] flex items-end bg-black/[0.55]" @click.self="closeComments">
+      <div v-if="commentsArticle" class="fixed inset-0 z-[140] flex items-end justify-center bg-black/60" @click.self="closeComments">
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Kommentare"
-          class="sf-comments-sheet flex max-h-[75vh] w-full flex-col rounded-t-[24px] bg-[var(--sf-sheet-bg,#fff)] text-[var(--sf-sheet-text,#14151a)] shadow-[0_-10px_40px_rgba(0,0,0,0.35)]"
+          class="sf-comments-sheet flex max-h-[75vh] w-full max-w-[430px] flex-col rounded-t-[16px] border-t border-black/[0.08] bg-[var(--sf-sheet-bg,#fff)] text-[var(--sf-sheet-text,#14151a)] shadow-[0_-10px_40px_rgba(0,0,0,0.35)]"
         >
-          <div class="flex items-center justify-between border-b border-black/[0.08] px-5 pb-[0.85rem] pt-[1.1rem]">
-            <h3 class="m-0 font-[var(--font-accent,inherit)] text-[1.2rem] font-medium italic">
-              Kommentare <span class="text-[0.9rem] font-medium not-italic text-[var(--sf-sheet-muted,#6b7280)]">({{ commentsArticle.commentCount || comments.length }})</span>
+          <div class="flex items-center justify-between border-b border-black/[0.08] px-5 py-4">
+            <h3 class="m-0 font-[var(--font-accent,inherit)] text-[1.2rem] font-medium">
+              Kommentare <span class="font-mono text-[0.86rem] font-normal tabular-nums text-[var(--sf-sheet-muted,#6b7280)]">({{ commentsArticle.commentCount || comments.length }})</span>
             </h3>
-            <button type="button" class="h-[30px] w-[30px] cursor-pointer rounded-full border-none bg-black/[0.06] text-[0.9rem] text-inherit" title="Schließen" @click="closeComments">✕</button>
+            <button type="button" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[8px] border border-black/[0.08] bg-black/[0.04] text-inherit transition-colors duration-150 hover:bg-black/10" aria-label="Schließen" title="Schließen" @click="closeComments">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
           </div>
           <div class="flex-1 overflow-y-auto px-5 py-2">
-            <div v-if="commentsLoading" class="py-10 text-center text-[0.9rem] text-[var(--sf-sheet-muted,#6b7280)]">Lade Kommentare…</div>
-            <div v-else-if="comments.length === 0" class="py-10 text-center text-[0.9rem] text-[var(--sf-sheet-muted,#6b7280)]">Noch keine Kommentare. Sei die/der Erste!</div>
-            <div v-for="c in comments" :key="c.id" class="flex gap-[0.7rem] border-b border-black/[0.06] py-[0.85rem]">
-              <div class="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[var(--sf-sheet-text,#14151a)] text-[0.85rem] font-bold text-[var(--sf-primary-color,#4ade80)]">{{ (c.authorName || 'A').charAt(0).toUpperCase() }}</div>
+            <div v-if="commentsLoading" class="py-10 text-center text-[0.9rem] text-[var(--sf-sheet-muted,#6b7280)]">Lade Kommentare</div>
+            <div v-else-if="comments.length === 0" class="py-10 text-center text-[0.9rem] text-[var(--sf-sheet-muted,#6b7280)]">Noch keine Kommentare. Schreib den ersten Kommentar</div>
+            <div v-for="c in comments" :key="c.id" class="flex gap-3 border-b border-black/[0.06] py-3.5">
+              <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px] bg-[var(--sf-sheet-text,#14151a)] text-[0.82rem] font-medium text-[var(--sf-primary-color,#4ade80)]">{{ (c.authorName || 'A').charAt(0).toUpperCase() }}</div>
               <div class="min-w-0 flex-1">
-                <div class="mb-[0.2rem] flex items-baseline gap-2 text-[0.78rem] text-[var(--sf-sheet-muted,#6b7280)]">
-                  <strong class="text-[0.85rem] text-[var(--sf-sheet-text,#14151a)]">{{ c.authorName }}</strong>
-                  <span>{{ formatRelativeTime(c.createdAt) }}</span>
+                <div class="mb-1 flex items-baseline gap-2 text-[0.76rem] text-[var(--sf-sheet-muted,#6b7280)]">
+                  <strong class="text-[0.84rem] font-medium text-[var(--sf-sheet-text,#14151a)]">{{ c.authorName }}</strong>
+                  <span class="font-mono">{{ formatRelativeTime(c.createdAt) }}</span>
                 </div>
-                <p class="m-0 break-words text-[0.9rem] leading-[1.4]">{{ c.text }}</p>
+                <p class="m-0 break-words text-[0.9rem] leading-[1.45]">{{ c.text }}</p>
               </div>
             </div>
           </div>
-          <form class="flex flex-col gap-2 border-t border-black/[0.08] px-5 pb-5 pt-[0.85rem]" @submit.prevent="submitComment">
+          <form class="flex flex-col gap-2 border-t border-black/[0.08] px-5 pb-5 pt-3.5" @submit.prevent="submitComment">
             <input
               v-model="commentName"
               type="text"
               maxlength="60"
-              placeholder="Dein Name (optional)"
+              placeholder="Name (optional)"
               class="border-none bg-transparent p-0 text-[0.78rem] text-[var(--sf-sheet-muted,#6b7280)] outline-none"
             />
             <div class="flex items-center gap-2">
@@ -132,12 +133,12 @@
                 v-model="commentText"
                 type="text"
                 maxlength="1000"
-                placeholder="Kommentar schreiben…"
-                class="flex-1 rounded-full border border-black/[0.12] bg-[var(--sf-sheet-input-bg,#f3f4f6)] px-[1.1rem] py-[0.65rem] text-[0.9rem] text-inherit outline-none focus:border-[var(--sf-sheet-accent,#16a34a)]"
+                placeholder="Kommentar schreiben"
+                class="flex-1 rounded-[8px] border border-black/[0.12] bg-[var(--sf-sheet-input-bg,#f3f4f6)] px-3.5 py-2.5 text-[0.88rem] text-inherit outline-none focus:border-[var(--sf-sheet-accent,#16a34a)]"
               />
               <button
                 type="submit"
-                class="whitespace-nowrap rounded-full border-none bg-[var(--sf-sheet-text,#14151a)] px-5 py-[0.65rem] text-[0.85rem] font-bold text-[var(--sf-primary-color,#4ade80)] disabled:cursor-not-allowed disabled:opacity-40"
+                class="cursor-pointer whitespace-nowrap rounded-[8px] border-none bg-[var(--sf-sheet-text,#14151a)] px-4 py-2.5 text-[0.84rem] font-semibold text-[var(--sf-primary-color,#4ade80)] transition-opacity duration-150 disabled:cursor-not-allowed disabled:opacity-40"
                 :disabled="!commentText.trim() || commentSubmitting"
               >
                 Senden
@@ -763,7 +764,7 @@ defineExpose({
 }
 .sf-sheet-enter-active .sf-comments-sheet,
 .sf-sheet-leave-active .sf-comments-sheet {
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .sf-sheet-enter-from,
 .sf-sheet-leave-to {

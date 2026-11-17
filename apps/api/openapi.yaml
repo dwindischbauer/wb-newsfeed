@@ -5,14 +5,14 @@ info:
   description: |
     REST-API für Redaktion (Admin-CMS), Short-Form-Feed und externe Systeme.
 
-    **Authentifizierung:** Alle Endpunkte verlangen den Header `x-api-key`
-    (Wert aus `.env`, `API_KEY`), außer den als *öffentlich* markierten
-    (`security: []`): Feed, Engagement (Like/Share/Kommentare), Analytics-Events,
-    `/api/sysinfo` und statische Bilder unter `/images/`.
+    **Authentifizierung:** Alle geschützten Endpunkte akzeptieren wahlweise den Header
+    `x-api-key: <API_KEY>` oder `Authorization: Bearer <API_KEY>` (Wert aus `.env`, `API_KEY`).
+    Öffentliche Endpunkte (`security: []`): `/`, `/api`, Feed, Engagement
+    (Like/Share/Kommentare), Analytics-Events, `/api/sysinfo` und statische Bilder unter `/images/`.
 
     **Generierung** läuft asynchron über BullMQ. Teaser, Kernpunkte und Tags
     erzeugt ein Sprachmodell über Ollama, Titelbilder der Bildserver in `services/image`
-    (Z-Image-Turbo oder FLUX.1-schnell) oder wahlweise Google Gemini. Endpunkte, die eine Generierung
+    (Z-Image-Turbo, FLUX.1-schnell oder FLUX.2-klein) oder wahlweise Google Gemini. Endpunkte, die eine Generierung
     auslösen, liefern eine Job-ID; der Status ist über `/api/jobs/{id}` abrufbar.
     Jedes Textergebnis wird als Version gespeichert (`/api/articles/{id}/versions`).
 
@@ -24,6 +24,7 @@ servers:
     description: Lokale Entwicklung
 security:
   - apiKey: []
+  - bearerAuth: []
 tags:
   - name: Feed
     description: Öffentlicher Short-Form-Feed
@@ -131,6 +132,10 @@ paths:
               properties:
                 text: { type: string, minLength: 10 }
                 content: { type: string, description: Alias für `text` }
+                title: { type: string }
+                category: { type: string }
+                author: { type: string }
+                status: { type: string, enum: [draft, published], default: published }
       responses:
         '200':
           description: Artikel angelegt, Job eingereiht (`success = false`, wenn Redis nicht erreichbar)
@@ -681,6 +686,19 @@ paths:
                       imageServer: { type: string }
                   geminiKeySet: { type: boolean }
 
+  /api:
+    get:
+      tags: [System]
+      summary: API-Übersicht und Endpunkt-Discovery
+      security: []
+      responses:
+        '200':
+          description: Übersicht über Doku, Authentifizierung und Einstiegspunkte
+          content:
+            application/json:
+              schema:
+                type: object
+
   /api/sysinfo:
     get:
       tags: [System]
@@ -705,6 +723,9 @@ components:
       type: apiKey
       in: header
       name: x-api-key
+    bearerAuth:
+      type: http
+      scheme: bearer
 
   parameters:
     ArticleId: { name: id, in: path, required: true, schema: { type: integer } }
@@ -766,6 +787,7 @@ components:
         content: { type: string, minLength: 10, description: HTML wird entfernt }
         teaser: { type: string }
         keyTakeaways: { type: string, description: 'Stichpunkte, getrennt durch •' }
+        imageUrl: { type: [string, 'null'], description: 'Externe oder relative Bild-URL; unterdrückt bei Anlage die automatische Bildgenerierung' }
         author: { type: string }
         category: { type: string, description: '`Auto` = vom Sprachmodell bzw. der Heuristik bestimmen' }
         status: { type: string, enum: [draft, published] }
@@ -873,7 +895,7 @@ components:
         autoImage: { type: string, enum: ['true', 'false'], description: 'Neue Artikel bekommen automatisch ein Titelbild, Standard false' }
         imageProvider: { type: string, enum: [local, gemini], description: 'local = eigener Bildserver, gemini = Google Gemini (Key in GEMINI_API_KEY)' }
         imageServerUrl: { type: string, description: 'Standard http://localhost:8080' }
-        geminiModel: { type: string, example: gemini-3-pro-image-preview }
+        geminiModel: { type: string, example: gemini-3-pro-image-preview, description: 'z. B. gemini-3-pro-image-preview, gemini-3.1-flash-image-preview oder gemini-2.5-flash-image' }
         geminiImageSize: { type: string, enum: [1K, 2K, 4K] }
         embeddingModel: { type: string, description: 'Ollama-Modell für Embeddings, Standard bge-m3' }
         imageTimeout: { type: string, description: Millisekunden }

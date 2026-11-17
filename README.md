@@ -1,230 +1,158 @@
 # wb-newsfeed
 
-Diplomarbeit an der HTL Leonding, Abteilung Informatik:
-**KI-gestützte News-Distribution** – automatisierte Aufbereitung von Nachrichtenartikeln
-und modulare Bereitstellung als Short-Form-Feed.
+**KI-gestützter Short-Form-News-Feed als wiederverwendbares Nuxt-4-Modul**  
+Diplomarbeit an der HTBLA Leonding (Abteilung Informatik) in Kooperation mit **Werbeberg Digital Communications GmbH & Co KG**.
 
-Aus einem normalen Artikeltext entstehen automatisch ein kurzer Teaser, Kernpunkte, Schlagwörter
-und ein Titelbild. Die Artikel erscheinen in einem vertikalen Feed zum Durchwischen, der als
-Nuxt-Komponente in bestehende Websites eingebaut werden kann.
+`wb-newsfeed` verwandelt klassische Nachrichtenartikel automatisch in kompakte Short-Form-Karten (Teaser, Kernpunkte, Themen-Tags und optionales 9:16-Titelbild) und stellt sie in einem vertikal wischbaren Feed bereit, der sich per Komponente in jede Nuxt-4-Website einbauen lässt.
 
-## Team
+---
 
-| Name | Schwerpunkt |
-|---|---|
-| David Windischbauer (`@dwindischbauer`, d.windischbauer@students.htl-leonding.ac.at) | Backend: Fastify-API, Datenbank (Drizzle, PostgreSQL), Queue und Worker (BullMQ), Textgenerierung und Embeddings mit Ollama, Bildserver, RSS-Import, API-Dokumentation |
-| Stefan Schachner (`@StefanSchachner`, s.schachner1@students.htl-leonding.ac.at) | Frontend: Feed-App, Admin-CMS (beide Nuxt 4), Komponenten-Package `@wb-news/shortform-news`, UI-Design, Einbindung in fremde Seiten |
+## Was das System kann
 
-## Aufbau
+- **KI-Aufbereitung im Hintergrund:** Erzeugt aus Artikeltexten asynchron über Ollama (`qwen3:14b`, alternativ z. B. `qwen3.5:9b`) reproduzierbare Teaser (max. 3 Sätze), drei Kernpunkte, feste Themen-Tags, Text-Embeddings (`bge-m3`, alternativ `qwen3-embedding`) sowie optional ein 9:16-Titelbild (`Z-Image-Turbo`, `FLUX.1-schnell`, `FLUX.2 [klein]` oder Google Gemini).
+- **Wiederverwendbares Nuxt-4-Package (`@wb-news/shortform-news`):** Kompletter vertikaler Snap-Feed als eine Komponente `<ShortformNewsFeed>` – inklusive Lazy-Loading, „Für dich“-Personalisierung im Browser (`localStorage`) und Übergabe der Artikel-ID beim Öffnen (`@article-read`).
+- **Admin-CMS:** Übersichtliches Nuxt-4-Dashboard zum Anlegen, Prüfen, Bearbeiten, Versionieren/Wiederherstellen, RSS-/Atom-Importieren und Auswerten von Artikeln.
+- **Dokumentierte REST-API:** Fastify-Backend mit Server-Cache, `ETag`/`304 Not Modified` und vollständiger OpenAPI-3.1-Spezifikation (Swagger UI unter `/docs`).
 
-```mermaid
-graph TD
-    A[Admin-CMS<br/>Nuxt 4, Port 3001] -->|REST| B[API<br/>Fastify, Port 3005]
-    C[Feed-App<br/>Nuxt 4, Port 3002] -->|GET /api/feed| B
-    B --> D[(PostgreSQL<br/>Port 5433)]
-    B -->|Jobs| E[(Redis<br/>Port 6379)]
-    E --> F[Worker<br/>im API-Prozess]
-    F -->|Teaser, Kernpunkte, Tags, Embeddings| G[Ollama<br/>qwen3:14b, bge-m3<br/>Port 11434]
-    F -->|Titelbilder| H[Bildserver<br/>Z-Image-Turbo, Port 8080]
-    F -.->|optional| I[Google Gemini<br/>Nano Banana Pro]
-    F --> D
-```
+---
 
-Abläufe, Datenmodell und Details zur Bildgenerierung: [`docs/architektur.md`](docs/architektur.md).
+## Schnellstart (3 Schritte)
 
-```
-wb-newsfeed/
-├── apps/
-│   ├── admin/                 Admin-CMS: Artikel, Bilder, Versionen, Jobs, Einstellungen
-│   ├── api/                   REST-API, Worker, Datenbankschema, openapi.yaml
-│   └── feed/                  Feed-App (Handy-Ansicht) mit Artikelansicht
-├── packages/
-│   └── shortform-news/        Feed als wiederverwendbares Vue/Nuxt-Package
-├── services/
-│   └── image/                 Bildserver (Python, Z-Image-Turbo oder FLUX.1-schnell)
-├── examples/                  Einbindung in ein fremdes Nuxt-Projekt und per iframe
-├── docs/architektur.md
-└── docker-compose.yml         PostgreSQL, Redis, Ollama
-```
-
-## Voraussetzungen
-
-- Node.js 22 (siehe `.nvmrc`) und pnpm 9 (`corepack enable`)
-- Docker Desktop
-- Für Titelbilder: NVIDIA-Grafikkarte mit mindestens 12 GB (entwickelt auf einer RTX 5060 Ti mit 16 GB),
-  32 GB Arbeitsspeicher, Python 3.11 und rund 25 GB Platz für die Modelle.
-  Ohne Grafikkarte läuft alles andere normal, Artikel bekommen dann nur kein Bild.
-
-## Installation und Start
+Voraussetzungen: **Node.js 22** (`.nvmrc`), **pnpm 9** (`corepack enable`) und **Docker Desktop**.
 
 ```bash
-# 1. Umgebung
+# 1. Umgebungsvariablen & Abhängigkeiten
 cp .env.example .env
 pnpm install
 
-# 2. Datenbank, Redis und Ollama starten, Textmodell laden
+# 2. Datenbank, Redis & Ollama starten und Modelle laden
 docker compose up -d
 docker exec wb_newsfeed_ollama ollama pull qwen3:14b
 docker exec wb_newsfeed_ollama ollama pull bge-m3
 
-# 3. Datenbankschema anlegen
+# 3. Datenbankschema anlegen & Anwendungen starten
 pnpm --filter @wb-news/api run db:push
+pnpm run dev
 ```
 
-Der Bildserver läuft direkt auf dem Rechner, nicht in Docker, damit er ohne Umwege auf die
-Grafikkarte zugreifen kann. Einmalig einrichten (Windows, unter Linux `.venv/bin/...`):
+*(Falls Ollama beim Start nicht läuft, nutzt das Backend automatisch einen regelbasierten Fallback, sodass alle Oberflächen trotzdem sofort testbar sind.)*
+
+### Dienste & Adressen
+
+| Dienst | Adresse | Zweck |
+|---|---|---|
+| **Feed-App** | http://localhost:3002 | Mobiler Short-Form-Feed (Demo-Host) |
+| **Admin-CMS** | http://localhost:3001 | Redaktion, Versionen, Jobs, Einstellungen & Analytics |
+| **REST-API** | http://localhost:3005 | Fastify-API (`GET /api` für Übersicht; geschützte Routen per `Authorization: Bearer` oder `x-api-key`) |
+| **Swagger UI** | http://localhost:3005/docs | Interaktive OpenAPI-3.1-Dokumentation |
+| **Bildserver** *(optional)* | http://localhost:8080/health | Lokale 9:16-Titelbilder per GPU |
+
+---
+
+## API in 30 Sekunden
+
+Geschützte Endpunkte akzeptieren wahlweise `Authorization: Bearer <API_KEY>` oder `x-api-key: <API_KEY>` (Standard in `.env.example`: `diplomarbeit-secret-key`). Im Admin unter **Einstellungen → API-Zugang** stehen alle Aufrufe direkt zum Kopieren bereit.
+
+```bash
+# 1. Artikel anlegen (Teaser, Kernpunkte & Tags entstehen asynchron im Hintergrund)
+curl -X POST http://localhost:3005/api/articles \
+  -H "Authorization: Bearer diplomarbeit-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Neuer Artikel", "content": "Volltext mit mindestens 10 Zeichen...", "status": "published"}'
+
+# 2. Oder synchron in einer einzigen Antwort generieren (ohne Job-Polling)
+curl -X POST http://localhost:3005/api/articles/generate \
+  -H "Authorization: Bearer diplomarbeit-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Volltext mit mindestens 10 Zeichen...", "generateImage": false}'
+
+# 3. Öffentlichen Feed abrufen (ohne API-Key)
+curl "http://localhost:3005/api/feed?limit=10&offset=0"
+```
+
+### Optional: Lokaler Bildserver (Titelbilder)
+
+Für lokale Titelbilder auf einer NVIDIA-GPU (≥ 12 GB VRAM, Python 3.11) in einem zweiten Terminal starten – oder alternativ einen `GEMINI_API_KEY` in `.env` hinterlegen:
 
 ```bash
 cd services/image
 python -m venv .venv
 .venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cu128
 .venv/Scripts/pip install -r requirements.txt
-```
-
-Beim ersten Start lädt der Server die Gewichte von Hugging Face (Z-Image-Turbo ca. 33 GB) und
-braucht danach etwa eine Minute zum Laden. Bereit ist er, sobald `http://localhost:8080/health` `"loaded": true` meldet.
-
-```bash
-# Terminal 1: Bildserver
-cd services/image
 .venv/Scripts/python -m uvicorn server:app --port 8080
-
-# Terminal 2: API, Admin und Feed
-pnpm run dev
 ```
 
-| Dienst | Adresse |
-|---|---|
-| Admin-CMS | http://localhost:3001 |
-| Feed-App | http://localhost:3002 |
-| API | http://localhost:3005 |
-| API-Doku (Swagger UI) | http://localhost:3005/docs |
-| Bildserver | http://localhost:8080/health |
+*(Unter Linux `.venv/bin/...` verwenden. Bereit, sobald `/health` `"loaded": true` liefert.)*
 
-## API
+---
 
-Die API ist vollständig in [`apps/api/openapi.yaml`](apps/api/openapi.yaml) beschrieben (OpenAPI 3.1)
-und bei laufendem Server unter http://localhost:3005/docs ausprobierbar.
+## Einbindung in ein bestehendes Nuxt-4-Projekt
 
-Bis auf die Endpunkte, die der Feed ohne Anmeldung braucht (Feed, Likes, Kommentare, Teilen,
-Analytics-Events, Bilder), verlangt jeder Aufruf den Header `x-api-key` mit dem Wert aus `API_KEY`.
-Ohne `API_KEY` startet die API nicht.
+Ein fertiges Beispiel außerhalb des Workspaces liegt unter [`examples/nuxt-host/`](examples/nuxt-host/).
 
-Beispiel: Artikel anlegen. Teaser, Kernpunkte, Tags und Embedding entstehen danach im Hintergrund.
-Ein Titelbild entsteht auf Klick im Admin (`POST /api/articles/{id}/generate-image`) oder automatisch,
-wenn unter Einstellungen „Bei neuen Artikeln automatisch ein Titelbild erzeugen“ aktiv ist.
+**1. Nuxt-Modul registrieren (`nuxt.config.ts`):**
 
-```bash
-curl -X POST http://localhost:3005/api/articles \
-  -H "x-api-key: diplomarbeit-secret-key" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Neue Straßenbahnlinie für Linz", "content": "...", "category": "Politik", "status": "published"}'
+```ts
+import tailwindcss from '@tailwindcss/vite';
+
+export default defineNuxtConfig({
+  modules: ['@wb-news/shortform-news/nuxt'],
+  css: ['~/assets/css/main.css'],
+  vite: { plugins: [tailwindcss()] }
+});
 ```
 
-Die Antwort enthält `generationJobId`, der Fortschritt steht unter `GET /api/jobs/{id}`.
+**2. Tailwind auf das Package hinweisen (`app/assets/css/main.css`):**
 
-Artikel aus einer bestehenden Quelle übernehmen (RSS 1.0/2.0 oder Atom, im Admin unter „RSS importieren“):
-
-```bash
-curl -X POST http://localhost:3005/api/import/rss \
-  -H "x-api-key: diplomarbeit-secret-key" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.at/rss.xml", "limit": 20, "fullText": true}'
+```css
+@import 'tailwindcss';
+@import '@wb-news/shortform-news/tailwind.css';
 ```
 
-## Bildgenerierung
+**3. Komponente einbinden und Absprung behandeln (`app/pages/index.vue`):**
 
-Zwei Wege, umschaltbar im Admin unter Einstellungen:
+```vue
+<template>
+  <ShortformNewsFeed
+    api-url="http://localhost:3005"
+    @article-read="(id) => navigateTo(`/artikel/${id}`)"
+  />
+</template>
+```
 
-**Eigener Bildserver (Standard, kostenlos, lokal).** Standardmodell ist **Z-Image-Turbo** von
-Tongyi-MAI (6 Milliarden Parameter, Apache 2.0). Es liefert sehr fotorealistische Bilder in 9 Schritten.
-Alternativ läuft **FLUX.1-schnell** von Black Forest Labs (12 Milliarden Parameter, Apache 2.0),
-Das Modell ist im Admin unter Einstellungen wählbar, der Server wechselt beim nächsten Bild.
+Die Host-Adresse muss in der `.env` der API unter `CORS_ORIGIN` eingetragen sein (z. B. `http://localhost:3099`).  
+Alle Props, Events, Slots und CSS-Variablen (`--sf-*`): [`packages/shortform-news/README.md`](packages/shortform-news/README.md).
 
-Vor dem Rendern entsteht der Bildprompt in zwei Schritten (Textmodell, standardmäßig mit Denkmodus):
+---
 
-1. **Entwurf:** Das Modell bestimmt das Kernereignis der Schlagzeile und beschreibt das Foto,
-   das ein Pressefotograf dazu machen würde, auf Englisch. So wird nicht ein Nebendetail aus dem
-   Text zum Motiv.
-2. **Prüfung:** Ein zweiter Aufruf kontrolliert den Entwurf gegen die Schlagzeile: passt das Motiv,
-   ist nichts erfunden (Orte nur, wenn sie im Artikel stehen), keine Schrift, keine echten Gesichter.
-   Wenn nicht, wird der Entwurf korrigiert.
+## Projektstruktur & Dokumentation
 
-Der verwendete Prompt wird am Artikel gespeichert und ist im Admin in der Vorschau sichtbar.
+```text
+wb-newsfeed/
+├── apps/
+│   ├── api/                 Fastify REST-API, BullMQ-Worker, Drizzle-Schema, openapi.yaml
+│   ├── feed/                Demo-Feed-App (Nuxt 4)
+│   └── admin/               Admin-CMS (Nuxt 4)
+├── packages/shortform-news/ Wiederverwendbares Vue/Nuxt-Package (@wb-news/shortform-news)
+├── services/image/          Optionaler Python-Bildserver (Z-Image-Turbo / FLUX.1-schnell)
+├── examples/                Einbindung als Nuxt-Host & per iframe
+├── docs/architektur.md      Systemarchitektur & Abläufe
+├── specs/anforderungen.md   Abgleich gegen Briefing & Diplomarbeitsantrag
+└── thesis/                  Schriftliche Diplomarbeit (LaTeX & PDF)
+```
 
-Passt das Modell in den freien Grafikspeicher, liegt immer nur die gerade rechnende Komponente auf
-der Grafikkarte. Belegt ein anderes Programm (etwa ein Spiel) den Speicher, lädt der Server die
-Blöcke einzeln nach. Das funktioniert, ist aber deutlich langsamer.
+- **Architektur & Datenmodell:** [`docs/architektur.md`](docs/architektur.md)
+- **OpenAPI-Spezifikation:** [`apps/api/openapi.yaml`](apps/api/openapi.yaml)
+- **Anforderungscheck:** [`specs/anforderungen.md`](specs/anforderungen.md)
+- **Qualitätsprüfungen:** `pnpm run lint`, `pnpm run typecheck`, `pnpm run test`, `pnpm run build` (automatisiert in [`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
-| Variable | Standard | Bedeutung |
+---
+
+## Team & Projektpartner
+
+| Rolle | Person | Schwerpunkt |
 |---|---|---|
-| `IMAGE_MODEL` | `z-image-turbo` | oder `flux-schnell` |
-| `IMAGE_STEPS` | 9 bzw. 4 | Rechenschritte |
-| `IMAGE_OFFLOAD` | `auto` | `model` (schnell, braucht Platz) oder `group` (sparsam) |
-| `IMAGE_PRELOAD` | `1` | Modell schon beim Start laden |
-| `FLUX_GGUF_FILE` | `flux1-schnell-Q8_0.gguf` | Quantisierung für FLUX, z. B. `flux1-schnell-Q6_K.gguf` |
-
-**Google Gemini (optional, kostenpflichtig).** Mit `GEMINI_API_KEY` in der `.env` lässt sich
-Nano Banana Pro (`gemini-3-pro-image-preview`) oder Nano Banana (`gemini-2.5-flash-image`) verwenden.
-Gemini bekommt den deutschen Artikel direkt und erzeugt ein Hochformat in 1K, 2K oder 4K.
-
-## „Für dich“
-
-Der Feed lernt aus dem Verhalten auf dem Gerät, ohne Konto. Das Profil bleibt im Browser
-(`localStorage`), an den Server gehen nur anonyme Ereignisse für die Statistik.
-
-| Signal | Wirkung |
-|---|---|
-| Karte unter 1,5 s weggewischt | Thema wird schwächer |
-| Karte 4 bis 10 s bzw. über 10 s angesehen | leicht bzw. deutlich stärker |
-| Artikel geöffnet, über 30 s gelesen | stärker |
-| Like / Unlike | stärker / schwächer |
-| Kommentar, Teilen | am stärksten |
-
-Daraus entstehen Interessen je Kategorie, Tag und Artikel. Alle Werte halbieren sich nach drei Tagen.
-Sortiert wird nach diesen Interessen, nach **inhaltlicher Ähnlichkeit** zu gelesenen Artikeln
-(Embeddings mit bge-m3, die API liefert je Artikel die ähnlichsten mit), nach Aktualität und
-Beliebtheit. Gesehene Artikel rutschen nach hinten, bis zu drei Artikel eines Themas dürfen
-hintereinander kommen, und jeder fünfte Platz zeigt etwas außerhalb der bisherigen Interessen.
-Nach einem Like, Kommentar, Teilen oder Öffnen wird sofort neu gereiht, schon die nächste Karte
-passt dann zum Thema. Beim Wischen passiert das nach einer Viertelsekunde.
-
-Likes, Kommentare und Teilungen landen zusätzlich in der Datenbank (Zähler am Artikel,
-Tabelle `comments`), Verweil- und Lesedauer in `analytics_events`. Das Admin zeigt pro Artikel
-Aufrufe, durchschnittliche Zeit auf der Karte, schnelles Weiterwischen, Öffnungen und Lesedauer.
-Code: `packages/shortform-news/src/personalization.ts`.
-
-## Tests und Prüfungen
-
-```bash
-pnpm run test        # Vitest, Hilfsfunktionen des Packages
-pnpm run lint
-pnpm run typecheck
-pnpm run build
-```
-
-Die gleichen Schritte laufen bei jedem Push in GitHub Actions (`.github/workflows/ci.yml`).
-
-## Stand (29. September 2026)
-
-Fertig:
-
-- Feed mit Kategorien, Unterkategorien, „Für dich“-Sortierung, Likes, Kommentaren und Teilen
-- Lazy Loading: Artikel werden seitenweise geladen (10 pro Anfrage), gerendert werden nur die
-  sichtbare Karte und je zwei davor und danach. Bilder laden dadurch erst kurz bevor sie gebraucht werden.
-- Artikelansicht im Feed als Blatt über der aktuellen Karte, mit Titelbild, Teaser, Kernpunkten und Volltext
-- Admin-CMS mit Artikelliste, Vorschau, Bildverwaltung, Versionen, Job-Übersicht und Einstellungen
-- Asynchrone Generierung über BullMQ, erneute Generierung bei geändertem Text, Versionierung mit Wiederherstellen
-- Reproduzierbare Textgenerierung (Temperatur 0, fester Seed)
-- Titelbilder mit Z-Image-Turbo oder FLUX.1-schnell (lokal) oder Google Gemini (optional)
-- „Für dich“ mit Verweildauer, Lesedauer, Likes, Kommentaren, Teilen, inhaltlicher Ähnlichkeit und Abwechslung
-- Kennzahlen je Artikel im Admin (Aufrufe, Verweildauer, Öffnungen, Lesedauer)
-- RSS-Import (RSS 1.0/2.0, Atom) mit optionalem Volltext
-- Feed-Cache mit ETag und `304 Not Modified`
-- OpenAPI-Spezifikation mit Swagger UI
-- Package `@wb-news/shortform-news` zur Einbindung in fremde Nuxt-Projekte (Beispiel in `examples/nuxt-host`)
-
-Offen:
-
-- Webhooks für Analytics-Ereignisse (optional)
-- Teaser-Varianten je Zielgruppe (optional)
+| **Schüler (Verantwortlich)** | David Windischbauer | Backend: Fastify-API, PostgreSQL/Drizzle, BullMQ-Worker, Ollama-Generierung & Embeddings, Versionierung, RSS-Import, Bildserver, OpenAPI-Doku |
+| **Schüler** | Stefan Schachner | Frontend: Nuxt-4-Package `@wb-news/shortform-news`, Feed-App, Admin-CMS, UI/UX, Host-Integration & Client-Personalisierung |
+| **Betreuer** | Martin Huemer | HTBLA Leonding |
+| **Projektpartner** | Werbeberg Digital Communications GmbH & Co KG | Ansprechperson: Michael Medweschek |

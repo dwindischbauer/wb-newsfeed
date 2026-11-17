@@ -1,0 +1,455 @@
+Dieses Kapitel beschreibt die Umsetzung der serverseitigen Bausteine von wb-newsfeed: der zentralen \gls{rest}-Schnittstelle, der Datenhaltung, der asynchronen Verarbeitung sowie der KI-gestützten Aufbereitung von Texten, \glspl{embedding} und Titelbildern.\kihinweis{}
+Während Kapitel~\ref{chapter:architecture} das Zusammenspiel im Überblick darstellt und Kapitel~\ref{chapter:feedimpl} die Auslieferung im Browser behandelt, geht es hier um die technischen Entscheidungen, Schnittstellen und Schutzmechanismen im Ordner \texttt{apps/api} und im Bildserver unter \texttt{services/image}.
+Am Anfang stehen die Schnittstelle und das Datenmodell als Grundlage für alle nachfolgenden Verarbeitungsschritte.
+
+\section{Schnittstelle, Datenmodell und CMS-Unabhängigkeit}\label{sec:backend:api}
+\setauthor{\firstauthor}
+
+Das Backend bildet die einzige Verbindung zwischen Redaktion, KI-Diensten und eingebetteten Feeds.
+Laut den Anforderungen E3, T5, D4 und D6 aus Kapitel~\ref{chapter:requirements} muss es Artikel aus beliebigen Quellen aufnehmen, asynchron verarbeiten, dauerhaft speichern und über eine dokumentierte \gls{rest}-Schnittstelle ausliefern.
+
+\subsection{Aufbau der REST-Schnittstelle und Zugriffssteuerung}
+
+Die Schnittstelle in \texttt{apps/api/src/server.ts} basiert auf dem Node.js-Webframework Fastify~\cite{fastify}.
+Fastify verarbeitet Anfragen mit geringem Laufzeit-Overhead, unterstützt TypeScript ohne Umwege und bietet über offizielle Plugins sowohl Multipart-Uploads als auch eine direkte Einbindung von OpenAPI-Dokumentationen~\cite{fastify}.
+Die Registrierung der Plugins erfolgt zentral beim Serverstart: \texttt{@fastify/multipart} begrenzt hochgeladene Artikelbilder auf zehn Megabyte, \texttt{@fastify/static} liefert gespeicherte Titelbilder aus dem Ordner \texttt{public/} unter dem Pfad \texttt{/images/} aus, und \texttt{@fastify/cors} prüft den Ursprung eingehender Browser-Anfragen gegen die kommagetrennte Umgebungsvariable \texttt{CORS\_ORIGIN}.
+
+Für die maschinenlesbare Dokumentation (Anforderung D6) bindet der Server die von Hand gepflegte Spezifikation \texttt{apps/api/openapi.yaml} im Standard OpenAPI~3.1~\cite{openapi31} über \texttt{@fastify/swagger} im Modus \texttt{static} ein.
+Über \texttt{@fastify/swagger-ui} steht diese Spezifikation zur Laufzeit unter \texttt{/docs} als interaktive Oberfläche bereit, in der alle Endpunkte, Parameter, Antwortstrukturen und die Authentifizierung direkt getestet werden können.
+Tabelle~\ref{tab:backend:endpoints} fasst die zehn Funktionsgruppen der insgesamt 36 spezifizierten Operationen über 27 Pfad-Endpunkte zusammen.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{Gruppe} & \textbf{Zugriff} & \textbf{Wesentliche Endpunkte und Aufgabe} \\
+        \midrule
+        Feed & öffentlich & \texttt{GET /api/feed} mit Filter, Pagination und \texttt{ETag} \\
+        Artikel & API-Key & \texttt{GET/POST /api/articles}, \texttt{PUT/DELETE}, \texttt{/quick}, \texttt{/generate}, Bild-Upload und \texttt{/generate-image} \\
+        Versionen & API-Key & \texttt{GET /api/articles/:id/versions} und \texttt{POST .../restore} \\
+        Jobs & API-Key & \texttt{GET/POST/DELETE /api/jobs} und \texttt{POST /api/jobs/:id/retry} \\
+        Engagement & öffentlich & \texttt{like}, \texttt{unlike}, \texttt{share} sowie \texttt{GET/POST .../comments} \\
+        Tags & API-Key & \texttt{GET/POST /api/tags} und \texttt{DELETE /api/tags/:id} \\
+        Analytics & gemischt & \texttt{POST /api/analytics/events} (öffentlich), Auswertungen (API-Key) \\
+        Import & API-Key & \texttt{POST /api/import/rss} für \gls{rss}~1.0/2.0 und Atom \\
+        Einstellungen & API-Key & \texttt{GET/POST /api/settings}, \texttt{GET /api/settings/models} \\
+        System & öffentlich & \texttt{GET /api} (Discovery) und \texttt{GET /api/sysinfo} (Health-Check) \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Übersicht der Endpunktgruppen der \gls{rest}-Schnittstelle (OpenAPI~3.1)}
+    \label{tab:backend:endpoints}
+\end{table}
+
+Besonderes Augenmerk liegt auf der Trennung zwischen öffentlichen und geschützten Routen.
+Beim Start liest der Server die Umgebungsvariable \texttt{API\_KEY}.
+Fehlt dieser Schlüssel, bricht der Prozess sofort mit einer Fehlermeldung und Exit-Code~1 ab, damit keine ungeschützte Instanz versehentlich produktiv geht.
+Ein zentraler \texttt{preHandler}-Hook prüft bei jeder eingehenden Anfrage, ob es sich um einen öffentlichen Endpunkt handelt: \texttt{/}, \texttt{/api}, \texttt{/api/feed}, \texttt{/api/sysinfo}, \texttt{/docs}, \texttt{/images/}, \texttt{/api/analytics/events} sowie Interaktionen auf Artikelebene, die über den regulären Ausdruck \texttt{PUBLIC\_ARTICLE\_ACTION} (\texttt{like}, \texttt{unlike}, \texttt{share}, \texttt{comments}) erkannt werden.
+Alle übrigen Endpunkte – insbesondere das Anlegen, Ändern und Löschen von Artikeln, der Import und die Modell-Einstellungen – verlangen den passenden Schlüssel wahlweise im Header \texttt{x-api-key} oder als \texttt{Authorization: Bearer <API\_KEY>} und antworten sonst mit dem Statuscode~\texttt{401}.
+Das Admin-\gls{cms} sendet Anfragen aus dem Browser daher nicht direkt an Fastify, sondern an seinen eigenen Nuxt-Server-Proxy (\texttt{apps/admin/server/api/[...].ts}), der den geheimen Schlüssel serverseitig ergänzt.
+
+\subsection{Relationales Datenmodell mit Drizzle ORM}
+
+Für die dauerhafte Speicherung (Anforderung G2) kommt PostgreSQL~16~\cite{postgresql} zum Einsatz.
+Das Schema ist in \texttt{apps/api/src/db/schema.ts} vollständig in TypeScript über das \gls{orm} Drizzle~\cite{drizzleorm} definiert, sodass Datenbankabfragen und Anwendungscode dieselben Typdefinitionen teilen.
+Abbildung~\ref{fig:backend:schema} zeigt die acht Tabellen und ihre Fremdschlüsselbeziehungen.
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}[
+        tbl/.style={draw, rounded corners=2pt, align=left, font=\footnotesize, inner sep=5pt, fill=white},
+        rel/.style={-{Stealth[length=2mm]}, thick}
+    ]
+        \node[tbl, fill=lightblue, text width=4.6cm] (articles) at (0,0) {
+            \textbf{articles}\\
+            \texttt{id} (PK), \texttt{title}, \texttt{content}\\
+            \texttt{teaser}, \texttt{key\_takeaways}\\
+            \texttt{image\_url}, \texttt{image\_prompt}\\
+            \texttt{category}, \texttt{author}, \texttt{status}\\
+            \texttt{source\_url} (UK), \texttt{embedding}
+        };
+
+        \node[tbl, text width=4.2cm] (jobs) at (-5.0,1.6) {
+            \textbf{jobs}\\
+            \texttt{id} (PK), \texttt{article\_id} (FK)\\
+            \texttt{type}, \texttt{status}, \texttt{result}\\
+            \texttt{error}, \texttt{processing\_time\_ms}
+        };
+
+        \node[tbl, text width=4.4cm] (versions) at (-5.0,-1.7) {
+            \textbf{generation\_versions}\\
+            \texttt{id} (PK), \texttt{article\_id} (FK)\\
+            \texttt{version} (UK je Artikel)\\
+            \texttt{source}, \texttt{model}, \texttt{temperature}\\
+            \texttt{seed}, \texttt{content\_hash}, \texttt{job\_id} (FK)
+        };
+
+        \node[tbl, text width=4.0cm] (atags) at (5.0,1.8) {
+            \textbf{article\_tags}\\
+            \texttt{id} (PK), \texttt{article\_id} (FK)\\
+            \texttt{tag\_id} (FK)
+        };
+
+        \node[tbl, text width=3.2cm] (tags) at (5.0,3.8) {
+            \textbf{tags}\\
+            \texttt{id} (PK), \texttt{name} (UK)\\
+            \texttt{slug} (UK), \texttt{color}
+        };
+
+        \node[tbl, text width=4.0cm] (comments) at (5.0,-0.1) {
+            \textbf{comments}\\
+            \texttt{id} (PK), \texttt{article\_id} (FK)\\
+            \texttt{author\_name}, \texttt{text}
+        };
+
+        \node[tbl, text width=4.0cm] (analytics) at (5.0,-2.1) {
+            \textbf{analytics\_events}\\
+            \texttt{id} (PK), \texttt{article\_id} (FK)\\
+            \texttt{event\_type}, \texttt{metadata}
+        };
+
+        \node[tbl, fill=lightgray, text width=4.2cm] (settings) at (0,-3.2) {
+            \textbf{settings}\\
+            \texttt{id} (PK), \texttt{key} (UK), \texttt{value}
+        };
+
+        \draw[rel] (jobs.east) -- (articles.north west);
+        \draw[rel] (versions.east) -- (articles.south west);
+        \draw[rel, dashed] (versions.north) -- node[left, font=\scriptsize]{\texttt{set null}} (jobs.south);
+        \draw[rel] (atags.west) -- (articles.north east);
+        \draw[rel] (atags.north) -- (tags.south);
+        \draw[rel] (comments.west) -- (articles.east);
+        \draw[rel] (analytics.west) -- (articles.south east);
+    \end{tikzpicture}
+    \caption{Relationales Datenmodell der PostgreSQL-Datenbank (\texttt{schema.ts})}
+    \label{fig:backend:schema}
+\end{figure}
+
+Die zentrale Tabelle \texttt{articles} hält neben Titel, Rohtext, \gls{teaser}, Kernpunkten und Titelbild drei Zähler für Nutzerinteraktionen (\texttt{like\_count}, \texttt{comment\_count}, \texttt{share\_count}), eine eindeutige Spalte \texttt{source\_url} zur Duplikaterkennung bei Importen sowie das Feld \texttt{embedding} als Gleitkomma-Array (\texttt{real[]}).
+Jede Schreiboperation über Drizzle aktualisiert über \texttt{\$onUpdate} automatisch den Zeitstempel \texttt{updated\_at}, worauf später die Cache-Invalidierung aufbaut.
+Alle abhängigen Tabellen – \texttt{jobs}, \texttt{generation\_versions}, \texttt{article\_tags}, \texttt{comments} und \texttt{analytics\_events} – verweisen mit \texttt{ON DELETE CASCADE} auf \texttt{articles.id}.
+Wird ein Artikel gelöscht, entfernt PostgreSQL sämtliche verknüpften Einträge atomar und hinterlässt keine verwaisten Datensätze; lediglich der optionale Verweis von \texttt{generation\_versions.job\_id} auf \texttt{jobs.id} nutzt \texttt{ON DELETE SET NULL}, damit eine Versionshistorie auch nach dem Bereinigen einzelner Job-Einträge erhalten bleibt.
+
+Für Demonstrationen oder Ausfälle der Datenbank besitzen \texttt{articles.ts} und \texttt{jobs.ts} zusätzlich eine Ausweichebene im Arbeitsspeicher (\texttt{inMemoryArticles} und \texttt{inMemoryJobs}) mit drei vorbelegten Beispielartikeln.
+Schlägt eine Datenbankabfrage fehl, protokolliert der Server eine Warnung und bedient lesende Anfragen sowie den öffentlichen Feed (\texttt{X-Feed-Cache: BYPASS}) weiterhin aus dem Speicher, sodass die Weboberflächen nicht abstürzen.
+
+\subsection{CMS-Unabhängigkeit und Anbindung externer Quellen}
+
+Anforderung D4 verlangt, dass wb-newsfeed unabhängig von einem bestimmten Redaktionssystem arbeitet.
+Auf Datenebene wurde dazu ein neutrales Artikelmodell ohne herstellerspezifische Felder gewählt; das Feld \texttt{author} trägt den allgemeinen Standardwert \texttt{Redaktion}.
+Für die Übernahme von Inhalten stehen vier gleichberechtigte Wege über die \gls{rest}-Schnittstelle zur Verfügung:
+\begin{compactenum}
+    \item \texttt{POST /api/articles} als allgemeiner Endpunkt für beliebige \glspl{cms} und das Admin-Frontend; HTML-Tags werden bereinigt, fehlende Metadaten vorläufig ergänzt und ein Hintergrundauftrag eingereiht.
+    \item \texttt{POST /api/articles/quick} zur schnellen Anlage aus bloßem Fließtext, bei der Titel, Kategorie, Tags und \gls{teaser} vollständig automatisch bestimmt werden.
+    \item \texttt{POST /api/articles/generate} für Aufrufer, die Textaufbereitung und optionales Titelbild synchron in einer einzigen HTTP-Antwort erwarten.
+    \item \texttt{POST /api/import/rss} zum automatisierten Einlesen externer Nachrichtenquellen ohne Anpassung am Quellcode.
+\end{compactenum}
+
+Der Feed-Importer in \texttt{apps/api/src/services/importer.ts} (Listing~\ref{lst:backend:importer}) verarbeitet über die Bibliothek \texttt{fast-xml-parser} die drei verbreitetsten Web-Feed-Formate: \gls{rss}~2.0 (\texttt{rss.channel.item})~\cite{rss20}, \gls{rss}~1.0 bzw.\ RDF (\texttt{rdf:RDF.item}) sowie Atom (\texttt{feed.entry})~\cite{rfc4287}.
+Die Funktion \texttt{parseFeed} normalisiert unterschiedliche Link- und Datumsfelder (\texttt{pubDate}, \texttt{dc:date}, \texttt{published}, \texttt{updated}), entfernt HTML-Auszeichnungen und dekodiert Zeichenentitäten.
+Vor dem Anlegen prüft \texttt{importFeed} alle gefundenen Links in einer einzigen \texttt{inArray}-Abfrage gegen \texttt{articles.source\_url}, sodass wiederholte Importe derselben Quelle bereits vorhandene Artikel überspringen.
+
+\begin{lstlisting}[float=tbp,language=TypeScript,caption={Quell-unabhängiger Feed-Import mit Volltext-Extraktion (gekürzt aus \texttt{importer.ts})},label=lst:backend:importer]
+const feed = parseFeed(await res.text()); // RSS 2.0, RSS 1.0 (RDF) und Atom
+const known = new Set(
+  (await db.select({ url: articles.sourceUrl })
+    .from(articles).where(inArray(articles.sourceUrl, links)))
+    .map((r) => r.url)
+);
+
+for (const item of feed.items) {
+  if (result.imported.length >= limit) break;
+  if (known.has(item.link)) { result.skipped++; continue; }
+
+  let content = item.description;
+  if (options.fullText) {
+    const page = await fetch(item.link, { signal: AbortSignal.timeout(15000) });
+    if (page.ok) {
+      const body = extractArticleText(await page.text());
+      if (body.length > content.length) content = `${item.description}\n\n${body}`;
+    }
+  }
+  if (content.length < 200) { result.skipped++; continue; }
+
+  const [row] = await db.insert(articles).values({
+    title: item.title, content, category: 'Auto',
+    author: options.author || feed.title,
+    status: options.status || 'published', sourceUrl: item.link
+  }).returning();
+  const { jobId } = await enqueueGeneration(row.id, generationType, {
+    autoCategory: true, trigger: 'import'
+  });
+}
+\end{lstlisting}
+
+Da viele \gls{rss}-Feeds nur eine einzeilige Kurzbeschreibung mitliefern, bietet der Importer die Option \texttt{fullText}.
+Ist sie aktiv, lädt \texttt{extractArticleText} die verlinkte Artikelseite, entfernt Skript- und Stilblöcke, sucht nach typischen Inhaltsbereichen (\texttt{story-content}, \texttt{<article>}, \texttt{<main>}) und extrahiert ausschließlich Absätze und Zwischenüberschriften ohne verschachtelte Layout-Container.
+Zu kurze Meldungen unter 200 Zeichen werden übersprungen, weil sie keine sinnvolle Grundlage für eine dreisätzige Zusammenfassung bieten.
+Jeder neu importierte Artikel erhält die Platzhalter-Kategorie \texttt{Auto} und denselben asynchronen Verarbeitungsauftrag wie manuell angelegte Artikel.
+
+\section{Asynchrone Verarbeitung und Versionierung}\label{sec:backend:queue}
+\setauthor{\firstauthor}
+
+Während ein Datenbankeintrag in wenigen Millisekunden abgeschlossen ist, benötigt ein lokal betriebenes Sprachmodell oder ein Diffusionsmodell für ein Titelbild mehrere Sekunden bis über eine Minute.
+Die Trennung von Annahme und Generierung (Anforderungen T5, D2 und D5) sowie die lückenlose Nachvollziehbarkeit aller erzeugten Textfassungen (Anforderungen D1 und D3) bilden daher den Kern der Verarbeitungspipeline.
+
+\subsection{Entkopplung über Redis und BullMQ}
+
+Die Auftragsverwaltung in \texttt{apps/api/src/queue/index.ts} nutzt BullMQ~\cite{bullmq} auf Basis von Redis.
+Beim Anlegen eines Artikels (\texttt{POST /api/articles}, \texttt{/quick}, \texttt{POST /api/import/rss}) oder beim Ändern seines Haupttextes (\texttt{PUT /api/articles/:id}) ruft die Schnittstelle die zentrale Hilfsfunktion \texttt{enqueueGeneration} auf.
+Client-Anwendungen müssen daher keinen separaten Job-Aufruf absetzen.
+Es existieren drei Auftragstypen: \texttt{teaser\_generation} erzeugt Text-Metadaten und Embedding, \texttt{image\_generation} rendert ausschließlich ein Titelbild, und \texttt{full\_generation} führt beide Schritte nacheinander aus.
+Welcher Typ bei neuen Artikeln startet, entscheidet \texttt{newArticleGenerationType} anhand der Einstellung \texttt{autoImage}: Standardmäßig entstehen nur Textinhalte, Titelbilder werden erst auf Wunsch oder bei aktiver Automatik erzeugt.
+
+\texttt{enqueueGeneration} legt zunächst einen Datensatz mit Status \texttt{pending} in der PostgreSQL-Tabelle \texttt{jobs} an und reiht anschließend den Auftrag unter der deterministischen Kennung \texttt{job-<id>} in die Redis-Queue \texttt{generation\_jobs} ein.
+Schlägt das Einreihen fehl, weil Redis nicht erreichbar ist, markiert die Funktion den Datenbankeintrag sofort als \texttt{failed}, statt ihn dauerhaft als \texttt{pending} hängen zu lassen.
+Um Ausfälle externer KI-Dienste abzufangen, konfiguriert BullMQ bis zu drei automatische Wiederholungen mit exponentiellem Backoff beginnend bei einer Sekunde.
+
+Ein subtiles Konsistenzproblem zeigte sich bei Neustarts und manuellen Wiederholungsversuchen:
+\begin{compactitem}
+    \item Beim Start des Servers prüft eine Aufräumroutine nach Bereitschaft der Queue alle Datenbank-Jobs im Status \texttt{pending}, die älter als 30 Sekunden sind. Besitzt ein solcher Job keinen Eintrag mehr in Redis, wird er als \texttt{failed} mit dem Hinweis \glqq Orphaned pending job\grqq{} abgeschlossen, sodass das Admin-\gls{cms} keine dauerhaften Scheinvorgänge anzeigt.
+    \item Wurde ein fehlgeschlagener Job über \texttt{POST /api/jobs/:id/retry} neu angestoßen, erzeugte eine frühere Fassung eine neue zufällige Queue-Kennung, weshalb die Aufräumroutine den Job fälschlich als verwaist einstufte. Die aktuelle Implementierung entfernt den alten Redis-Eintrag gezielt und legt den Auftrag wieder unter exakt \texttt{job-<id>} an; nur falls Redis komplett ausfällt, springt \texttt{executeDirectJob} direkt im Node.js-Prozess ein.
+\end{compactitem}
+
+Auch bei Fehlern während der Bildgenerierung verhält sich der Worker abgestuft:
+Scheitert bei einem \texttt{full\_generation}-Job nur der Bildserver, bleibt der zuvor erzeugte Text gespeichert, und der Auftrag schließt mit dem Hinweis \glqq Teaser generiert, Bild fehlgeschlagen\grqq{} ab.
+Nur ein reiner \texttt{image\_generation}-Job wirft den Fehler weiter an BullMQ, damit der Wiederholungsmechanismus greift.
+
+\subsection{Unveränderliche Versionierung und Schutz manueller Eingriffe}
+
+Aus den Erkenntnissen zu Halluzinationen in Abschnitt~\ref{sec:related:summarization} ergibt sich die Anforderung D3, erzeugte Fassungen nicht einfach zu überschreiben.
+Der Dienst \texttt{apps/api/src/services/versions.ts} protokolliert daher jede Entstehung eines \gls{teaser}s als unveränderliche Zeile in \texttt{generation\_versions} (Listing~\ref{lst:backend:versions}).
+Die Versionsnummer wird je Artikel direkt im \texttt{INSERT}-Statement über \texttt{coalesce(max(version), 0) + 1} bestimmt und durch einen Unique-Constraint auf \texttt{(article\_id, version)} vor gleichzeitigen Schreibzugriffen geschützt.
+
+\begin{lstlisting}[float=tbp,language=TypeScript,caption={Unveränderliche Versionierung und Schutz manueller Bearbeitungen},label=lst:backend:versions]
+// 1. In services/versions.ts: atomare Versionsnummer + Herkunftsdaten
+const nextVersion = sql<number>`(select coalesce(max(${generationVersions.version}), 0) + 1
+  from ${generationVersions} where ${generationVersions.articleId} = ${input.articleId})`;
+const [row] = await db.insert(generationVersions).values({
+  articleId: input.articleId, version: nextVersion,
+  teaser: input.teaser ?? null, keyTakeaways: input.keyTakeaways ?? null,
+  source: input.source, // 'ai' | 'fallback' | 'manual'
+  model: input.generation?.model ?? null,
+  temperature: input.generation?.temperature ?? null,
+  seed: input.generation?.seed ?? null,
+  contentHash: hashContent(input.content),
+  jobId: input.jobId ?? null, restoredFrom: input.restoredFrom ?? null
+}).returning();
+
+// 2. In queue/index.ts: Schutz vor Ueberschreiben durch den Worker
+const editedByHand = latestVersion?.source === 'manual'
+  && (latestVersion.createdAt?.getTime() ?? 0) > job.timestamp;
+\end{lstlisting}
+
+Jede Version speichert neben \gls{teaser}, Kernpunkten, Titel, Kategorie und Tags die Herkunft (\texttt{ai}, \texttt{fallback} oder \texttt{manual}), das verwendete Sprachmodell, Temperatur und Seed, die Job-Kennung sowie den SHA-256-Hash des Ausgangstextes (\texttt{hashContent}).
+Über den Hash ist auch nach mehreren Änderungen des Originalartikels exakt belegbar, auf welchem Textstand eine Zusammenfassung basiert.
+
+Bei der Bearbeitung im Admin-\gls{cms} unterscheidet \texttt{PUT /api/articles/:id} präzise zwischen inhaltlichen und redaktionellen Änderungen:
+Ändert sich nur der Artikeltext \texttt{content}, ohne dass \texttt{teaser} oder \texttt{keyTakeaways} angepasst werden, gilt die gespeicherte Kurzfassung als veraltet und löst automatisch einen neuen \texttt{teaser\_generation}-Job aus (Anforderung D2).
+Wird hingegen der \gls{teaser} von Hand korrigiert, entsteht unmittelbar eine Version mit \texttt{source = 'manual'} ohne Neugenerierung.
+Zudem prüft der Worker vor dem Überschreiben eines Artikels über \texttt{editedByHand}, ob nach dem Einreihen des Auftrags eine manuelle Bearbeitung stattgefunden hat.
+Ist das der Fall, bleiben \gls{teaser} und Kernpunkte der Redaktion unangetastet, während ein zusätzlich angefordertes Titelbild dennoch erstellt wird.
+Über \texttt{POST /api/articles/:id/versions/:version/restore} lässt sich schließlich jede ältere Version wiederherstellen; dabei wird die Historie niemals umgeschrieben, sondern die gewählte Fassung als neue Version mit gesetztem Verweis \texttt{restoredFrom} angehängt.
+
+\section{Textgenerierung, Schlagwörter und Embeddings}\label{sec:backend:llm}
+\setauthor{\firstauthor}
+
+Während die Queue für verlässliche Abläufe sorgt, entscheidet die Ausgestaltung der Prompts, der Kategorisierung und der Ähnlichkeitsberechnung über die inhaltliche Qualität des Feeds.
+
+\subsection{Prompt-Aufbau und reproduzierbare Zusammenfassung}
+
+Die Textzusammenfassung in \texttt{apps/api/src/services/summarizer.ts} spricht einen lokalen Ollama-Dienst~\cite{ollama} über seinen Endpunkt \texttt{/api/generate} an.
+Standardmäßig wird das Anweisungsmodell \texttt{qwen3:14b}~\cite{qwen2025qwen3} eingesetzt, das im Admin-\gls{cms} jederzeit gegen jedes andere in Ollama installierte Modell getauscht werden kann.
+Der Prompt weist dem Modell die Rolle eines Nachrichten-Redakteurs zu und fordert eine strikte Ausgabe im \gls{json}-Format (\texttt{format: 'json'}) mit fünf definierten Feldern:
+\begin{compactitem}
+    \item \texttt{title}: prägnante Überschrift (maximal 60 Zeichen), sofern kein redaktioneller Titel vorliegt;
+    \item \texttt{category}: exakte Zuordnung zu einer der sechs Hauptkategorien;
+    \item \texttt{tags}: Array mit ein bis zwei Unterkategorien aus der vorgegebenen Liste;
+    \item \texttt{teaser}: maximal drei Sätze Zusammenfassung für einen Social-Media-Newsfeed;
+    \item \texttt{keyTakeaways}: die drei wichtigsten Stichpunkte, getrennt durch Aufzählungszeichen.
+\end{compactitem}
+
+Da die Qwen3-Modellfamilie standardmäßig vor der Antwort einen längeren internen Denkprozess ausgibt~\cite{qwen2025qwen3}, schaltet der Aufruf explizit \texttt{think: false} (vgl.\ Listing~\ref{lst:arch:ollama} in Kapitel~\ref{chapter:architecture}).
+Für das Kondensieren eines vorliegenden Nachrichtentexts in drei Sätze ist kein mehrstufiges Schlussfolgern erforderlich; das Deaktivieren der Denkphase verkürzt die Antwortzeit erheblich.
+Um Formatierungsfehler kleinerer Modelle abzufangen, normalisiert die Hilfsfunktion \texttt{asText} sowohl Zeichenketten als auch versehentlich zurückgegebene Arrays sauber in Fließtext oder Aufzählungslisten.
+
+Um die redaktionelle Hoheit zu wahren, überschreibt der Summarizer weder bestehende Titel noch gesetzte Kategorien: Nur die expliziten Platzhalter \texttt{[Auto-Titel ausstehend]}, \texttt{Auto} und \texttt{Allgemein} werden durch die Ausgabe des Modells ersetzt.
+Zur Erfüllung der Anforderung D1 (reproduzierbare Generierung) liest \texttt{getGenerationOptions} die Einstellungen \texttt{temperature} (Standardwert~\texttt{0}, zulässig von~0 bis~2) und \texttt{seed} (Standardwert~\texttt{42}) aus der Tabelle \texttt{settings} und übergibt sie im \texttt{options}-Objekt an Ollama.
+Solange Modell, Prompt (inklusive der definierten Tag-Liste) und Artikeltext unverändert bleiben, liefert dieselbe Konfiguration identische Ergebnisse.
+
+\subsection{Kanonische Unterkategorien und regelbasierter Fallback}
+
+Erste Versuche mit freien Schlagwörtern zeigten, dass Sprachmodelle ohne Einschränkung häufig Eigennamen von Personen, Orten oder Unternehmen als Tags ausgeben.
+Für die Filterung im Feed entstehen dadurch Dutzende von Einmal-Tags, hinter denen jeweils nur ein einziger Artikel liegt.
+Aus diesem Grund definiert \texttt{apps/api/src/utils/metadata.ts} eine geschlossene zweistufige Taxonomie in \texttt{CATEGORY\_SUBTAGS} mit sechs Hauptkategorien und 27 festen Unterkategorien (Tabelle~\ref{tab:backend:categories}).
+Die Funktion \texttt{seedTags} legt diese Unterkategorien beim Serverstart mit eindeutigen Slugs und Farbwerten in der Tabelle \texttt{tags} an.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{Hauptkategorie} & \textbf{Kanonische Unterkategorien (Tags)} \\
+        \midrule
+        Politik (5) & Innenpolitik, Außenpolitik, EU-Politik, Wahlen, Justiz \& Recht \\
+        Wirtschaft (6) & Finanzen, Börse \& Märkte, Unternehmen, Inflation \& Preise, Arbeitsmarkt, Energie \& Rohstoffe \\
+        Sport (4) & Fußball, Wintersport, Formel~1, Tennis \\
+        Technologie (4) & KI \& Algorithmen, Software \& Cloud, Cybersecurity, Hardware \& Chips \\
+        Kultur (4) & Film \& Kino, Musik, Theater \& Bühne, Literatur \& Kunst \\
+        Chronik (4) & Kriminalität, Unfälle \& Unglücke, Wetter \& Umwelt, Gesundheit \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Feste Kategorien- und Tag-Taxonomie in \texttt{utils/metadata.ts}}
+    \label{tab:backend:categories}
+\end{table}
+
+Im Prompt erhält das Sprachmodell exakt diese Liste; anschließend verwirft \texttt{canonicalTags} alle nicht enthaltenen Begriffe (Groß-/Kleinschreibung ignoriert) und begrenzt das Ergebnis auf höchstens zwei Tags.
+Zudem vergibt der Worker automatische Tags nur dann, wenn der Artikel noch keine eigenen Tags besitzt, sodass manuelle Korrekturen bei einer späteren Textänderung erhalten bleiben.
+
+Ist Ollama zum Zeitpunkt der Generierung nicht erreichbar oder überschreitet das Zeitlimit (Standard 180 Sekunden), greift die regelbasierte Heuristik \texttt{autoExtractArticleMetadata} aus \texttt{utils/metadata.ts} als Ausweichebene.
+Dieselbe Funktion liefert außerdem sofort beim \texttt{POST /api/articles} vorläufige Platzhalterwerte, bis der Hintergrundauftrag abgeschlossen ist:
+\begin{compactenum}
+    \item Für die Überschrift extrahiert die Heuristik die erste Zeile bzw.\ den ersten Satz und entfernt gängige Agenturpräfixe wie \texttt{EILMELDUNG:} oder \texttt{WIEN (APA) -}.
+    \item Zur Themenbestimmung bewertet \texttt{matchesKeyword} hinterlegte Schlüsselwörter je Unterkategorie. Kurze Kürzel mit bis zu drei Zeichen (etwa \texttt{EU} oder \texttt{KI}) werden über Wortgrenzen mittels regulärem Ausdruck geprüft, um Fehlzuordnungen innerhalb anderer Wörter zu vermeiden; längere Begriffe zählen doppelt.
+    \item Als vorläufiger \gls{teaser} dienen die ersten beiden Sätze (auf 160 Zeichen gekürzt), als Kernpunkte die ersten drei Sätze.
+\end{compactenum}
+Läuft diese Heuristik im Fehlerfall als Ersatz für das Sprachmodell, kennzeichnen Worker und Versionstabelle das Ergebnis transparent mit \texttt{source = 'fallback'} und einem entsprechenden Vermerk im Job-Ergebnis.
+
+\subsection{Mehrsprachige Embeddings für inhaltliche Ähnlichkeit}
+
+Für die Funktion \glqq Für dich\grqq{} (Anforderung O1) genügt es nicht, Artikel lediglich über ihre ein bis zwei groben Tags zu vergleichen.
+Wie in Abschnitt~\ref{sec:related:personalization} begründet, berechnet \texttt{apps/api/src/services/embeddings.ts} für jeden Artikel einen semantischen Vektor mit dem mehrsprachigen Modell \texttt{bge-m3}~\cite{chen2024bgem3} über den Endpunkt \texttt{/api/embed} von Ollama.
+Als Eingabe dient die Kombination aus Titel, \gls{teaser} und Artikeltext, begrenzt auf die ersten 6\,000 Zeichen.
+Beim Serverstart trägt \texttt{backfillEmbeddings} fehlende Vektoren für bereits in der Datenbank vorhandene Artikel automatisch im Hintergrund nach.
+
+Die erzeugten Vektoren besitzen über tausend Gleitkommazahlen.
+Sie direkt an den mobilen Browser zu übertragen, würde das Datenvolumen des Feeds unnötig aufblähen – allein hundert Artikel entsprächen mehreren hundert Kilobyte an Zahlenkolonnen, die der Client bei \texttt{GET /api/articles} und \texttt{GET /api/feed} niemals benötigt.
+Stattdessen blendet \texttt{articles.ts} das Feld \texttt{embedding} aus, und die Funktion \texttt{buildRelatedMap} berechnet die inhaltliche Ähnlichkeit serverseitig beim Aufbau des Feed-Caches (Listing~\ref{lst:backend:embeddings}).
+
+\begin{lstlisting}[float=tbp,language=TypeScript,caption={Berechnung ähnlicher Artikel über die Kosinus-Ähnlichkeit (\texttt{embeddings.ts})},label=lst:backend:embeddings]
+export function buildRelatedMap(items: Array<{ id: number; embedding: number[] | null }>) {
+  const vectors = items
+    .filter((a): a is { id: number; embedding: number[] } =>
+      Array.isArray(a.embedding) && a.embedding.length > 0)
+    .map((a) => ({ id: a.id, v: normalize(a.embedding) }));
+
+  const related = new Map<number, RelatedArticle[]>();
+  for (const a of vectors) {
+    const scores: RelatedArticle[] = [];
+    for (const b of vectors) {
+      if (a.id === b.id || a.v.length !== b.v.length) continue;
+      let dot = 0;
+      for (let i = 0; i < a.v.length; i++) dot += a.v[i]! * b.v[i]!;
+      if (dot >= 0.55) scores.push({ id: b.id, score: Math.round(dot * 1000) / 1000 });
+    }
+    scores.sort((x, y) => y.score - x.score);
+    related.set(a.id, scores.slice(0, 8));
+  }
+  return related;
+}
+\end{lstlisting}
+
+Alle Vektoren werden einmalig auf Einheitslänge normiert, sodass die Kosinus-Ähnlichkeit zweier Artikel dem reinen Skalarprodukt entspricht.
+Paare ab einem Schwellenwert von~$0{,}55$ gelangen sortiert nach absteigender Ähnlichkeit in die maximal acht Einträge umfassende Liste \texttt{related}, die jeder Feed-Artikel mitführt.
+Das Package im Browser kann damit ohne Netzwerklast und ohne Zugriff auf Volltexte oder Vektoren thematisch verwandte Artikel gezielt nach oben reihen.
+
+\section{Bildgenerierung, Feed-Caching und Nutzungsanalyse}\label{sec:backend:imagecache}
+\setauthor{\firstauthor}
+
+Neben der Textaufbereitung umfasst das Backend drei Bausteine, die für die Praxistauglichkeit entscheidend sind: die Erzeugung passender Titelbilder auf begrenzter Grafikhardware, die reaktionsschnelle Auslieferung bei häufigem Polling sowie die Erfassung redaktioneller Kennzahlen.
+
+\subsection{Zweistufige Motivplanung und lokaler Bildserver}
+
+Im vertikalen Feed füllt das Titelbild die gesamte Karte im Seitenverhältnis 9:16.
+Die direkte Übergabe einer deutschen Schlagzeile an ein lokales Diffusionsmodell führte im Test häufig zu unbrauchbaren Ergebnissen: Lokale Bildmodelle folgen englischen Beschreibungen deutlich zuverlässiger, und einfache Übersetzungen griffen oft Nebendetails aus dem Artikeltext auf (etwa ein einzelnes Requisit statt des eigentlichen Ereignisses) oder erzeugten verzerrte Schrifttafeln und Nahaufnahmen von Gesichtern.
+
+Um dieses Problem zu lösen, trennt \texttt{planScene} in \texttt{apps/api/src/services/imageGenerator.ts} die Motivplanung in zwei aufeinanderfolgende Ollama-Abfragen mit aktiviertem Denkmodus (\texttt{think: true}), wie Abbildung~\ref{fig:backend:imagepipeline} zeigt:
+\begin{compactenum}
+    \item \textbf{Entwurf:} Im ersten Aufruf bestimmt das Sprachmodell zunächst das Kernereignis der Schlagzeile in höchstens zwölf englischen Wörtern und beschreibt erst darauf aufbauend in 25 bis 45 Wörtern die Aufnahme, die ein Pressefotograf dazu anfertigen würde.
+    \item \textbf{Prüfung:} Ein zweiter Aufruf kontrolliert den Entwurf gegen Schlagzeile und Textanfang. Er prüft, ob das Hauptmotiv getroffen ist, keine Städte oder Länder erfunden wurden, die nicht im Artikel stehen, und keine lesbare Schrift, Logos oder Großaufnahmen realer Personen angefordert werden. Bei Mängeln korrigiert der Prüfschritt den Entwurf (\texttt{fits: false}).
+\end{compactenum}
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}[
+        stepbox/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, minimum height=1.1cm, text width=3.1cm, fill=white},
+        arr/.style={-{Stealth[length=2mm]}, thick}
+    ]
+        \node[stepbox, fill=lightblue] (art) at (0,0) {Artikeldaten\\Titel, \gls{teaser}, Text};
+        \node[stepbox] (draft) at (3.7,0) {1. Entwurf (Ollama)\\Kernereignis + Foto\\(\texttt{think: true})};
+        \node[stepbox] (rev) at (7.4,0) {2. Prüfung (Ollama)\\Fakten- \& Regelcheck\\danach \texttt{keep\_alive: 0}};
+        \node[stepbox, fill=lightgray] (srv) at (11.1,0) {Bildserver (Python)\\Z-Image-Turbo / FLUX\\$768 \times 1344$ px (9:16)};
+
+        \node[stepbox, dashed, text width=4.6cm] (gem) at (5.55,-2.0) {Alternative: Google Gemini\\direkter deutscher Prompt (\texttt{aspectRatio: 9:16})};
+
+        \draw[arr] (art) -- (draft);
+        \draw[arr] (draft) -- (rev);
+        \draw[arr] (rev) -- (srv);
+        \draw[arr, dashed] (art.south) |- (gem.west);
+        \draw[arr, dashed] (gem.east) -| (srv.south |- gem.east) node[pos=0.25, below, font=\scriptsize]{optional};
+    \end{tikzpicture}
+    \caption{Zweistufige Motivplanung und Freigabe des Grafikspeichers vor dem Rendern}
+    \label{fig:backend:imagepipeline}
+\end{figure}
+
+Der finale englische Prompt wird um einen einheitlichen Fotostil (\texttt{PHOTO\_STYLE}) ergänzt und am Artikel in \texttt{image\_prompt} gespeichert, sodass Redakteur:innen ihn im Admin-\gls{cms} nachvollziehen können.
+Unmittelbar nach dem Prüfschritt sendet die API eine Anfrage mit \texttt{keep\_alive: 0} an Ollama, um das Sprachmodell aus dem \gls{vram} zu entladen.
+Erst dadurch steht dem Bildserver auf einer Grafikkarte mit 16~GB \gls{vram} genügend Speicher für das Diffusionsmodell zur Verfügung.
+
+Der eigentliche Bildserver liegt als schlanker Python-Dienst unter \texttt{services/image/server.py} (FastAPI) und stellt mit \texttt{POST /v1/images/generations} dieselbe Schnittstelle wie die OpenAI-Bild-\gls{api} bereit.
+Unterstützt werden lizenzfreie lokale Modelle (Apache~2.0), zwischen denen im Admin-Bereich ohne Server-Neustart gewechselt werden kann:
+\begin{compactitem}
+    \item \textbf{Z-Image-Turbo} (Standard, 6~Milliarden Parameter~\cite{zimage2025}): liefert fotorealistische Bilder in neun Schritten. Über \texttt{enable\_layerwise\_casting} liegen die Gewichte in \texttt{float8\_e4m3fn}, während die Berechnung in \texttt{bfloat16} erfolgt – der Speicherbedarf sinkt damit von 12~GB auf 6~GB.
+    \item \textbf{FLUX.1-schnell} (12~Milliarden Parameter~\cite{flux2024}): rendert in vier Schritten mit einem GGUF-\texttt{Q8\_0}-quantisierten Transformer und einem auf FP8 reduzierten T5-Textencoder.
+    \item \textbf{FLUX.2~[klein]} (4~Milliarden Parameter, ab \texttt{diffusers>=0.38}): kompaktes Vier-Schritt-Modell für geringeren Speicherbedarf um 8~GB \gls{vram}.
+\end{compactitem}
+
+Vor dem ersten Rendern ermittelt \texttt{load\_pipeline} über \texttt{torch.cuda.mem\_get\_info()} den freien Grafikspeicher und vergleicht ihn mit dem Modellbedarf zuzüglich zweier Gigabyte Reserve.
+Reicht der Platz aus, aktiviert der Server \texttt{enable\_model\_cpu\_offload()}, bei dem jeweils die gesamte rechnende Modellkomponente auf der \gls{gpu} liegt; belegen andere Anwendungen Speicher, schaltet er automatisch auf das sparsamere blockweise Nachladen (\texttt{enable\_group\_offload}) sowie VAE-Tiling um~\cite{diffusers}.
+Gerendert wird im Format $768 \times 1344$ Pixel (durch 16 teilbares 9:16-Hochformat) mit einem deterministischen Seed (\texttt{article.id * 7919 + 17}).
+Alternativ lässt sich in den Einstellungen auf Google Gemini (\texttt{gemini-3-pro-image-preview}, \texttt{gemini-3.1-flash-image-preview} oder \texttt{gemini-2.5-flash-image}) umschalten, sofern ein \texttt{GEMINI\_API\_KEY} hinterlegt ist; Gemini verarbeitet den deutschen Artikeltext direkt ohne Umweg über Ollama.
+
+\subsection{Mehrstufiges Caching der Feed-Auslieferung}
+
+Da die Komponente \texttt{ShortformNewsFeed} im Browser standardmäßig alle 60~Sekunden nach neuen oder geänderten Artikeln fragt (Anforderung E2), muss der öffentliche Endpunkt \texttt{GET /api/feed} auch bei vielen gleichzeitigen Zugriffen sparsam mit Datenbankabfragen und Bandbreite umgehen (Anforderung D5).
+Die Route \texttt{apps/api/src/routes/feed.ts} kombiniert dazu einen serverseitigen Arbeitsspeicher-Cache mit HTTP-Revalidierung (Listing~\ref{lst:backend:feedcache}).
+
+\begin{lstlisting}[float=tbp,language=TypeScript,caption={Fingerprint-Cache und HTTP-Revalidierung per ETag (\texttt{routes/feed.ts})},label=lst:backend:feedcache]
+async function feedFingerprint(): Promise<string> {
+  const [a] = await db
+    .select({ n: count(), lastUpdate: max(articles.updatedAt) })
+    .from(articles).where(eq(articles.status, 'published'));
+  const [t] = await db
+    .select({ n: count(), lastId: max(articleTags.id) }).from(articleTags);
+  return `${a?.n}:${a?.lastUpdate?.getTime() ?? 0}:${t?.n}:${t?.lastId ?? 0}`;
+}
+
+// Im Handler von GET /api/feed:
+const body = JSON.stringify(result);
+const etag = `"${createHash('sha1').update(body).digest('base64url')}"`;
+reply.header('Cache-Control', 'no-cache');
+reply.header('ETag', etag);
+reply.header('X-Feed-Cache', cacheStatus);
+if (request.headers['if-none-match'] === etag) {
+  return reply.code(304).send();
+}
+\end{lstlisting}
+
+Auf der ersten Stufe prüft \texttt{feedFingerprint} bei jeder Anfrage lediglich mit zwei kompakten Aggregatabfragen die Anzahl und das jüngste \texttt{updated\_at} aller veröffentlichten Artikel sowie die Anzahl und höchste ID in \texttt{article\_tags}.
+Solange dieser Fingerabdruck übereinstimmt und das Sicherheits-Zeitlimit von 60~Sekunden (\texttt{FEED\_CACHE\_TTL\_MS}) nicht abgelaufen ist, bedient die Schnittstelle die Anfrage direkt aus dem Speicher (\texttt{X-Feed-Cache: HIT}) und spart sich den Artikel-Load, den Tag-Join, das Einlesen der Lesezähler sowie die Neuberechnung der Embedding-Ähnlichkeiten.
+
+Auf der zweiten Stufe filtert die Route die zwischengespeicherte Liste nach Kategorie, Tag sowie \texttt{limit} (maximal 100) und \texttt{offset} und bildet über das fertige \gls{json}-Ergebnis einen SHA-1-\texttt{ETag}.
+Durch \texttt{Cache-Control: no-cache} fragt der Browser bei jedem Polling-Durchgang zwar beim Server an, sendet aber die zuletzt erhaltene Kennung im Header \texttt{If-None-Match} mit~\cite{rfc9110}.
+Hat sich am Feed nichts geändert, antwortet Fastify mit \texttt{304 Not Modified} ohne Nutzlast, sodass weder auf Server- noch auf Mobilfunkseite unnötige Daten übertragen werden.
+
+\subsection{Erfassung und Auswertung von Nutzungsdaten}
+
+Für die Weiterleitung von Ereignissen an eigene Analysewerkzeuge (Anforderungen S4 und O4) löst das Package Client-Events aus und meldet diese zusätzlich an \texttt{POST /api/analytics/events} in \texttt{apps/api/src/routes/analytics.ts}.
+Akzeptiert werden die sechs Ereignistypen \texttt{impression}, \texttt{read}, \texttt{scroll\_depth}, \texttt{share}, \texttt{dwell} (Verweildauer auf einer Feed-Karte) und \texttt{read\_time} (Lesedauer in der Artikelansicht) inklusive eines optionalen \gls{json}-Metadatenobjekts, etwa für gemessene Sekunden.
+Der Endpunkt ist bewusst fehlertolerant ausgelegt: Selbst bei kurzzeitigen Datenbankstörungen antwortet er mit HTTP~200, damit der Lesefluss im Browser niemals blockiert wird.
+
+Für die Redaktion bereitet \texttt{GET /api/analytics/articles} diese Rohereignisse in einer einzigen PostgreSQL-Abfrage mit bedingten Aggregaten (\texttt{FILTER (WHERE ...)}) je Artikel auf:
+Neben Gesamtaufrufen (\texttt{impressions}) und Artikelöffnungen (\texttt{reads}) berechnet die Abfrage die durchschnittliche Karten-Verweildauer (\texttt{avg\_dwell\_seconds}), die durchschnittliche Lesedauer (\texttt{avg\_read\_seconds}) sowie die Zahl schneller Absprünge unter 1,5~Sekunden (\texttt{quick\_skips}).
+Ergänzt um Likes, Kommentare und Teilungen stehen diese Kennzahlen im Admin-\gls{cms} direkt neben jedem Artikel zur Verfügung (Anforderung O3), während ein weiterer Endpunkt (\texttt{GET /api/analytics}) eine Gesamtübersicht mit Durchleserate (\texttt{readThroughRate}) und den fünf meistgelesenen Beiträgen liefert.
+
+Mit der Schnittstelle, dem versionierten Verarbeitungssystem, der lokalen KI-Pipeline, dem mehrstufigen Caching und der Nutzungsauswertung erfüllt das Backend sämtliche funktionalen und nicht-funktionalen Anforderungen des Briefings und des Diplomarbeitsantrags.

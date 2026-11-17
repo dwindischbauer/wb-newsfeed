@@ -38,8 +38,9 @@ export class ImageServerError extends Error {}
 /**
  * Erzeugt ein Titelbild und legt es unter public/images ab.
  * Anbieter laut Einstellung imageProvider:
- *  - local:  eigener Bildserver (services/image, FLUX.1-schnell oder Z-Image-Turbo)
+ *  - local:  eigener Bildserver (services/image, Z-Image-Turbo, FLUX.1-schnell oder FLUX.2-klein)
  *  - gemini: Google Gemini API, z. B. Nano Banana Pro (gemini-3-pro-image-preview)
+ *            oder Nano Banana 2 (gemini-3.1-flash-image-preview)
  */
 export async function generateArticleImage(article: ImageArticle): Promise<ImageResult> {
   const settings = await getSettings();
@@ -107,7 +108,9 @@ Kategorie: ${article.category}
 Inhalt: ${article.teaser || (article.content || '').slice(0, 1200)}`;
 
   const imageConfig: Record<string, string> = { aspectRatio: '9:16' };
-  if (model.includes('pro')) imageConfig.imageSize = settings['geminiImageSize'] || '1K';
+  if (model.includes('pro') || model.includes('3.1-flash')) {
+    imageConfig.imageSize = settings['geminiImageSize'] || '1K';
+  }
 
   let response: Response;
   try {

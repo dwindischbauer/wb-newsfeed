@@ -1,5 +1,5 @@
 <template>
-  <div ref="feedRef" class="h-screen overflow-y-scroll bg-[var(--sf-bg-color,#000)] [-webkit-overflow-scrolling:touch] [scroll-snap-type:y_mandatory]">
+  <div ref="feedRef" class="h-full overflow-y-scroll bg-[var(--sf-bg-color,#12110f)] [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [scroll-snap-type:y_mandatory] [&::-webkit-scrollbar]:hidden">
     <template v-if="articles && articles.length > 0">
       <!-- Only cards near the visible one are mounted (and load their image);
            the rest are empty snap slots of the same height, so scrolling and
@@ -23,20 +23,20 @@
             <slot name="media" :article="a"></slot>
           </template>
           <template #card-content="{ article: a, readAction }">
-            <slot name="content" :article="a" :read-action="readAction"></slot>
+            <slot name="content" :article="a" :readAction="readAction"></slot>
           </template>
         </ShortformCard>
-        <div v-else class="h-screen bg-[var(--sf-bg-color,#000)] [scroll-snap-align:start]" aria-hidden="true"></div>
+        <div v-else class="h-full bg-[var(--sf-bg-color,#12110f)] [scroll-snap-align:start]" aria-hidden="true"></div>
       </template>
     </template>
     <template v-else-if="loading">
-      <div class="flex h-screen flex-col items-center justify-center bg-[var(--sf-bg-color,#000)] p-8 text-center text-[1.2rem] text-[var(--sf-empty-color,#888)]">
-        <slot name="loading">Lade Nachrichten...</slot>
+      <div class="flex h-full flex-col items-center justify-center bg-[var(--sf-bg-color,#12110f)] p-8 text-center text-[1rem] text-[var(--sf-empty-color,#888)]">
+        <slot name="loading">Lade Nachrichten</slot>
       </div>
     </template>
     <template v-else>
-      <div class="flex h-screen flex-col items-center justify-center bg-[var(--sf-bg-color,#000)] p-8 text-center text-[1.2rem] text-[var(--sf-empty-color,#888)]">
-        <slot name="empty">Keine Nachrichten verfügbar.</slot>
+      <div class="flex h-full flex-col items-center justify-center bg-[var(--sf-bg-color,#12110f)] p-8 text-center text-[1rem] text-[var(--sf-empty-color,#888)]">
+        <slot name="empty">Keine Nachrichten verfügbar</slot>
       </div>
     </template>
   </div>

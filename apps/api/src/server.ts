@@ -42,10 +42,19 @@ server.register(cors, {
 // comments are called directly from the anonymous, account-less feed app.
 const PUBLIC_ARTICLE_ACTION = /^\/api\/articles\/\d+\/(like|unlike|share|comments)(\/|\?|$)/;
 
-// Simple API Key authentication for admin routes
+function isAuthorized(headers: Record<string, string | string[] | undefined>): boolean {
+  if (headers['x-api-key'] === API_KEY) return true;
+  const auth = headers.authorization;
+  return typeof auth === 'string' && auth.startsWith('Bearer ') && auth.slice(7).trim() === API_KEY;
+}
+
+// Simple API Key / Bearer authentication for admin & external CMS routes
 server.addHook('preHandler', async (request, reply) => {
+  const pathname = request.url.split('?')[0];
   // Public routes accessible without API key
   if (
+    pathname === '/' ||
+    pathname === '/api' ||
     request.url.startsWith('/api/feed') ||
     request.url.startsWith('/api/sysinfo') ||
     request.url.startsWith('/docs') ||
@@ -55,10 +64,10 @@ server.addHook('preHandler', async (request, reply) => {
   ) {
     return;
   }
-  
-  // Require API key for everything else
-  if (request.headers['x-api-key'] !== API_KEY) {
-    reply.status(401).send({ error: 'Unauthorized' });
+
+  // Require API key (x-api-key or Authorization: Bearer <key>) for everything else
+  if (!isAuthorized(request.headers)) {
+    reply.status(401).send({ error: 'Unauthorized (x-api-key oder Authorization: Bearer erforderlich)' });
   }
 });
 
@@ -91,7 +100,30 @@ server.register(analyticsRoutes);
 server.register(engagementRoutes);
 server.register(importRoutes);
 
-server.get('/api/sysinfo', async (request, reply) => {
+const apiOverview = () => ({
+  service: 'wb-news-api',
+  version: '1.0.0',
+  docs: '/docs',
+  openapi: '/docs/yaml',
+  auth: {
+    public: ['/api/feed', '/api/sysinfo', '/api/analytics/events', '/docs', '/images/'],
+    protected: 'Header "x-api-key: <API_KEY>" oder "Authorization: Bearer <API_KEY>"'
+  },
+  endpoints: {
+    feed: 'GET /api/feed',
+    articles: 'GET/POST /api/articles',
+    quickIngest: 'POST /api/articles/quick',
+    syncGenerate: 'POST /api/articles/generate',
+    rssImport: 'POST /api/import/rss',
+    jobs: 'GET /api/jobs/{id}',
+    sysinfo: 'GET /api/sysinfo'
+  }
+});
+
+server.get('/', async () => apiOverview());
+server.get('/api', async () => apiOverview());
+
+server.get('/api/sysinfo', async () => {
   return {
     status: 'ok',
     service: 'wb-news-api',

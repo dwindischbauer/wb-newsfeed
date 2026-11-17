@@ -55,9 +55,9 @@ Die Feed-App des Projekts ist selbst nur eine dünne Hülle um dieses Package un
 Dadurch wird jede Änderung am Package automatisch in derselben Form getestet, in der sie später bei einem Host ankommt.
 
 \textbf{Schnittstelle und Worker.}
-Die Schnittstelle ist mit dem Node.js-Framework Fastify umgesetzt und in einer OpenAPI-3.1-Spezifikation mit 35 Operationen beschrieben.
+Die Schnittstelle ist mit dem Node.js-Framework Fastify umgesetzt und in einer OpenAPI-3.1-Spezifikation mit 36 Operationen beschrieben.
 Lesende Endpunkte, die der Feed ohne Anmeldung braucht, sind öffentlich.
-Alle anderen verlangen einen Schlüssel im Header \texttt{x-api-key}, ohne konfigurierten Schlüssel startet die Schnittstelle gar nicht.
+Alle anderen verlangen einen Schlüssel im Header \texttt{x-api-key} oder als \texttt{Authorization: Bearer}; ohne konfigurierten Schlüssel startet die Schnittstelle gar nicht.
 Im selben Prozess läuft ein Worker der Bibliothek BullMQ, der Aufträge aus der Warteschlange abarbeitet.
 Die Trennung von Schnittstelle und Worker erfolgt damit nicht über getrennte Prozesse, sondern über die Warteschlange.
 Ein Worker kann bei Bedarf trotzdem als eigener Prozess ausgelagert werden, weil beide Seiten nur über Redis miteinander sprechen.

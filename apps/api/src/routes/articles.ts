@@ -126,7 +126,7 @@ const defaultSeedArticles: StoredArticle[] = [
     teaser: 'Die EU-Staaten beschließen neue Vorgaben für Nachrichten auf Digitalplattformen, um unabhängigen Qualitätsjournalismus gezielt abzusichern.',
     keyTakeaways: '• EU-Medienpaket stärkt europäische Pressehäuser\n• Neue Transparenzpflichten für algorithmische Feeds\n• Umsetzung durch die Mitgliedsstaaten bis Jahresende geplant',
     category: 'Politik',
-    author: 'ORF.at Redaktion',
+    author: 'Redaktion',
     status: 'published',
     imageUrl: null,
     likeCount: 0,
@@ -258,7 +258,7 @@ export default async function (server: FastifyInstance) {
       const existing = await db.select().from(articles).where(eq(articles.id, parsedId));
       const before = existing[0];
       if (before) {
-        const updateData: Partial<Pick<ArticleRecord, 'status' | 'title' | 'category' | 'content' | 'teaser' | 'keyTakeaways' | 'author'>> = {};
+        const updateData: Partial<Pick<ArticleRecord, 'status' | 'title' | 'category' | 'content' | 'teaser' | 'keyTakeaways' | 'author' | 'imageUrl'>> = {};
         if (body.status !== undefined) updateData.status = body.status;
         if (body.title !== undefined) updateData.title = body.title;
         if (body.category !== undefined) updateData.category = body.category;
@@ -266,6 +266,7 @@ export default async function (server: FastifyInstance) {
         if (body.teaser !== undefined) updateData.teaser = body.teaser;
         if (body.keyTakeaways !== undefined) updateData.keyTakeaways = body.keyTakeaways;
         if (body.author !== undefined) updateData.author = body.author;
+        if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
 
         if (Object.keys(updateData).length > 0) {
           await db.update(articles).set(updateData).where(eq(articles.id, parsedId));
@@ -559,7 +560,8 @@ export default async function (server: FastifyInstance) {
         content: cleanContent,
         teaser: finalTeaser,
         keyTakeaways: finalTakeaways,
-        author: body.author || 'Unbekannt',
+        imageUrl: body.imageUrl || null,
+        author: body.author?.trim() || 'Redaktion',
         category: finalCategory,
         status: body.status || 'draft'
       }).returning();
@@ -610,7 +612,7 @@ export default async function (server: FastifyInstance) {
         content: cleanContent,
         teaser: finalTeaser,
         keyTakeaways: finalTakeaways,
-        author: body.author || 'Unbekannt',
+        author: body.author?.trim() || 'Redaktion',
         category: finalCategory,
         status: body.status || 'draft',
         imageUrl: body.imageUrl || null,
@@ -628,7 +630,7 @@ export default async function (server: FastifyInstance) {
   });
 
   server.post('/api/articles/quick', async (request, reply) => {
-    const body = request.body as { text?: string; content?: string };
+    const body = (request.body as { text?: string; content?: string; title?: string; category?: string; author?: string; status?: 'draft' | 'published' }) || {};
     const text = body.text || body.content;
 
     if (!text || text.length < 10) {
@@ -637,14 +639,16 @@ export default async function (server: FastifyInstance) {
     }
 
     const cleanContent = stripHtml(text);
-    const generatedTitle = cleanContent.substring(0, 30) + '...';
+    const hasTitle = Boolean(body.title && body.title.trim());
+    const hasCategory = Boolean(body.category && body.category.trim() && body.category !== 'Auto' && body.category !== 'Allgemein');
+    const generatedTitle = hasTitle ? body.title!.trim() : cleanContent.substring(0, 30) + '...';
 
     const newArticle = await db.insert(articles).values({
       title: generatedTitle,
       content: cleanContent,
-      author: 'Quick API',
-      category: 'Allgemein',
-      status: 'published'
+      author: body.author?.trim() || 'Redaktion',
+      category: hasCategory ? body.category!.trim() : 'Allgemein',
+      status: body.status || 'published'
     }).returning();
 
     const inserted = newArticle[0];
@@ -652,10 +656,10 @@ export default async function (server: FastifyInstance) {
       reply.status(500);
       return { success: false, error: 'Insert fehlgeschlagen' };
     }
-    // Title/category are placeholders here, so the model may replace them
+    // Title/category are placeholders unless explicitly passed, so the model fills missing ones
     const { jobId, queued } = await enqueueGeneration(inserted.id, await newArticleGenerationType(), {
-      autoTitle: true,
-      autoCategory: true,
+      autoTitle: !hasTitle,
+      autoCategory: !hasCategory,
       trigger: 'created'
     });
     const jobIdStr = `job-${jobId}`;

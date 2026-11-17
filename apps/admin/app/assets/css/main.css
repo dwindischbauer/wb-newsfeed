@@ -1,35 +1,35 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
 @import 'tailwindcss';
 
 /* Das Package liegt ausserhalb des Vite-Roots, Tailwind scannt es sonst nicht */
 @source '../../../../../packages/shortform-news/src';
 
 @theme {
-  --color-bg-main: #f3f1ea;
-  --color-bg-card: #ffffff;
-  --color-bg-card-subtle: #f7f5ee;
-  --color-bg-card-hover: #f0eee4;
-  --color-border-subtle: rgba(20, 20, 20, 0.08);
-  --color-border-focus: rgba(111, 143, 26, 0.45);
-  --color-text-primary: #14151a;
-  --color-text-secondary: #6c6d73;
-  --color-text-muted: #9a9b93;
-  --color-accent-lime: #d5f24e;
-  --color-accent-lime-deep: #6f8f1a;
-  --color-accent-lime-glow: rgba(111, 143, 26, 0.25);
-  --color-accent-ink: #14151a;
-  --color-accent-emerald: #10b981;
-  --color-accent-amber: #f59e0b;
-  --color-accent-purple: #a855f7;
+  --color-bg-main: #f7f4ee;
+  --color-bg-sidebar: #f2efe8;
+  --color-bg-card: #fdfbf7;
+  --color-bg-card-subtle: #efeae0;
+  --color-bg-card-hover: #eae3d6;
+  --color-border-subtle: rgba(31, 27, 22, 0.09);
+  --color-border-focus: rgba(92, 122, 20, 0.45);
+  --color-text-primary: #1f1b16;
+  --color-text-secondary: #5e554a;
+  --color-text-muted: #7b7266;
+  --color-accent-lime: #dbe8a6;
+  --color-accent-lime-deep: #5c7a14;
+  --color-accent-ink: #1f1b16;
+  --color-accent-emerald: #1f7a4c;
+  --color-accent-amber: #b46a10;
 
-  --font-accent: 'Fraunces', Georgia, serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-accent: 'Newsreader', Georgia, serif;
+  --font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --animate-slide-toast: slide-toast 0.25s ease;
+  --animate-slide-toast: slide-toast 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes slide-toast {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -46,11 +46,9 @@
   --text-muted: var(--color-text-muted);
   --accent-lime: var(--color-accent-lime);
   --accent-lime-deep: var(--color-accent-lime-deep);
-  --accent-lime-glow: var(--color-accent-lime-glow);
   --accent-ink: var(--color-accent-ink);
   --accent-emerald: var(--color-accent-emerald);
   --accent-amber: var(--color-accent-amber);
-  --accent-purple: var(--color-accent-purple);
 }
 
 * {

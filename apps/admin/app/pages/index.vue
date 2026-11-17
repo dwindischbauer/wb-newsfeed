@@ -1,76 +1,144 @@
 <template>
-  <div class="mx-auto max-w-[1440px] px-4 pb-12 pt-6 md:px-8">
+  <div class="mx-auto max-w-[1320px] px-4 pb-12 pt-6 md:px-8 md:pt-8">
     <transition name="toast">
       <div
         v-if="toastMessage"
-        class="fixed bottom-8 right-8 z-[999] flex items-center gap-[0.6rem] rounded-[10px] px-5 py-3 text-[0.82rem] font-semibold shadow-[0_8px_24px_rgba(20,20,20,0.12)] backdrop-blur-[12px]"
-        :class="toastType === 'success' ? 'bg-[rgba(16,185,129,0.9)] text-[#14151a]' : 'bg-[rgba(239,68,68,0.9)] text-[#14151a]'"
+        class="fixed bottom-6 right-6 z-[999] flex items-center gap-2.5 rounded-[10px] border border-border-subtle bg-bg-card px-4 py-3 text-[13px] font-medium text-accent-ink shadow-[0_8px_24px_rgba(31,27,22,0.08)]"
+        :class="toastType === 'success' ? 'border-l-4 border-l-[#1f7a4c]' : 'border-l-4 border-l-[#b93829]'"
       >
-        <span class="h-2 w-2 rounded-full bg-[#14151a]"></span>
         <span>{{ toastMessage }}</span>
       </div>
     </transition>
 
     <div class="flex flex-col gap-6">
-      <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div v-for="stat in stats" :key="stat.label" class="rounded-xl border border-border-subtle bg-bg-card px-5 py-4">
-          <div class="text-[0.76rem] text-text-secondary">{{ stat.label }}</div>
-          <div class="mt-1 text-[1.7rem] font-bold leading-none text-text-primary">{{ stat.value }}</div>
+      <!-- Kopfbereich -->
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 class="m-0 font-accent text-[30px] font-medium leading-[1.1] tracking-[-0.02em] text-text-primary">Artikel</h1>
+          <p class="m-0 mt-1.5 font-mono text-[12px] tabular-nums text-text-muted">
+            {{ articles.length }} Beiträge · {{ publishedCount }} live · {{ pendingJobsCount }} Jobs aktiv
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button
+            class="cursor-pointer whitespace-nowrap rounded-[8px] border border-border-subtle bg-bg-card px-3.5 py-2 text-[13px] font-medium text-text-primary transition-colors duration-150 hover:bg-bg-card-subtle"
+            @click="isImportOpen = true"
+          >
+            RSS importieren
+          </button>
+          <button
+            class="cursor-pointer whitespace-nowrap rounded-[8px] border-none bg-accent-ink px-4 py-2 text-[13px] font-medium text-[#fdfbf7] transition-opacity duration-150 hover:opacity-90"
+            @click="openModal"
+          >
+            Neuer Artikel
+          </button>
         </div>
       </div>
 
-      <div class="rounded-xl border border-border-subtle bg-bg-card p-6">
-        <div class="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h2 class="m-0 text-[1.15rem] font-bold text-[#14151a]">Artikel</h2>
+      <!-- Asymmetrische Uebersicht: Themenverteilung + Redaktionsstatus -->
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
+        <section class="flex flex-col justify-between rounded-[14px] border border-border-subtle bg-bg-card p-5">
+          <div class="flex items-baseline justify-between gap-2">
+            <h2 class="m-0 text-[13px] font-semibold text-text-primary">Themenverteilung</h2>
+            <span class="font-mono text-[11px] tabular-nums text-text-muted">{{ articles.length }} gesamt</span>
+          </div>
 
-          <div class="flex flex-wrap items-center gap-3">
-            <div class="flex items-center gap-2 rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.45rem] text-text-secondary focus-within:border-border-focus">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Titel, Autor oder Tag suchen"
-                class="w-[160px] border-none bg-transparent text-[0.8rem] text-[#14151a] outline-none placeholder:text-text-muted"
+          <div v-if="categoryBreakdown.length > 0" class="mt-4 flex flex-col gap-3">
+            <div class="flex h-2.5 w-full overflow-hidden rounded-full bg-bg-card-subtle">
+              <div
+                v-for="item in categoryBreakdown"
+                :key="item.category"
+                :style="{ width: `${item.percent}%`, backgroundColor: item.color }"
+                :title="`${item.category}: ${item.count}`"
+                class="h-full border-r border-bg-card last:border-r-0"
               />
-              <button v-if="searchQuery" class="cursor-pointer border-none bg-transparent text-[1rem] text-text-muted" @click="searchQuery = ''">&times;</button>
             </div>
+
+            <div class="flex flex-wrap gap-x-4 gap-y-1.5">
+              <button
+                v-for="item in categoryBreakdown"
+                :key="item.category"
+                type="button"
+                class="flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-[12px] text-text-secondary transition-colors hover:text-text-primary"
+                @click="activeCategory = item.category; activeTag = null"
+              >
+                <span class="h-2 w-2 rounded-[2px]" :style="{ backgroundColor: item.color }" />
+                <span>{{ item.category }}</span>
+                <span class="font-mono text-[11px] tabular-nums text-text-muted">{{ item.count }}</span>
+              </button>
+            </div>
+          </div>
+          <p v-else class="m-0 mt-4 text-[13px] text-text-muted">Noch keine Artikel angelegt.</p>
+        </section>
+
+        <section class="rounded-[14px] border border-border-subtle bg-bg-card px-5 py-4">
+          <div class="mb-2.5 flex items-baseline justify-between">
+            <h2 class="m-0 text-[13px] font-semibold text-text-primary">Redaktionsstatus</h2>
+          </div>
+          <div class="divide-y divide-border-subtle">
+            <div class="flex items-center justify-between py-2 first:pt-0.5">
+              <span class="text-[13px] text-text-secondary">Veröffentlicht</span>
+              <span class="font-mono text-[15px] font-medium tabular-nums text-text-primary">{{ publishedCount }}</span>
+            </div>
+            <div class="flex items-center justify-between py-2">
+              <span class="text-[13px] text-text-secondary">Entwürfe</span>
+              <span class="font-mono text-[15px] font-medium tabular-nums text-text-primary">{{ draftCount }}</span>
+            </div>
+            <div class="flex items-center justify-between py-2 last:pb-0.5">
+              <span class="text-[13px] text-text-secondary">Jobs in Arbeit</span>
+              <span class="font-mono text-[15px] font-medium tabular-nums text-[#5c7a14]">{{ pendingJobsCount }}</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Artikel-Tabelle -->
+      <div class="rounded-[14px] border border-border-subtle bg-bg-card p-5 md:p-6">
+        <div class="mb-4 flex flex-col gap-3 border-b border-border-subtle pb-4 md:flex-row md:items-center md:justify-between">
+          <!-- Kategorie-Tabs -->
+          <div class="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
-              class="cursor-pointer whitespace-nowrap rounded-lg border border-border-subtle bg-white px-4 py-[0.55rem] text-[0.82rem] font-semibold text-accent-ink hover:bg-black/[0.04]"
-              @click="isImportOpen = true"
+              v-for="cat in categories"
+              :key="cat"
+              class="shrink-0 cursor-pointer whitespace-nowrap rounded-[7px] border border-transparent px-3 py-1.5 text-[13px] font-medium text-text-secondary transition-colors duration-150 hover:text-text-primary"
+              :class="{ 'border-border-subtle bg-bg-card-subtle font-semibold text-text-primary': activeCategory === cat }"
+              @click="activeCategory = cat; activeTag = null"
             >
-              RSS importieren
+              {{ cat }}
             </button>
+          </div>
+
+          <!-- Suche -->
+          <div class="flex items-center gap-2 rounded-[8px] border border-border-subtle bg-bg-main px-3 py-1.5 text-text-secondary focus-within:border-border-focus">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Artikel suchen"
+              class="w-full min-w-[180px] border-none bg-transparent text-[13px] text-text-primary outline-none placeholder:text-text-muted md:w-[210px]"
+            />
             <button
-              class="cursor-pointer whitespace-nowrap rounded-lg border-none bg-accent-ink px-4 py-[0.55rem] text-[0.82rem] font-semibold text-white hover:opacity-90"
-              @click="openModal"
+              v-if="searchQuery"
+              type="button"
+              aria-label="Suche leeren"
+              class="flex cursor-pointer items-center border-none bg-transparent p-0 text-text-muted hover:text-text-primary"
+              @click="searchQuery = ''"
             >
-              Neuer Artikel
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
           </div>
         </div>
 
-        <!-- Filter Chips (Categories) -->
-        <div class="mb-[0.85rem] flex flex-wrap gap-2">
-          <button
-            v-for="cat in categories"
-            :key="cat"
-            class="cursor-pointer rounded-full border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.35rem] text-[0.76rem] font-medium text-text-secondary transition-all duration-200 hover:bg-[rgba(20,20,20,0.07)] hover:text-[#14151a]"
-            :class="{ 'border-accent-lime bg-accent-lime font-semibold text-[#14151a]': activeCategory === cat }"
-            @click="activeCategory = cat; activeTag = null"
-          >
-            {{ cat }}
-          </button>
-        </div>
-
-        <!-- Unterkategorien der gewaehlten Kategorie, bei "Alle" die vorhandenen Tags -->
+        <!-- Unterkategorien / Tags -->
         <div
           v-if="canonicalSubtagsForActiveCategory.length > 0"
-          class="mb-5 flex flex-wrap items-center gap-[0.45rem] rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.02)] px-3 py-2"
+          class="mb-4 flex flex-wrap items-center gap-1.5"
         >
-          <span class="text-[0.72rem] font-semibold text-text-muted">Unterkategorie</span>
+          <span class="mr-1 text-[12px] text-text-muted">Thema:</span>
           <button
-            class="cursor-pointer rounded-full border border-[rgba(20,20,20,0.12)] bg-transparent px-3 py-[0.3rem] text-[0.74rem] font-medium text-text-secondary transition-all duration-200 hover:border-[rgba(111,143,26,0.4)] hover:text-[#14151a]"
-            :class="{ 'border-[#6f8f1a] bg-[rgba(111,143,26,0.15)] font-semibold text-[#6f8f1a]': activeTag === null }"
+            class="cursor-pointer rounded-[6px] border border-border-subtle bg-transparent px-2.5 py-1 text-[12px] font-medium text-text-secondary transition-colors duration-150 hover:text-text-primary"
+            :class="{ 'border-[#5c7a14] bg-[#dbe8a6]/35 font-semibold text-[#3d520c]': activeTag === null }"
             @click="activeTag = null"
           >
             Alle
@@ -78,8 +146,8 @@
           <button
             v-for="sub in canonicalSubtagsForActiveCategory"
             :key="sub.slug"
-            class="cursor-pointer rounded-full border border-[rgba(20,20,20,0.12)] bg-transparent px-3 py-[0.3rem] text-[0.74rem] font-medium text-text-secondary transition-all duration-200 hover:border-[rgba(111,143,26,0.4)] hover:text-[#14151a]"
-            :class="{ 'border-[#6f8f1a] bg-[rgba(111,143,26,0.15)] font-semibold text-[#6f8f1a]': activeTag === sub.name }"
+            class="cursor-pointer rounded-[6px] border border-border-subtle bg-transparent px-2.5 py-1 text-[12px] font-medium text-text-secondary transition-colors duration-150 hover:text-text-primary"
+            :class="{ 'border-[#5c7a14] bg-[#dbe8a6]/35 font-semibold text-[#3d520c]': activeTag === sub.name }"
             @click="activeTag = activeTag === sub.name ? null : sub.name"
           >
             {{ sub.name }}
@@ -87,12 +155,12 @@
         </div>
         <div
           v-else-if="allTags && allTags.length > 0"
-          class="mb-5 flex flex-wrap items-center gap-[0.45rem] rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.02)] px-3 py-2"
+          class="mb-4 flex flex-wrap items-center gap-1.5"
         >
-          <span class="text-[0.72rem] font-semibold text-text-muted">Tags</span>
+          <span class="mr-1 text-[12px] text-text-muted">Tags:</span>
           <button
-            class="cursor-pointer rounded-full border border-[rgba(20,20,20,0.12)] bg-transparent px-3 py-[0.3rem] text-[0.74rem] font-medium text-text-secondary transition-all duration-200 hover:border-[rgba(111,143,26,0.4)] hover:text-[#14151a]"
-            :class="{ 'border-[#6f8f1a] bg-[rgba(111,143,26,0.15)] font-semibold text-[#6f8f1a]': activeTag === null }"
+            class="cursor-pointer rounded-[6px] border border-border-subtle bg-transparent px-2.5 py-1 text-[12px] font-medium text-text-secondary transition-colors duration-150 hover:text-text-primary"
+            :class="{ 'border-[#5c7a14] bg-[#dbe8a6]/35 font-semibold text-[#3d520c]': activeTag === null }"
             @click="activeTag = null"
           >
             Alle
@@ -100,43 +168,43 @@
           <button
             v-for="t in visibleAllTags"
             :key="t.id"
-            class="cursor-pointer rounded-full border border-[rgba(20,20,20,0.12)] bg-transparent px-3 py-[0.3rem] text-[0.74rem] font-medium text-text-secondary transition-all duration-200 hover:border-[rgba(111,143,26,0.4)] hover:text-[#14151a]"
-            :class="{ 'border-[#6f8f1a] bg-[rgba(111,143,26,0.15)] font-semibold text-[#6f8f1a]': activeTag === t.name }"
+            class="cursor-pointer rounded-[6px] border border-border-subtle bg-transparent px-2.5 py-1 text-[12px] font-medium text-text-secondary transition-colors duration-150 hover:text-text-primary"
+            :class="{ 'border-[#5c7a14] bg-[#dbe8a6]/35 font-semibold text-[#3d520c]': activeTag === t.name }"
             @click="activeTag = activeTag === t.name ? null : t.name"
           >
-            #{{ t.name }} <span v-if="t.articleCount > 0" class="opacity-75">({{ t.articleCount }})</span>
+            #{{ t.name }} <span v-if="t.articleCount > 0" class="font-mono text-[11px] tabular-nums opacity-70">{{ t.articleCount }}</span>
           </button>
           <button
             v-if="sortedAllTags.length > TAG_PREVIEW_COUNT"
-            class="cursor-pointer rounded-full border border-dashed border-[rgba(20,20,20,0.2)] bg-transparent px-3 py-[0.3rem] text-[0.74rem] font-semibold text-text-muted transition-all duration-200 hover:border-[rgba(20,20,20,0.4)] hover:text-[#14151a]"
+            class="cursor-pointer rounded-[6px] border border-dashed border-border-subtle bg-transparent px-2.5 py-1 text-[12px] font-medium text-text-muted transition-colors duration-150 hover:text-text-primary"
             @click="allTagsExpanded = !allTagsExpanded"
           >
-            {{ allTagsExpanded ? 'Weniger anzeigen' : `+${sortedAllTags.length - TAG_PREVIEW_COUNT} weitere` }}
+            {{ allTagsExpanded ? 'Weniger' : `+${sortedAllTags.length - TAG_PREVIEW_COUNT} weitere` }}
           </button>
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full border-separate [border-spacing:0_4px]">
+          <table class="w-full border-collapse">
             <thead>
-              <tr>
-                <th class="w-[70px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.03em] text-text-muted">Bild</th>
-                <th class="border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.03em] text-text-muted">Titel</th>
-                <th class="w-[130px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.03em] text-text-muted">Kategorie</th>
-                <th class="w-[140px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.03em] text-text-muted">Autor</th>
-                <th class="w-[120px] border-b border-border-subtle px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.03em] text-text-muted">Status</th>
-                <th class="w-[160px] border-b border-border-subtle px-4 py-3 text-right text-[0.72rem] font-semibold uppercase tracking-[0.03em] text-text-muted">Aktionen</th>
+              <tr class="border-b border-border-subtle">
+                <th class="w-[52px] py-2.5 pl-2 pr-3 text-left text-[12px] font-medium text-text-muted">Karte</th>
+                <th class="py-2.5 px-3 text-left text-[12px] font-medium text-text-muted">Titel</th>
+                <th class="w-[125px] py-2.5 px-3 text-left text-[12px] font-medium text-text-muted">Kategorie</th>
+                <th class="w-[140px] py-2.5 px-3 text-left text-[12px] font-medium text-text-muted">Autor</th>
+                <th class="w-[125px] py-2.5 px-3 text-left text-[12px] font-medium text-text-muted">Status</th>
+                <th class="w-[180px] py-2.5 pl-3 pr-2 text-right text-[12px] font-medium text-text-muted">Aktionen</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-border-subtle">
               <tr
                 v-for="article in filteredArticles"
                 :key="article.id"
-                class="cursor-pointer bg-[rgba(20,20,20,0.02)] transition-all duration-200 hover:bg-[rgba(20,20,20,0.04)]"
-                :class="{ 'border-l-2 border-l-[#6f8f1a] bg-[rgba(111,143,26,0.08)]': selectedArticle && selectedArticle.id === article.id }"
+                class="cursor-pointer transition-colors duration-150 hover:bg-bg-main/70"
+                :class="{ 'bg-[#dbe8a6]/20': selectedArticle && selectedArticle.id === article.id }"
                 @click="selectArticle(article)"
               >
-                <td class="px-4 py-[0.85rem] align-middle text-[0.82rem] text-[#24252a] first:rounded-l-lg last:rounded-r-lg">
-                  <div class="flex h-[38px] w-[52px] items-center justify-center overflow-hidden rounded-md border border-border-subtle bg-[#f4f2ec]">
+                <td class="py-3 pl-2 pr-3 align-middle">
+                  <div class="flex h-11 w-[26px] items-center justify-center overflow-hidden rounded-[5px] border border-border-subtle bg-bg-card-subtle">
                     <img
                       v-if="article.imageUrl"
                       :src="`${config.public.apiUrl}${article.imageUrl}`"
@@ -144,51 +212,55 @@
                       alt=""
                       loading="lazy"
                     />
-                    <div v-else class="text-text-muted">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <div v-else class="flex h-full w-full flex-col justify-between p-[4px]">
+                      <div class="h-[2px] w-2.5 rounded-full bg-text-primary/35" />
+                      <div class="space-y-[2px]">
+                        <div class="h-[2px] w-full rounded-full bg-text-primary/20" />
+                        <div class="h-[2px] w-3 rounded-full bg-text-primary/15" />
+                      </div>
                     </div>
                   </div>
                 </td>
-                <td class="px-4 py-[0.85rem] align-middle text-[0.82rem] text-[#24252a] first:rounded-l-lg last:rounded-r-lg">
+                <td class="py-3 px-3 align-middle">
                   <div class="flex flex-col gap-1">
-                    <span class="font-semibold leading-[1.35] text-[#14151a]">{{ article.title }}</span>
-                    <div v-if="article.tags && article.tags.length > 0" class="flex flex-wrap gap-[0.35rem]">
-                      <span v-for="t in article.tags" :key="t.id || t.name" class="rounded bg-[rgba(20,20,20,0.04)] px-[0.45rem] py-[0.1rem] text-[0.65rem] text-text-secondary">
+                    <span class="font-accent text-[15.5px] font-medium leading-[1.3] text-text-primary">{{ article.title }}</span>
+                    <div v-if="article.tags && article.tags.length > 0" class="flex flex-wrap gap-1.5">
+                      <span v-for="t in article.tags" :key="t.id || t.name" class="font-mono text-[11px] text-text-muted">
                         #{{ t.name }}
                       </span>
                     </div>
                   </div>
                 </td>
-                <td class="px-4 py-[0.85rem] align-middle text-[0.82rem] text-[#24252a] first:rounded-l-lg last:rounded-r-lg">
-                  <span class="inline-block rounded-full px-[0.65rem] py-1 text-[0.72rem] font-semibold" :class="getCategoryPillClasses(article.category)">
+                <td class="py-3 px-3 align-middle">
+                  <span class="inline-block rounded-[6px] px-2 py-0.5 text-[12px] font-medium" :class="getCategoryPillClasses(article.category)">
                     {{ article.category }}
                   </span>
                 </td>
-                <td class="px-4 py-[0.85rem] align-middle text-[0.82rem] text-[#24252a] first:rounded-l-lg last:rounded-r-lg">
-                  <span class="text-[0.78rem] text-text-secondary">{{ article.author }}</span>
+                <td class="py-3 px-3 align-middle">
+                  <span class="text-[13px] text-text-secondary">{{ article.author }}</span>
                 </td>
-                <td class="px-4 py-[0.85rem] align-middle text-[0.82rem] text-[#24252a] first:rounded-l-lg last:rounded-r-lg">
-                  <span class="inline-flex items-center gap-[0.35rem] rounded-full px-[0.65rem] py-1 text-[0.72rem] font-semibold" :class="statusBadgeClasses[article.status]">
+                <td class="py-3 px-3 align-middle">
+                  <span class="inline-flex items-center gap-1.5 rounded-[6px] px-2 py-0.5 text-[12px] font-medium" :class="statusBadgeClasses[article.status]">
                     <span class="h-[6px] w-[6px] rounded-full" :class="statusDotClasses[article.status]"></span>
                     <span>{{ article.status === 'published' ? 'Veröffentlicht' : 'Entwurf' }}</span>
                   </span>
                 </td>
-                <td class="px-4 py-[0.85rem] text-right align-middle text-[0.82rem] text-[#24252a] first:rounded-l-lg last:rounded-r-lg">
-                  <div class="flex justify-end gap-[0.4rem]" @click.stop>
+                <td class="py-3 pl-3 pr-2 text-right align-middle">
+                  <div class="flex justify-end gap-1.5" @click.stop>
                     <button
-                      class="cursor-pointer rounded-md border border-border-subtle bg-[rgba(20,20,20,0.04)] px-[0.6rem] py-1 text-[0.72rem] font-medium text-text-secondary transition-all duration-200 hover:bg-[rgba(20,20,20,0.08)] hover:text-[#14151a]"
+                      class="cursor-pointer rounded-[6px] border border-border-subtle bg-bg-card px-2.5 py-1 text-[12px] font-medium text-text-secondary transition-colors duration-150 hover:bg-bg-card-subtle hover:text-text-primary"
                       @click="selectArticle(article)"
                     >
                       Vorschau
                     </button>
                     <button
-                      class="cursor-pointer rounded-md border border-border-subtle bg-[rgba(20,20,20,0.04)] px-[0.6rem] py-1 text-[0.72rem] font-medium text-text-secondary transition-all duration-200 hover:bg-[rgba(20,20,20,0.08)] hover:text-[#14151a]"
+                      class="cursor-pointer rounded-[6px] border border-border-subtle bg-bg-card px-2.5 py-1 text-[12px] font-medium text-text-secondary transition-colors duration-150 hover:bg-bg-card-subtle hover:text-text-primary"
                       @click="toggleStatus(article)"
                     >
                       {{ article.status === 'published' ? 'Entwurf' : 'Live' }}
                     </button>
                     <button
-                      class="cursor-pointer rounded-md border border-border-subtle bg-[rgba(20,20,20,0.04)] px-[0.6rem] py-1 text-[0.72rem] font-medium text-[#f87171] transition-all duration-200 hover:bg-[rgba(239,68,68,0.2)]"
+                      class="cursor-pointer rounded-[6px] border border-border-subtle bg-bg-card px-2.5 py-1 text-[12px] font-medium text-[#b93829] transition-colors duration-150 hover:bg-[#b93829]/10"
                       @click="deleteArticle(article.id)"
                     >
                       Löschen
@@ -198,7 +270,7 @@
               </tr>
               <tr v-if="filteredArticles.length === 0">
                 <td colspan="6" class="px-4 py-12 text-center">
-                  <p class="m-0 text-[0.85rem] text-text-muted">Keine Artikel gefunden.</p>
+                  <p class="m-0 text-[13px] text-text-muted">Keine Artikel gefunden</p>
                 </td>
               </tr>
             </tbody>
@@ -211,118 +283,128 @@
     <transition name="drawer">
       <div
         v-if="selectedArticle"
-        class="fixed right-0 top-0 z-[200] flex h-screen w-[440px] max-w-[90vw] flex-col border-l border-border-subtle bg-[rgba(255,255,255,0.9)] shadow-[-10px_0_40px_rgba(20,20,20,0.14)] backdrop-blur-[20px]"
+        role="dialog"
+        aria-label="Artikelvorschau"
+        class="fixed right-0 top-0 z-[200] flex h-screen w-[440px] max-w-[92vw] flex-col border-l border-border-subtle bg-bg-card shadow-[0_12px_36px_rgba(31,27,22,0.12)]"
       >
-        <div class="flex items-center justify-between border-b border-border-subtle px-6 py-5">
-          <h3 class="m-0 text-[1.05rem] font-bold text-[#14151a]">Vorschau</h3>
-          <button class="cursor-pointer border-none bg-transparent text-[1.5rem] leading-none text-text-muted hover:text-[#14151a]" @click="selectedArticle = null">&times;</button>
+        <div class="flex items-center justify-between border-b border-border-subtle px-6 py-4">
+          <div class="flex items-center gap-2">
+            <h3 class="m-0 font-accent text-[18px] font-medium text-text-primary">Vorschau</h3>
+            <span class="font-mono text-[11px] tabular-nums text-text-muted">#{{ selectedArticle.id }}</span>
+          </div>
+          <button type="button" aria-label="Schließen" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[7px] border-none bg-transparent text-text-muted transition-colors duration-150 hover:bg-bg-card-subtle hover:text-text-primary" @click="selectedArticle = null">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
 
         <div class="flex flex-1 flex-col gap-5 overflow-y-auto p-6 [&>*]:shrink-0">
           <div
-            class="relative flex h-[260px] w-full items-center justify-center overflow-hidden rounded-xl border border-border-subtle bg-[#efece3] bg-cover bg-center"
-            :class="{ 'border-2 border-dashed': !selectedArticle.imageUrl }"
+            class="relative flex h-[240px] w-full items-center justify-center overflow-hidden rounded-[10px] border border-border-subtle bg-bg-card-subtle bg-cover bg-center"
+            :class="{ 'border-dashed': !selectedArticle.imageUrl }"
             :style="selectedArticle.imageUrl ? { backgroundImage: `url(${config.public.apiUrl}${selectedArticle.imageUrl})` } : {}"
             @dragover.prevent
             @drop.prevent="handleImageDrop"
           >
-            <p v-if="!selectedArticle.imageUrl && !isGeneratingImage" class="m-0 px-6 text-center text-[0.8rem] text-text-secondary">Kein Titelbild. Datei hierher ziehen oder erzeugen lassen.</p>
-            <div v-if="isGeneratingImage" class="absolute inset-0 flex items-center justify-center bg-black/45 text-[0.82rem] font-medium text-white">
+            <div v-if="!selectedArticle.imageUrl && !isGeneratingImage" class="flex flex-col items-center gap-2 px-6 text-center">
+              <span class="font-mono text-[11px] text-text-muted">Titelbild</span>
+              <p class="m-0 text-[13px] text-text-secondary">Datei hierher ziehen oder erzeugen lassen.</p>
+            </div>
+            <div v-if="isGeneratingImage" class="absolute inset-0 flex items-center justify-center bg-black/50 font-mono text-[13px] text-white">
               Bild wird erzeugt … {{ genElapsed }} s
             </div>
           </div>
-          <div class="-mt-2 flex flex-wrap items-center gap-2 text-[0.76rem]">
+          <div class="-mt-2 flex flex-wrap items-center gap-2 text-[12px]">
             <button
-              class="cursor-pointer rounded-md border border-border-subtle bg-white px-3 py-[0.35rem] font-semibold text-accent-ink hover:bg-black/[0.04] disabled:opacity-50"
+              class="cursor-pointer rounded-[7px] border border-border-subtle bg-bg-card px-3 py-1.5 font-medium text-text-primary transition-colors hover:bg-bg-card-subtle disabled:opacity-50"
               :disabled="isGeneratingImage"
               @click="generateImageForArticle"
             >
               {{ selectedArticle.imageUrl ? 'Neu erzeugen' : 'Bild erzeugen' }}
             </button>
-            <label class="cursor-pointer rounded-md border border-border-subtle bg-white px-3 py-[0.35rem] text-text-secondary hover:bg-black/[0.04]">
+            <label class="cursor-pointer rounded-[7px] border border-border-subtle bg-bg-card px-3 py-1.5 text-text-secondary transition-colors hover:bg-bg-card-subtle">
               Hochladen
               <input type="file" accept="image/*" class="hidden" @change="handleImageUpload" />
             </label>
             <button
               v-if="selectedArticle.imageUrl"
-              class="cursor-pointer border-none bg-transparent px-1 text-[#c0392b] hover:underline"
+              class="cursor-pointer border-none bg-transparent px-1 text-[#b93829] hover:underline"
               @click="removeImage(selectedArticle.id)"
             >
               Entfernen
             </button>
-            <span v-if="imageError" class="basis-full text-[0.74rem] text-[#c0392b]">{{ imageError }}</span>
+            <span v-if="imageError" class="basis-full text-[12px] text-[#b93829]">{{ imageError }}</span>
           </div>
-          <details v-if="selectedArticle.imagePrompt" class="-mt-2 text-[0.74rem] text-text-secondary">
+          <details v-if="selectedArticle.imagePrompt" class="-mt-2 text-[12px] text-text-secondary">
             <summary class="cursor-pointer">Bildprompt</summary>
-            <p class="m-0 mt-1 leading-[1.45]">{{ selectedArticle.imagePrompt }}</p>
+            <p class="m-0 mt-1.5 leading-[1.5]">{{ selectedArticle.imagePrompt }}</p>
           </details>
 
-          <div class="flex flex-wrap items-center gap-[0.6rem]">
-            <span class="rounded-full border border-[rgba(92,122,20,0.3)] bg-[#efece3] px-[0.65rem] py-1 text-[0.72rem] font-bold text-[#5c7a14]">{{ selectedArticle.category }}</span>
-            <div v-if="selectedArticle.tags && selectedArticle.tags.length > 0" class="flex flex-wrap gap-[0.35rem]">
-              <span v-for="tag in selectedArticle.tags" :key="tag.id || tag.name" class="rounded-md border border-border-subtle bg-[rgba(20,20,20,0.04)] px-[0.55rem] py-[0.2rem] text-[0.7rem] text-text-secondary">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="rounded-[6px] border border-[rgba(92,122,20,0.28)] bg-[#dbe8a6]/35 px-2.5 py-0.5 text-[12px] font-medium text-[#3d520c]">{{ selectedArticle.category }}</span>
+            <div v-if="selectedArticle.tags && selectedArticle.tags.length > 0" class="flex flex-wrap gap-1.5">
+              <span v-for="tag in selectedArticle.tags" :key="tag.id || tag.name" class="rounded-[6px] border border-border-subtle bg-bg-main px-2 py-0.5 font-mono text-[11px] text-text-secondary">
                 #{{ tag.name }}
               </span>
             </div>
           </div>
 
-          <h2 class="m-0 text-[1.25rem] font-extrabold leading-[1.35] text-[#14151a]">{{ selectedArticle.title }}</h2>
+          <h2 class="m-0 font-accent text-[22px] font-medium leading-[1.25] text-text-primary">{{ selectedArticle.title }}</h2>
 
-          <div v-if="selectedArticle.teaser" class="rounded-[10px] border border-border-subtle p-[0.95rem]">
-            <strong class="mb-2 block text-[0.78rem] text-[#24252a]">Teaser</strong>
-            <p class="m-0 text-[0.8rem] leading-[1.5] text-[#5a5b61]">{{ selectedArticle.teaser }}</p>
+          <div v-if="selectedArticle.teaser" class="rounded-[10px] border border-border-subtle bg-bg-main/60 p-4">
+            <strong class="mb-1.5 block text-[12px] font-semibold text-text-primary">Teaser</strong>
+            <p class="m-0 text-[13.5px] leading-[1.55] text-text-secondary">{{ selectedArticle.teaser }}</p>
           </div>
 
-          <div v-if="selectedArticle.keyTakeaways" class="rounded-[10px] border border-border-subtle p-[0.95rem]">
-            <strong class="mb-2 block text-[0.78rem] text-[#24252a]">Kernpunkte</strong>
-            <ul class="m-0 pl-5 text-[0.8rem] leading-[1.5] text-[#5a5b61] [&>li]:mb-[0.3rem]">
+          <div v-if="selectedArticle.keyTakeaways" class="rounded-[10px] border border-border-subtle bg-bg-main/60 p-4">
+            <strong class="mb-1.5 block text-[12px] font-semibold text-text-primary">Kernpunkte</strong>
+            <ul class="m-0 pl-4 text-[13.5px] leading-[1.55] text-text-secondary [&>li]:mb-1.5 last:[&>li]:mb-0">
               <li v-for="point in parseKeyTakeaways(selectedArticle.keyTakeaways)" :key="point">
                 {{ point }}
               </li>
             </ul>
           </div>
 
-          <div class="rounded-[10px] border border-border-subtle p-[0.95rem]">
-            <strong class="mb-2 block text-[0.78rem] text-[#24252a]">Nutzung im Feed</strong>
-            <dl v-if="selectedStats" class="m-0 grid grid-cols-2 gap-x-4 gap-y-[0.35rem] text-[0.78rem] text-[#5a5b61]">
-              <dt>Aufrufe</dt><dd class="m-0 text-right font-semibold text-[#24252a]">{{ selectedStats.impressions }}</dd>
-              <dt>Ø Zeit auf der Karte</dt><dd class="m-0 text-right font-semibold text-[#24252a]">{{ formatSeconds(selectedStats.avgDwellSeconds) }}</dd>
-              <dt>Schnell weitergewischt</dt><dd class="m-0 text-right font-semibold text-[#24252a]">{{ selectedStats.quickSkips }}</dd>
-              <dt>Geöffnet</dt><dd class="m-0 text-right font-semibold text-[#24252a]">{{ selectedStats.reads }}</dd>
-              <dt>Ø Lesedauer</dt><dd class="m-0 text-right font-semibold text-[#24252a]">{{ formatSeconds(selectedStats.avgReadSeconds) }}</dd>
-              <dt>Likes · Kommentare · Teilen</dt><dd class="m-0 text-right font-semibold text-[#24252a]">{{ selectedStats.likes }} · {{ selectedStats.comments }} · {{ selectedStats.shares }}</dd>
+          <div class="rounded-[10px] border border-border-subtle bg-bg-main/60 p-4">
+            <strong class="mb-2 block text-[12px] font-semibold text-text-primary">Nutzung im Feed</strong>
+            <dl v-if="selectedStats" class="m-0 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] text-text-secondary">
+              <dt>Aufrufe</dt><dd class="m-0 text-right font-mono font-medium tabular-nums text-text-primary">{{ selectedStats.impressions }}</dd>
+              <dt>Ø Kartenzeit</dt><dd class="m-0 text-right font-mono font-medium tabular-nums text-text-primary">{{ formatSeconds(selectedStats.avgDwellSeconds) }}</dd>
+              <dt>Schnell weiter</dt><dd class="m-0 text-right font-mono font-medium tabular-nums text-text-primary">{{ selectedStats.quickSkips }}</dd>
+              <dt>Geöffnet</dt><dd class="m-0 text-right font-mono font-medium tabular-nums text-text-primary">{{ selectedStats.reads }}</dd>
+              <dt>Ø Lesedauer</dt><dd class="m-0 text-right font-mono font-medium tabular-nums text-text-primary">{{ formatSeconds(selectedStats.avgReadSeconds) }}</dd>
+              <dt>Reaktionen</dt><dd class="m-0 text-right font-mono font-medium tabular-nums text-text-primary">{{ selectedStats.likes }} · {{ selectedStats.comments }} · {{ selectedStats.shares }}</dd>
             </dl>
-            <p v-else class="m-0 text-[0.78rem] text-text-muted">Noch keine Daten.</p>
+            <p v-else class="m-0 text-[13px] text-text-muted">Noch keine Daten</p>
           </div>
 
           <!-- Versionen (GET /api/articles/:id/versions) -->
-          <div v-if="versions.length > 0" class="rounded-[10px] border border-border-subtle p-[0.95rem]">
-            <div class="mb-2 flex items-baseline justify-between text-[0.78rem] text-[#24252a]">
+          <div v-if="versions.length > 0" class="rounded-[10px] border border-border-subtle bg-bg-main/60 p-4">
+            <div class="mb-2 flex items-baseline justify-between text-[12px] text-text-primary">
               <strong>Versionen</strong>
-              <span class="text-[0.72rem] text-text-muted">{{ versions.length }} gespeichert</span>
+              <span class="font-mono text-[11px] tabular-nums text-text-muted">{{ versions.length }} gespeichert</span>
             </div>
-            <ol class="m-0 flex list-none flex-col p-0">
+            <ol class="m-0 flex list-none flex-col divide-y divide-border-subtle p-0">
               <li
                 v-for="(v, idx) in versions"
                 :key="v.id"
-                class="flex items-start gap-3 border-t border-border-subtle py-[0.6rem] first:border-t-0 first:pt-0 last:pb-0"
+                class="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
               >
                 <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-x-[0.45rem] gap-y-[0.15rem] text-[0.72rem] text-[#5a5b61]">
-                    <span class="font-semibold text-[#24252a]">v{{ v.version }}</span>
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-text-secondary">
+                    <span class="font-mono font-medium text-text-primary">v{{ v.version }}</span>
                     <span>{{ versionSourceLabel(v) }}</span>
-                    <span>{{ formatDateTime(v.createdAt) }}</span>
+                    <span class="font-mono text-[11px] tabular-nums text-text-muted">{{ formatDateTime(v.createdAt) }}</span>
                   </div>
-                  <div v-if="v.model" class="mt-[0.1rem] truncate font-mono text-[0.68rem] text-text-muted">
+                  <div v-if="v.model" class="mt-0.5 truncate font-mono text-[11px] text-text-muted">
                     {{ v.model }} · T {{ v.temperature }} · Seed {{ v.seed }}
                   </div>
-                  <p class="m-0 mt-[0.2rem] line-clamp-2 text-[0.78rem] leading-[1.45] text-[#3f4046]">{{ v.teaser || '–' }}</p>
+                  <p class="m-0 mt-1 line-clamp-2 text-[12.5px] leading-[1.45] text-text-secondary">{{ v.teaser || '–' }}</p>
                 </div>
-                <span v-if="idx === 0" class="shrink-0 pt-[0.1rem] text-[0.72rem] font-semibold text-[#4d6612]">aktuell</span>
+                <span v-if="idx === 0" class="shrink-0 pt-0.5 font-mono text-[11px] font-medium text-[#5c7a14]">aktuell</span>
                 <button
                   v-else
                   type="button"
-                  class="shrink-0 rounded-full border border-border-subtle bg-white px-[0.7rem] py-[0.25rem] text-[0.72rem] font-semibold text-accent-ink transition-colors hover:bg-black/[0.04] disabled:opacity-50"
+                  class="shrink-0 cursor-pointer rounded-[6px] border border-border-subtle bg-bg-card px-2.5 py-1 text-[11.5px] font-medium text-text-primary transition-colors hover:bg-bg-card-subtle disabled:opacity-50"
                   :disabled="restoringVersion !== null"
                   @click="restoreVersion(v.version)"
                 >
@@ -332,36 +414,38 @@
             </ol>
           </div>
 
-          <div class="text-[0.74rem] text-text-muted">
-            {{ selectedArticle.author }} • {{ estimateReadingTime(selectedArticle.content) }} • {{ formatDate(selectedArticle.createdAt) }}
+          <div class="font-mono text-[11.5px] text-text-muted">
+            {{ selectedArticle.author }} · {{ estimateReadingTime(selectedArticle.content) }} · {{ formatDate(selectedArticle.createdAt) }}
           </div>
 
-          <div class="whitespace-pre-line text-[0.82rem] leading-[1.6] text-[#3f4046]">
+          <div class="whitespace-pre-line text-[13.5px] leading-[1.65] text-text-secondary">
             {{ selectedArticle.content }}
           </div>
         </div>
 
-        <div class="flex flex-col gap-[0.6rem] border-t border-border-subtle bg-[rgba(255,255,255,0.85)] px-6 py-5">
+        <div class="flex flex-col gap-2 border-t border-border-subtle bg-bg-card px-6 py-4">
           <button
-            class="cursor-pointer rounded-lg border-none bg-accent-ink px-4 py-[0.55rem] text-[0.82rem] font-semibold text-white hover:opacity-90"
+            class="cursor-pointer rounded-[8px] border-none bg-accent-ink px-4 py-2.5 text-[13px] font-medium text-[#fdfbf7] transition-opacity duration-150 hover:opacity-90"
             @click="toggleStatus(selectedArticle)"
           >
             {{ selectedArticle.status === 'published' ? 'In Entwurf umwandeln' : 'Veröffentlichen' }}
           </button>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              class="cursor-pointer rounded-[8px] border border-border-subtle bg-bg-main px-3 py-2 text-[13px] font-medium text-text-primary transition-colors duration-150 hover:bg-bg-card-subtle"
+              @click="openMobilePreview(selectedArticle.id)"
+            >
+              Im Feed ansehen
+            </button>
+            <button
+              class="cursor-pointer rounded-[8px] border border-border-subtle bg-bg-main px-3 py-2 text-[13px] font-medium text-text-primary transition-colors duration-150 hover:bg-bg-card-subtle"
+              @click="editArticle(selectedArticle)"
+            >
+              Bearbeiten
+            </button>
+          </div>
           <button
-            class="cursor-pointer rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.05)] p-2 text-[0.8rem] font-medium text-[#24252a] transition-all duration-200 hover:bg-[rgba(20,20,20,0.1)]"
-            @click="openMobilePreview(selectedArticle.id)"
-          >
-            Im Feed ansehen
-          </button>
-          <button
-            class="cursor-pointer rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.05)] p-2 text-[0.8rem] font-medium text-[#24252a] transition-all duration-200 hover:bg-[rgba(20,20,20,0.1)]"
-            @click="editArticle(selectedArticle)"
-          >
-            Bearbeiten
-          </button>
-          <button
-            class="cursor-pointer rounded-lg border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.1)] p-2 text-[0.8rem] font-semibold text-[#f87171] hover:bg-[rgba(239,68,68,0.2)]"
+            class="cursor-pointer rounded-[8px] border border-[#b93829]/25 bg-[#b93829]/5 px-3 py-2 text-[13px] font-medium text-[#b93829] transition-colors duration-150 hover:bg-[#b93829]/10"
             @click="deleteArticle(selectedArticle.id)"
           >
             Löschen
@@ -373,30 +457,30 @@
     <!-- RSS-Import -->
     <div
       v-if="isImportOpen"
-      class="fixed inset-0 z-[300] flex items-center justify-center bg-[rgba(20,20,20,0.18)] p-4"
+      class="fixed inset-0 z-[300] flex items-center justify-center bg-[rgba(31,27,22,0.28)] p-4"
       @click.self="isImportOpen = false"
     >
-      <form class="flex w-[520px] max-w-full flex-col gap-4 rounded-2xl border border-border-subtle bg-[#f4f2ec] p-7" @submit.prevent="runImport">
-        <h3 class="m-0 text-[1.25rem] font-bold text-[#14151a]">RSS importieren</h3>
-        <label class="flex flex-col gap-[0.4rem] text-[0.78rem] font-semibold text-text-secondary">
+      <form class="flex w-[520px] max-w-full flex-col gap-4 rounded-[14px] border border-border-subtle bg-bg-card p-6 shadow-[0_16px_48px_rgba(31,27,22,0.14)]" @submit.prevent="runImport">
+        <h3 class="m-0 font-accent text-[22px] font-medium text-text-primary">RSS importieren</h3>
+        <label class="flex flex-col gap-1.5 text-[13px] font-medium text-text-secondary">
           Feed-Adresse
-          <input v-model="importForm.url" type="url" required class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] text-[#14151a] outline-none focus:border-border-focus" />
+          <input v-model="importForm.url" type="url" required class="rounded-[8px] border border-border-subtle bg-bg-main px-3.5 py-2.5 font-[inherit] text-[13.5px] text-text-primary outline-none focus:border-border-focus" />
         </label>
-        <div class="flex flex-wrap items-center gap-5 text-[0.8rem] text-text-secondary">
+        <div class="flex flex-wrap items-center gap-5 text-[13px] text-text-secondary">
           <label class="flex items-center gap-2">
             Anzahl
-            <input v-model.number="importForm.limit" type="number" min="1" max="100" class="w-[70px] rounded-lg border border-border-subtle bg-white px-2 py-1" />
+            <input v-model.number="importForm.limit" type="number" min="1" max="100" class="w-[72px] rounded-[8px] border border-border-subtle bg-bg-main px-2.5 py-1.5 font-mono text-[13px] tabular-nums text-text-primary outline-none focus:border-border-focus" />
           </label>
           <label class="flex items-center gap-2">
             <input v-model="importForm.fullText" type="checkbox" />
             Volltext von der Artikelseite laden
           </label>
         </div>
-        <p class="m-0 text-[0.76rem] text-text-muted">Bereits importierte Artikel werden übersprungen. Teaser, Kategorie und Tags entstehen danach im Hintergrund.</p>
-        <p v-if="importResult" class="m-0 text-[0.8rem] text-[#24252a]">{{ importResult }}</p>
-        <div class="flex justify-end gap-3">
-          <button type="button" class="cursor-pointer rounded-lg border border-border-subtle bg-transparent px-4 py-[0.55rem] text-[0.82rem] text-text-secondary" @click="isImportOpen = false">Schließen</button>
-          <button type="submit" :disabled="isImporting" class="cursor-pointer rounded-lg border-none bg-accent-ink px-4 py-[0.55rem] text-[0.82rem] font-semibold text-white disabled:opacity-50">
+        <p class="m-0 text-[12.5px] text-text-muted">Bereits importierte Artikel werden übersprungen. Teaser, Kategorie und Tags entstehen danach im Hintergrund.</p>
+        <p v-if="importResult" class="m-0 text-[13px] font-medium text-text-primary">{{ importResult }}</p>
+        <div class="flex justify-end gap-2.5 border-t border-border-subtle pt-4">
+          <button type="button" class="cursor-pointer rounded-[8px] border border-border-subtle bg-transparent px-4 py-2 text-[13px] font-medium text-text-secondary hover:bg-bg-card-subtle hover:text-text-primary" @click="isImportOpen = false">Schließen</button>
+          <button type="submit" :disabled="isImporting" class="cursor-pointer rounded-[8px] border-none bg-accent-ink px-4 py-2 text-[13px] font-medium text-[#fdfbf7] disabled:opacity-50">
             {{ isImporting ? 'Importiere …' : 'Importieren' }}
           </button>
         </div>
@@ -406,34 +490,36 @@
     <!-- Artikel anlegen / bearbeiten -->
     <div
       v-if="isModalOpen"
-      class="fixed inset-0 z-[300] flex items-center justify-center bg-[rgba(20,20,20,0.18)] p-4 backdrop-blur-[8px]"
+      class="fixed inset-0 z-[300] flex items-center justify-center bg-[rgba(31,27,22,0.28)] p-4 backdrop-blur-[4px]"
       @click.self="closeModal"
     >
-      <div class="max-h-[90vh] w-[680px] max-w-full overflow-y-auto rounded-2xl border border-border-subtle bg-[#f4f2ec] p-7 shadow-[0_16px_50px_rgba(20,20,20,0.16)]">
-        <div class="mb-6 flex items-start justify-between">
-          <h3 class="m-0 text-[1.25rem] font-bold text-[#14151a]">{{ newArticle.id ? 'Artikel bearbeiten' : 'Neuer Artikel' }}</h3>
-          <button class="cursor-pointer border-none bg-transparent text-[1.6rem] leading-none text-text-muted hover:text-[#14151a]" @click="closeModal">&times;</button>
+      <div class="max-h-[90vh] w-[680px] max-w-full overflow-y-auto rounded-[14px] border border-border-subtle bg-bg-card p-6 shadow-[0_16px_48px_rgba(31,27,22,0.16)] md:p-7">
+        <div class="mb-5 flex items-start justify-between">
+          <h3 class="m-0 font-accent text-[22px] font-medium text-text-primary">{{ newArticle.id ? 'Artikel bearbeiten' : 'Neuer Artikel' }}</h3>
+          <button type="button" aria-label="Schließen" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[7px] border-none bg-transparent text-text-muted transition-colors duration-150 hover:bg-bg-card-subtle hover:text-text-primary" @click="closeModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
 
         <form class="flex flex-col gap-5" @submit.prevent="saveArticle">
-          <div class="flex flex-col gap-[0.4rem]">
+          <div class="flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
-              <label class="text-[0.78rem] font-semibold text-text-secondary">Text</label>
-              <div class="flex gap-[0.4rem]">
+              <label class="text-[13px] font-medium text-text-secondary">Text</label>
+              <div class="flex gap-1.5">
                 <button
                   type="button"
-                  class="cursor-pointer rounded-md border border-border-subtle bg-[rgba(20,20,20,0.04)] px-[0.55rem] py-1 text-[0.72rem] font-medium text-text-secondary hover:bg-[rgba(20,20,20,0.08)] hover:text-[#14151a]"
+                  class="cursor-pointer rounded-[6px] border border-border-subtle bg-bg-main px-2.5 py-1 text-[12px] font-medium text-text-secondary hover:bg-bg-card-subtle hover:text-text-primary"
                   @click="pasteFromClipboard"
                 >
                   Einfügen
                 </button>
                 <button
                   type="button"
-                  class="cursor-pointer rounded-md border border-[rgba(111,143,26,0.3)] bg-[rgba(111,143,26,0.12)] px-[0.55rem] py-1 text-[0.72rem] font-medium text-[#6f8f1a] hover:bg-[rgba(20,20,20,0.08)]"
+                  class="inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] border border-[rgba(92,122,20,0.3)] bg-[#dbe8a6]/35 px-2.5 py-1 text-[12px] font-medium text-[#3d520c] hover:bg-[#dbe8a6]/55"
                   :disabled="isExtracting"
                   @click="autoFillFromContent"
                 >
-                  <span v-if="isExtracting" class="h-3 w-3 animate-[spin_0.8s_linear_infinite] rounded-full border-2 border-[rgba(20,20,20,0.2)] border-t-current"></span>
+                  <span v-if="isExtracting" class="h-3 w-3 animate-[spin_0.8s_linear_infinite] rounded-full border-2 border-black/20 border-t-current"></span>
                   Titel und Tags vorschlagen
                 </button>
               </div>
@@ -443,17 +529,17 @@
               rows="6"
               placeholder="Artikeltext oder Agenturmeldung"
               required
-              class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"
+              class="rounded-[8px] border border-border-subtle bg-bg-main px-3.5 py-2.5 font-[inherit] text-[13.5px] leading-[1.55] text-text-primary outline-none transition-colors duration-150 focus:border-border-focus"
               @input="onContentInput"
             ></textarea>
           </div>
 
-          <div class="flex flex-col gap-[0.4rem]">
+          <div class="flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
-              <label class="text-[0.78rem] font-semibold text-text-secondary">Titel</label>
+              <label class="text-[13px] font-medium text-text-secondary">Titel</label>
               <button
                 type="button"
-                class="cursor-pointer rounded-md border border-border-subtle bg-[rgba(20,20,20,0.04)] px-[0.55rem] py-1 text-[0.72rem] font-medium text-text-secondary hover:bg-[rgba(20,20,20,0.08)] hover:text-[#14151a]"
+                class="cursor-pointer rounded-[6px] border border-border-subtle bg-bg-main px-2.5 py-1 text-[12px] font-medium text-text-secondary hover:bg-bg-card-subtle hover:text-text-primary"
                 title="Titel aus dem ersten Satz ableiten"
                 @click="generateTitleOnly"
               >
@@ -464,31 +550,31 @@
               v-model="newArticle.title"
               type="text"
               placeholder="Leer lassen, dann wird er erzeugt"
-              class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"
+              class="rounded-[8px] border border-border-subtle bg-bg-main px-3.5 py-2.5 font-[inherit] text-[13.5px] text-text-primary outline-none transition-colors duration-150 focus:border-border-focus"
             />
           </div>
 
           <!-- Generierte Inhalte, beim Bearbeiten frei aenderbar -->
           <template v-if="newArticle.id">
-            <div class="flex flex-col gap-[0.4rem]">
-              <label class="text-[0.78rem] font-semibold text-text-secondary">Teaser</label>
-              <textarea v-model="newArticle.teaser" rows="3" placeholder="Wird aus dem Text erzeugt" class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] leading-[1.5] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"></textarea>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[13px] font-medium text-text-secondary">Teaser</label>
+              <textarea v-model="newArticle.teaser" rows="3" placeholder="Wird aus dem Text erzeugt" class="rounded-[8px] border border-border-subtle bg-bg-main px-3.5 py-2.5 font-[inherit] text-[13.5px] leading-[1.5] text-text-primary outline-none transition-colors duration-150 focus:border-border-focus"></textarea>
             </div>
-            <div class="flex flex-col gap-[0.4rem]">
-              <label class="text-[0.78rem] font-semibold text-text-secondary">Kernpunkte <span class="font-normal text-text-muted">(ein Punkt pro Zeile)</span></label>
-              <textarea v-model="keyPointsText" rows="4" placeholder="Wird aus dem Text erzeugt" class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] leading-[1.5] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"></textarea>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[13px] font-medium text-text-secondary">Kernpunkte <span class="font-normal text-text-muted">(ein Punkt pro Zeile)</span></label>
+              <textarea v-model="keyPointsText" rows="4" placeholder="Wird aus dem Text erzeugt" class="rounded-[8px] border border-border-subtle bg-bg-main px-3.5 py-2.5 font-[inherit] text-[13.5px] leading-[1.5] text-text-primary outline-none transition-colors duration-150 focus:border-border-focus"></textarea>
             </div>
-            <p class="-mt-2 m-0 text-[0.74rem] text-text-muted">
+            <p class="-mt-2 m-0 text-[12px] text-text-muted">
               Geänderter Teaser oder geänderte Kernpunkte werden als eigene Version gespeichert. Wird nur der Text geändert, erzeugt das System Teaser und Kernpunkte neu.
             </p>
           </template>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-[0.4rem]">
-              <label class="text-[0.78rem] font-semibold text-text-secondary">Kategorie</label>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[13px] font-medium text-text-secondary">Kategorie</label>
               <select
                 v-model="newArticle.category"
-                class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"
+                class="rounded-[8px] border border-border-subtle bg-bg-main px-3.5 py-2.5 font-[inherit] text-[13.5px] text-text-primary outline-none transition-colors duration-150 focus:border-border-focus"
               >
                 <option value="Auto">Automatisch</option>
                 <option value="Politik">Politik</option>
@@ -500,46 +586,45 @@
               </select>
             </div>
 
-            <div class="flex flex-col gap-[0.4rem]">
-              <label class="text-[0.78rem] font-semibold text-text-secondary">Autor</label>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[13px] font-medium text-text-secondary">Autor</label>
               <input
                 v-model="newArticle.author"
                 type="text"
                 list="author-suggestions"
                 placeholder="Name oder Quelle"
-                class="rounded-lg border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.85rem] py-[0.65rem] font-[inherit] text-[0.82rem] text-[#14151a] outline-none transition-colors duration-200 focus:border-border-focus"
+                class="rounded-[8px] border border-border-subtle bg-bg-main px-3.5 py-2.5 font-[inherit] text-[13.5px] text-text-primary outline-none transition-colors duration-150 focus:border-border-focus"
               />
               <datalist id="author-suggestions">
                 <option value="David Windischbauer" />
                 <option value="Stefan Schachner" />
-                <option value="ORF.at Redaktion" />
+                <option value="Redaktion" />
                 <option value="APA Redaktion" />
               </datalist>
             </div>
           </div>
 
-          <div class="flex flex-col gap-[0.4rem]">
-            <label class="text-[0.78rem] font-semibold text-text-secondary">Unterkategorien</label>
-            <div class="mt-1 flex flex-wrap gap-[0.45rem]">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[13px] font-medium text-text-secondary">Unterkategorien</label>
+            <div class="mt-0.5 flex flex-wrap gap-1.5">
               <button
                 v-for="sub in availableSubtags"
                 :key="sub.slug"
                 type="button"
-                class="flex cursor-pointer items-center gap-[0.4rem] rounded-md border border-border-subtle bg-[rgba(20,20,20,0.03)] px-[0.7rem] py-[0.35rem] text-[0.74rem] text-text-secondary transition-all duration-200 hover:bg-[rgba(20,20,20,0.07)]"
-                :class="{ 'border-[#6f8f1a] bg-[rgba(111,143,26,0.15)] font-semibold text-[#6f8f1a]': isTagSelected(sub.name) }"
+                class="flex cursor-pointer items-center rounded-[6px] border border-border-subtle bg-bg-main px-2.5 py-1 text-[12px] text-text-secondary transition-colors duration-150 hover:bg-bg-card-subtle hover:text-text-primary"
+                :class="{ 'border-[#5c7a14] bg-[#dbe8a6]/35 font-semibold text-[#3d520c]': isTagSelected(sub.name) }"
                 @click="toggleTag(sub.name)"
               >
-                <span class="h-[6px] w-[6px] rounded-full" :style="{ backgroundColor: sub.color || 'var(--accent-cyan)' }"></span>
                 <span>{{ sub.name }}</span>
               </button>
             </div>
           </div>
 
-          <div class="mt-3 flex justify-end gap-3 border-t border-border-subtle pt-4">
-            <button type="button" class="cursor-pointer rounded-lg border border-border-subtle bg-transparent px-[1.1rem] py-[0.55rem] text-[0.82rem] text-text-secondary hover:bg-[rgba(20,20,20,0.05)] hover:text-[#14151a]" @click="closeModal">Abbrechen</button>
+          <div class="mt-2 flex justify-end gap-2.5 border-t border-border-subtle pt-4">
+            <button type="button" class="cursor-pointer rounded-[8px] border border-border-subtle bg-transparent px-4 py-2 text-[13px] font-medium text-text-secondary hover:bg-bg-card-subtle hover:text-text-primary" @click="closeModal">Abbrechen</button>
             <button
               type="submit"
-              class="cursor-pointer rounded-lg border-none bg-accent-ink px-4 py-[0.55rem] text-[0.82rem] font-semibold text-white hover:opacity-90"
+              class="cursor-pointer rounded-[8px] border-none bg-accent-ink px-4 py-2 text-[13px] font-medium text-[#fdfbf7] hover:opacity-90"
             >
               {{ newArticle.id ? 'Speichern' : 'Anlegen' }}
             </button>
@@ -623,12 +708,35 @@ const showToast = (message: string, type: ToastType = 'success') => {
   }, 3500);
 };
 
-const stats = computed(() => [
-  { label: 'Artikel', value: articles.value.length },
-  { label: 'Veröffentlicht', value: articles.value.filter((a) => a.status === 'published').length },
-  { label: 'Entwürfe', value: articles.value.filter((a) => a.status === 'draft').length },
-  { label: 'Jobs in Arbeit', value: pendingJobsCount.value }
-]);
+const publishedCount = computed(() => articles.value.filter((a) => a.status === 'published').length);
+const draftCount = computed(() => articles.value.filter((a) => a.status === 'draft').length);
+
+const CATEGORY_BAR_COLORS: Record<string, string> = {
+  Politik: '#1f1b16',
+  Wirtschaft: '#b46a10',
+  Technologie: '#5c7a14',
+  Chronik: '#4f5d6b',
+  Sport: '#a64d36',
+  Kultur: '#6b4f6e'
+};
+
+const categoryBreakdown = computed(() => {
+  const total = articles.value.length;
+  if (total === 0) return [];
+  const counts = new Map<string, number>();
+  for (const a of articles.value) {
+    const cat = a.category || 'Sonstige';
+    counts.set(cat, (counts.get(cat) || 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, count]) => ({
+      category,
+      count,
+      percent: Math.max(4, Math.round((count / total) * 1000) / 10),
+      color: CATEGORY_BAR_COLORS[category] || '#7b7266'
+    }));
+});
 
 // Subtags available in Modal
 const availableSubtags = computed<SubtagDefinition[]>(() => {
@@ -665,27 +773,27 @@ const filteredArticles = computed<DashboardArticle[]>(() => {
   return list;
 });
 
-// Farben fuer Kategorie- und Status-Pillen in der Tabelle
+// Farben fuer Kategorie- und Status-Pillen in der Tabelle (ruhige Palette auf warmem Grund)
 const categoryPillClasses: Record<string, string> = {
-  politik: 'bg-[rgba(239,68,68,0.15)] text-[#f87171]',
-  wirtschaft: 'bg-[rgba(16,185,129,0.15)] text-[#34d399]',
-  sport: 'bg-[rgba(245,158,11,0.15)] text-[#fbbf24]',
-  technologie: 'bg-[rgba(111,143,26,0.15)] text-[#5c7a14]',
-  kultur: 'bg-[rgba(217,70,239,0.15)] text-[#e879f9]',
-  chronik: 'bg-[rgba(71,85,105,0.12)] text-[#475569]'
+  politik: 'bg-bg-card-subtle text-text-primary',
+  wirtschaft: 'bg-bg-card-subtle text-text-primary',
+  sport: 'bg-bg-card-subtle text-text-primary',
+  technologie: 'bg-[#dbe8a6]/40 text-[#3d520c]',
+  kultur: 'bg-bg-card-subtle text-text-primary',
+  chronik: 'bg-bg-card-subtle text-text-primary'
 };
 
 const getCategoryPillClasses = (category?: string): string =>
-  categoryPillClasses[(category || '').toLowerCase()] || 'bg-[rgba(20,20,20,0.06)] text-[#24252a]';
+  categoryPillClasses[(category || '').toLowerCase()] || 'bg-bg-card-subtle text-text-primary';
 
 const statusBadgeClasses: Record<ArticleStatus, string> = {
-  draft: 'bg-[rgba(20,20,20,0.05)] text-text-muted',
-  published: 'bg-[rgba(16,185,129,0.15)] text-[#34d399]'
+  draft: 'bg-bg-card-subtle text-text-secondary',
+  published: 'bg-[#1f7a4c]/12 text-[#1f7a4c]'
 };
 
 const statusDotClasses: Record<ArticleStatus, string> = {
   draft: 'bg-text-muted',
-  published: 'bg-[#10b981] shadow-[0_0_6px_#10b981]'
+  published: 'bg-[#1f7a4c]'
 };
 
 const formatDate = (dateStr?: string | Date | null): string => {
@@ -1236,7 +1344,7 @@ onUnmounted(() => {
 
 <style scoped>
 .drawer-enter-active, .drawer-leave-active {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .drawer-enter-from, .drawer-leave-to {
@@ -1244,11 +1352,11 @@ onUnmounted(() => {
 }
 
 .toast-enter-active, .toast-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1), transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .toast-enter-from, .toast-leave-to {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(8px);
 }
 </style>
