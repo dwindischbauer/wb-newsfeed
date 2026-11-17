@@ -1,0 +1,187 @@
+Dieses Kapitel beschreibt die Umsetzung der Seite, die Leser:innen tatsächlich zu sehen bekommen: den Feed und das Package, in dem er ausgeliefert wird.\kihinweis{}
+Kapitel~\ref{chapter:architecture} hat gezeigt, wo das Package im Gesamtsystem liegt und über welche Schnittstelle es seine Artikel bezieht.
+Hier geht es darum, wie es aufgebaut ist, welche Entscheidungen bei der Umsetzung getroffen wurden und welche Probleme dabei aufgetreten sind.
+Am Anfang steht der Aufbau des Packages selbst, weil alle weiteren Abschnitte auf seinen Komponenten aufbauen.
+
+\section{Aufbau des Packages}\label{sec:feed:package}
+\setauthor{\secondauthor}
+
+Der Diplomarbeitsantrag verlangt, dass der Feed als wiederverwendbares Modul in bestehende Nuxt-Projekte eingebunden werden kann (Anforderungen T4 und E1).
+Im Repository liegt der gesamte Feed deshalb nicht in der Feed-App, sondern im Package \texttt{@wb-news/shortform-news} im Ordner \texttt{packages/shortform-news}.
+Die Feed-App auf Port 3002 ist selbst nur ein dünner \gls{host}: Sie bindet die Komponente aus dem Package ein und legt fest, was beim Öffnen eines Artikels passiert.
+Dadurch wird jede Änderung am Feed automatisch an derselben Stelle wirksam, an der auch fremde Websites sie beziehen.
+
+\subsection{Drei Komponenten mit unterschiedlicher Tiefe}
+
+Websites, die den Feed einbinden, haben unterschiedliche Ausgangslagen.
+Eine Website ohne eigene Infrastruktur möchte den fertigen Feed mit möglichst wenig Aufwand übernehmen.
+Eine andere Website besitzt vielleicht bereits eine eigene Schnittstelle für Artikel und möchte nur die Darstellung als Karten nutzen.
+Das Package bietet daher nicht eine einzige Komponente an, sondern drei, die ineinander verschachtelt sind und sich in ihrem Funktionsumfang unterscheiden (Abbildung~\ref{fig:feed:components}).
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}[
+        box/.style={draw, rounded corners=2pt, align=left, font=\small, inner sep=6pt},
+        lbl/.style={font=\small\bfseries, anchor=north west}
+    ]
+        \node[box, minimum width=12cm, minimum height=6.4cm, fill=lightgray] (news) at (0,0) {};
+        \node[lbl] at ($(news.north west)+(0.15,-0.1)$) {ShortformNewsFeed};
+        \node[font=\footnotesize, anchor=north west, align=left, text width=4.2cm] at ($(news.north west)+(7.6,-0.6)$)
+            {Laden und Nachladen\\Polling auf Änderungen\\Kategorien, \glqq Für dich\grqq{}\\Likes, Kommentare, Teilen\\Analytics-Ereignisse};
+
+        \node[box, minimum width=7.1cm, minimum height=4.6cm, fill=lightblue] (feed) at (-2.2,-0.55) {};
+        \node[lbl] at ($(feed.north west)+(0.15,-0.1)$) {ShortformFeed};
+        \node[font=\footnotesize, anchor=north west, align=left, text width=3.0cm] at ($(feed.north west)+(4.0,-0.6)$)
+            {Scroll-Container\\Einrasten\\Render-Fenster\\Sichtbarkeit};
+
+        \node[box, minimum width=3.4cm, minimum height=2.8cm, fill=white] (card) at (-3.8,-1.1) {};
+        \node[lbl] at ($(card.north west)+(0.15,-0.1)$) {ShortformCard};
+        \node[font=\footnotesize, anchor=north west, align=left, text width=3.0cm] at ($(card.north west)+(0.15,-0.6)$)
+            {Bild, Titel, \gls{teaser}\\Aktionsleiste\\\glqq Weiterlesen\grqq{}};
+    \end{tikzpicture}
+    \caption{Verschachtelung der drei Komponenten des Packages und ihre Aufgaben}
+    \label{fig:feed:components}
+\end{figure}
+
+Die innerste Komponente \texttt{ShortformCard} stellt genau einen Artikel dar.
+Sie zeigt das Titelbild, den Titel, den \gls{teaser} und die Aktionsleiste mit Like, Kommentar und Teilen und meldet, wenn jemand den Artikel öffnen möchte.
+Eine Karte weiß nichts über andere Karten und lädt selbst keine Daten.
+
+\texttt{ShortformFeed} ordnet beliebig viele Karten untereinander in einem Container an, der beim Wischen auf jeder Karte einrastet.
+Diese Komponente entscheidet auch, welche Karten tatsächlich gezeichnet werden, und meldet, wann eine Karte sichtbar wird.
+Die Artikel erhält sie als fertige Liste von außen.
+Wer eine eigene Datenquelle hat, verwendet diese Komponente und übergibt seine Artikel selbst.
+
+Die äußerste Komponente \texttt{ShortformNewsFeed} ist der vollständige Feed.
+Sie benötigt nur die Adresse der Schnittstelle und übernimmt alles Weitere: das seitenweise Laden, die regelmäßige Prüfung auf neue Artikel, die Kategorien, die Sortierung \glqq Für dich\grqq{}, Likes und Kommentare sowie das Senden der Analytics-Ereignisse.
+Die Größe der Dateien spiegelt diese Verteilung wider: \texttt{ShortformCard} umfasst 163 Zeilen, \texttt{ShortformFeed} 110 und \texttt{ShortformNewsFeed} 776 Zeilen.
+Die Logik ohne Darstellung, etwa das Zusammenführen neuer Daten oder die Berechnung der persönlichen Reihenfolge, liegt in den Dateien \texttt{utils.ts} und \texttt{personalization.ts}.
+Sie sind reine TypeScript-Funktionen ohne Bezug zu Vue und lassen sich dadurch ohne Browser mit Unit-Tests prüfen.
+
+Die Aufteilung folgt dem Grundsatz, dass Daten von außen nach innen fließen und Ereignisse von innen nach außen.
+Eine Karte meldet ein Like an den Feed, der Feed an \texttt{ShortformNewsFeed}, und erst diese Komponente sendet die Anfrage an die Schnittstelle.
+Wie dieser Fluss im Detail umgesetzt ist, behandelt der Abschnitt über Komponenten und Zustand.
+Zunächst steht im Vordergrund, wie die Komponenten als Package gebaut und an einen \gls{host} ausgeliefert werden.
+
+\subsection{Build und Auslieferung}
+
+Ein Package muss so gebaut werden, dass ein fremdes Projekt es ohne Kenntnis des Monorepos verwenden kann.
+Für den Build kommt unbuild zum Einsatz, ein Build-Werkzeug aus dem UnJS-Ökosystem, auf dem auch Nuxt selbst aufbaut~\cite{unbuild}.
+unbuild bietet mehrere Arbeitsweisen an.
+Für das Package wird der Modus \texttt{mkdist} verwendet, der jede Quelldatei einzeln in den Ordner \texttt{dist/} überträgt, statt alles zu einer einzigen Datei zusammenzufassen~\cite{mkdist}.
+TypeScript-Dateien werden dabei zu JavaScript übersetzt, und zu jeder Datei entsteht eine Typdeklaration.
+
+Vue-Komponenten werden in diesem Modus nicht zu fertigem JavaScript kompiliert.
+Die Dateien in \texttt{dist/components} sind weiterhin Single-File Components mit \texttt{<template>}-Block; nur der Skriptteil ist von TypeScript in JavaScript übersetzt.
+Das Kompilieren der Templates übernimmt erst der Build des \gls{host}s.
+Diese Entscheidung hat zwei Gründe.
+Erstens kompiliert der \gls{host} die Komponenten mit seiner eigenen Vue-Version, sodass keine zweite Kopie von Vue im Package mitgeliefert wird.
+Zweitens bleiben die Tailwind-Klassen als lesbarer Text in den Templates erhalten, was für die Erzeugung des CSS notwendig ist (siehe unten).
+Das fertige \texttt{dist/} ist 116~KB groß, das daraus gepackte Archiv rund 22~KB.
+
+Welche Teile ein \gls{host} importieren kann, legt das Feld \texttt{exports} in der Datei \texttt{package.json} fest.
+Tabelle~\ref{tab:feed:exports} zeigt die vier Einstiegspunkte des Packages.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{Einstiegspunkt} & \textbf{Inhalt} \\
+        \midrule
+        \texttt{.} & Die drei Komponenten sowie alle Hilfsfunktionen und Typen, etwa der Typ \texttt{Article} \\
+        \texttt{./utils} & Nur die Hilfsfunktionen, ohne Vue-Komponenten; genutzt vom Admin-\gls{cms} \\
+        \texttt{./nuxt} & Das Nuxt-Modul, das die Komponenten global registriert \\
+        \texttt{./tailwind.css} & Eine CSS-Datei, die Tailwind auf die Komponenten des Packages hinweist \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Einstiegspunkte des Packages laut \texttt{package.json}}
+    \label{tab:feed:exports}
+\end{table}
+
+Vue ist die einzige Laufzeitabhängigkeit des Packages.
+Die Bibliothek \texttt{@nuxt/kit}, die nur das Nuxt-Modul benötigt, ist als optionale Peer-Abhängigkeit eingetragen.
+Ein Projekt, das Vue ohne Nuxt verwendet, kann die Komponenten dadurch über den Haupteinstiegspunkt (\texttt{.}) importieren, ohne Nuxt installieren zu müssen.
+
+\subsection{Registrierung als Nuxt-Modul}\label{sec:feed:package:module}
+
+In einem Nuxt-Projekt müssen Komponenten aus fremden Packages normalerweise in jeder Datei, in der sie verwendet werden, einzeln importiert werden.
+Nuxt erlaubt es Packages jedoch, sich als Modul in den Startvorgang einzuklinken und dabei Komponenten global anzumelden~\cite{nuxtmodules}.
+Das Package nutzt diese Möglichkeit mit einem eigenen Modul in der Datei \texttt{src/module.ts}, dessen Kern Listing~\ref{lst:feed:module} zeigt.
+
+\begin{lstlisting}[float=tbp,language=TypeScript,caption={Registrierung der Komponenten im Nuxt-Modul (gekürzt)},label=lst:feed:module]
+export default defineNuxtModule<ModuleOptions>({
+  meta: {
+    name: '@wb-news/shortform-news',
+    configKey: 'shortformNews'
+  },
+  setup() {
+    const resolver = createResolver(import.meta.url);
+    addComponent({
+      name: 'ShortformNewsFeed',
+      filePath: resolver.resolve('./components/ShortformNewsFeed.vue')
+    });
+    // ShortformFeed und ShortformCard analog
+  }
+});
+\end{lstlisting}
+
+Die Funktion \texttt{defineNuxtModule} stammt aus dem Nuxt Kit und beschreibt ein Modul mit Namen, Konfigurationsschlüssel und einer Funktion \texttt{setup}, die beim Start von Nuxt ausgeführt wird~\cite{nuxtmodules}.
+Darin meldet \texttt{addComponent} jede der drei Komponenten unter ihrem Namen an~\cite{nuxtkitcomponents}.
+Der Pfad wird mit \texttt{createResolver} relativ zur Moduldatei aufgelöst.
+Das ist notwendig, weil das Modul nach der Installation im Ordner \texttt{node\_modules} des \gls{host}s liegt und ein fester Pfad dort nicht mehr stimmen würde.
+
+Für einen \gls{host} reduziert sich die Einbindung damit auf einen Eintrag im Feld \texttt{modules} seiner Datei \texttt{nuxt.config.ts}, nämlich den Einstiegspunkt \texttt{@wb-news/\allowbreak{}shortform-news/\allowbreak{}nuxt}.
+Danach steht \texttt{<ShortformNewsFeed>} in jeder Seite zur Verfügung, ohne dass ein Import geschrieben werden muss.
+Nuxt lädt die Komponenten dabei nur auf Seiten, die sie tatsächlich verwenden.
+Der Konfigurationsschlüssel \texttt{shortformNews} ist bereits vorgesehen, wird derzeit aber nicht ausgewertet.
+Er ist für spätere Optionen reserviert, etwa ein eigenes Präfix für die Komponentennamen, falls ein \gls{host} bereits Komponenten mit gleichem Namen besitzt.
+
+Die beiden Apps im Monorepo verwenden das Modul nicht.
+Sie importieren Komponenten und Hilfsfunktionen direkt, weil sie über den Workspace von pnpm ohnehin Zugriff auf den Quellcode haben.
+Ob das Modul in einem fremden Projekt funktioniert, ließ sich im Monorepo deshalb nicht feststellen.
+Dafür war ein eigener Test notwendig, den der folgende Abschnitt beschreibt.
+
+\subsection{Einbindung in ein fremdes Nuxt-Projekt}\label{sec:feed:package:host}
+
+Innerhalb des Monorepos funktionierte das Package von Anfang an, weil die Apps auf den Quellcode zugreifen und dieselbe Konfiguration teilen.
+Um die Einbindung so zu prüfen, wie sie bei einer echten Website ablaufen würde, wurde im Ordner \texttt{examples/nuxt-host} ein eigenständiges Nuxt-4-Projekt angelegt.
+Es liegt bewusst außerhalb des pnpm-Workspace und installiert das Package nicht aus dem Quellcode, sondern als gepacktes Archiv, genau wie ein fremdes Projekt es über eine Registry erhalten würde.
+Bei diesem Test traten fünf Fehler auf, die im Monorepo nicht sichtbar gewesen waren.
+
+Der erste Fehler betraf bereits die Installation.
+Das Package baute sich ursprünglich im Skript \texttt{postinstall} selbst, das nach jeder Installation ausgeführt wird.
+Das Build-Werkzeug unbuild ist aber nur als Entwicklungsabhängigkeit eingetragen und wird bei der Installation in einem fremden Projekt nicht mitinstalliert.
+Jede Installation brach dadurch ab.
+Die Lösung war, den Build in das Skript \texttt{prepare} zu verschieben.
+Laut Dokumentation von npm läuft \texttt{prepare} vor dem Packen eines Packages und bei einer lokalen Installation ohne Argumente, nicht aber, wenn ein Projekt ein Package als Abhängigkeit installiert~\cite{npmscripts}.
+Das Archiv enthält damit bereits das fertige \texttt{dist/}, und im Monorepo baut \texttt{pnpm install} das Package weiterhin automatisch.
+
+Der zweite und folgenreichste Fehler betraf das Styling.
+Die Komponenten sind ausschließlich mit Klassen von Tailwind CSS gestaltet und bringen kein eigenes, fertiges CSS mit.
+Tailwind erzeugt nur für jene Klassen CSS, die es beim Durchsuchen der Projektdateien findet.
+Den Ordner \texttt{node\_modules} schließt es dabei grundsätzlich aus~\cite{tailwindsources}.
+Im fremden Projekt erschien der Feed deshalb vollständig ohne Gestaltung, obwohl alle Klassen korrekt in den Templates standen.
+Abhilfe schafft die Anweisung \texttt{@source}, mit der zusätzliche Pfade für die Suche angemeldet werden~\cite{tailwindsources}.
+Damit ein \gls{host} den genauen Pfad in seinen \texttt{node\_modules} nicht kennen muss, liefert das Package die Datei \texttt{tailwind.css} mit (Listing~\ref{lst:feed:tailwind}).
+Ihr Pfad ist relativ zur Datei selbst angegeben und stimmt daher unabhängig davon, wo das Package installiert ist.
+
+\begin{lstlisting}[float=tbp,language={},caption={Die mitgelieferte Datei \texttt{tailwind.css} und ihre Verwendung im Host},label=lst:feed:tailwind]
+/* packages/shortform-news/src/tailwind.css */
+@source './components';
+
+/* CSS-Datei des Hosts */
+@import 'tailwindcss';
+@import '@wb-news/shortform-news/tailwind.css';
+\end{lstlisting}
+
+Die übrigen drei Fehler waren kleiner, zeigen aber dieselbe Ursache: Annahmen, die nur im Monorepo galten.
+Eine Animation des Like-Buttons griff auf Einstellungen im Tailwind-Block \texttt{@theme} zurück, die nur die Apps des Monorepos definierten; sie ist jetzt direkt in der Komponente festgelegt.
+Die Farbe eines aktiven Likes wurde von einer statischen Klasse für weiße Schrift überdeckt.
+In Tailwind v4 entscheidet bei zwei Klassen für dieselbe Eigenschaft die Reihenfolge im erzeugten CSS und nicht die Reihenfolge im \texttt{class}-Attribut; die Farbe wird deshalb jetzt ausschließlich abhängig vom Zustand gesetzt.
+Schließlich stellte die Karte jeder Bildadresse einen Schrägstrich voran, wodurch vollständige Adressen auf einen anderen Server ungültig wurden.
+
+Nach diesen Korrekturen zeigt das Beispielprojekt auf Port 3099 denselben Feed wie die Feed-App auf Port 3002, einschließlich Kategorien, Kommentaren und der Übergabe der Artikel-ID an den \gls{host}.
+Die Schritte, die ein \gls{host} durchführen muss, sind in der Datei \texttt{README.md} des Packages dokumentiert: das Package installieren, das Modul eintragen, \texttt{tailwind.css} importieren und die eigene Adresse in der Einstellung \texttt{CORS\_ORIGIN} der Schnittstelle freischalten, damit der Browser die Anfragen an die fremde Adresse zulässt (\gls{cors}).
+Damit ist die Grundlage beschrieben, auf der alle weiteren Teile des Feeds aufbauen.
+Welche Daten zwischen den drei Komponenten fließen und wo der Zustand des Feeds gehalten wird, ist Gegenstand des nächsten Abschnitts.
