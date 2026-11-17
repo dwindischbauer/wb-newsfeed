@@ -118,4 +118,38 @@ describe('personalization', () => {
     expect(profile.categories.Sport).toBe(4);
     expect(profile.articles).toEqual({});
   });
+
+  it('dampens a single brief view instead of maxing out category affinity', () => {
+    const profile = applySignal(createProfile(NOW), sport, 'view', NOW);
+    const score = scoreArticle({ ...sport, id: 10 }, profile, { now: NOW, maxPopularity: 0 });
+    expect(score.category).toBeGreaterThan(0);
+    expect(score.category).toBeLessThan(0.5);
+  });
+
+  it('decays the seen penalty over time so older articles can recover', () => {
+    const profile = applySignal(createProfile(NOW), sport, 'open', NOW);
+    const immediate = scoreArticle(sport, profile, { now: NOW, maxPopularity: 0 });
+    const afterDay = scoreArticle(sport, profile, { now: NOW + 24 * 3_600_000, maxPopularity: 0 });
+    expect(Math.abs(afterDay.seen)).toBeLessThan(Math.abs(immediate.seen));
+  });
+
+  it('aggregates multiple moderate related hits without unbounded summing', () => {
+    const profile = createProfile(NOW);
+    applySignal(profile, { id: 100, category: 'Wirtschaft' }, 'like', NOW);
+    applySignal(profile, { id: 101, category: 'Wirtschaft' }, 'like', NOW);
+    applySignal(profile, { id: 102, category: 'Wirtschaft' }, 'like', NOW);
+    const candidate: RankableArticle = {
+      id: 103,
+      category: 'Politik',
+      related: [{ id: 100, score: 0.4 }, { id: 101, score: 0.4 }, { id: 102, score: 0.4 }]
+    };
+    const score = scoreArticle(candidate, profile, { now: NOW, maxPopularity: 0 });
+    expect(score.similar).toBeCloseTo(0.4, 2);
+  });
+
+  it('does not count accidental skips toward the minimum learning signal count', () => {
+    const profile = createProfile(NOW);
+    for (let i = 0; i < 4; i++) applySignal(profile, sport, 'skip', NOW);
+    expect(profile.signals).toBe(0);
+  });
 });

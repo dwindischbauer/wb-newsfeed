@@ -9,8 +9,9 @@ export interface RelatedArticle {
   score: number;
 }
 
-// Ab dieser Kosinus-Aehnlichkeit gelten zwei Artikel als verwandt (bge-m3)
+// Ab dieser Kosinus-Aehnlichkeit gelten zwei Artikel als verwandt (bge-m3 / qwen3-embedding)
 const RELATED_MIN_SCORE = 0.55;
+const FALLBACK_RELATED_MIN_SCORE = 0.35;
 const RELATED_LIMIT = 8;
 
 /**
@@ -61,23 +62,69 @@ function normalize(v: number[]): number[] {
   return v.map((x) => x / length);
 }
 
+export interface RelatableArticle {
+  id: number;
+  embedding: number[] | null;
+  category?: string;
+  tags?: Array<{ slug?: string; name?: string }>;
+  title?: string;
+}
+
+const tokenizeTitle = (title?: string): Set<string> => {
+  if (!title) return new Set();
+  return new Set(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9äöüß\s]/gi, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 4)
+  );
+};
+
+const jaccard = (a: Set<string>, b: Set<string>): number => {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const item of a) if (b.has(item)) inter++;
+  return inter / (a.size + b.size - inter);
+};
+
 /**
  * Liefert je Artikel die inhaltlich aehnlichsten anderen Artikel.
- * Bei ein paar hundert Artikeln reicht der direkte Vergleich jeder mit jedem.
+ * Nutzt Kosinus-Aehnlichkeit der Embeddings wenn vorhanden, und faellt bei
+ * fehlendem Embedding (z. B. ohne laufendes Ollama) auf Tags/Kategorie/Titel zurueck.
  */
-export function buildRelatedMap(items: Array<{ id: number; embedding: number[] | null }>): Map<number, RelatedArticle[]> {
-  const vectors = items
-    .filter((a): a is { id: number; embedding: number[] } => Array.isArray(a.embedding) && a.embedding.length > 0)
-    .map((a) => ({ id: a.id, v: normalize(a.embedding) }));
+export function buildRelatedMap(items: RelatableArticle[]): Map<number, RelatedArticle[]> {
+  const prepared = items.map((a) => ({
+    id: a.id,
+    v: Array.isArray(a.embedding) && a.embedding.length > 0 ? normalize(a.embedding) : null,
+    category: (a.category || '').toLowerCase(),
+    tags: new Set((a.tags || []).map((t) => (t.slug || t.name || '').toLowerCase()).filter(Boolean)),
+    words: tokenizeTitle(a.title)
+  }));
 
   const related = new Map<number, RelatedArticle[]>();
-  for (const a of vectors) {
+  for (const a of prepared) {
     const scores: RelatedArticle[] = [];
-    for (const b of vectors) {
-      if (a.id === b.id || a.v.length !== b.v.length) continue;
-      let dot = 0;
-      for (let i = 0; i < a.v.length; i++) dot += a.v[i]! * b.v[i]!;
-      if (dot >= RELATED_MIN_SCORE) scores.push({ id: b.id, score: Math.round(dot * 1000) / 1000 });
+    for (const b of prepared) {
+      if (a.id === b.id) continue;
+
+      if (a.v && b.v && a.v.length === b.v.length) {
+        let dot = 0;
+        for (let i = 0; i < a.v.length; i++) dot += a.v[i]! * b.v[i]!;
+        if (dot >= RELATED_MIN_SCORE) {
+          scores.push({ id: b.id, score: Math.round(dot * 1000) / 1000 });
+        }
+        continue;
+      }
+
+      // Fallback ohne Embedding: Tag-Ueberlappung + gleiche Kategorie + Titelwoerter
+      const tagSim = jaccard(a.tags, b.tags);
+      const wordSim = jaccard(a.words, b.words);
+      const sameCat = a.category && a.category === b.category ? 0.25 : 0;
+      const fallbackScore = Math.min(0.85, tagSim * 0.65 + wordSim * 0.35 + sameCat);
+      if (fallbackScore >= FALLBACK_RELATED_MIN_SCORE) {
+        scores.push({ id: b.id, score: Math.round(fallbackScore * 1000) / 1000 });
+      }
     }
     scores.sort((x, y) => y.score - x.score);
     related.set(a.id, scores.slice(0, RELATED_LIMIT));

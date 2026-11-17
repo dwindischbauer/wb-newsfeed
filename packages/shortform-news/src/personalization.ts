@@ -60,7 +60,10 @@ export const SIGNAL_WEIGHTS: Record<SignalType, number> = {
 
 const HALF_LIFE_MS = 3 * 24 * 60 * 60 * 1000;
 const FRESHNESS_HALF_LIFE_H = 24;
+const SEEN_HALF_LIFE_MS = 12 * 60 * 60 * 1000;
 const MAX_VALUE = 30;
+/** Mindestsockel fuer die Normierung, damit ein einzelner 4s-Blick nicht 100 % Affinitaet erzeugt. */
+const CONFIDENCE_FLOOR = SIGNAL_WEIGHTS.like;
 
 // Gewichtung der Bestandteile im Score
 const W_CATEGORY = 3;
@@ -135,8 +138,10 @@ export function applySignal(
     if (key) profile.tags[key] = clamp((profile.tags[key] || 0) + weight * 1.2);
   }
   profile.articles[article.id] = clamp((profile.articles[article.id] || 0) + weight);
-  if (signal !== 'skip') profile.seen[article.id] = now;
-  profile.signals++;
+  if (signal !== 'skip') {
+    profile.seen[article.id] = now;
+    profile.signals++;
+  }
   return profile;
 }
 
@@ -145,7 +150,8 @@ export function markSeen(profile: InterestProfile, articleId: number, now = Date
   profile.seen[articleId] = now;
 }
 
-const maxAbs = (values: number[]) => values.reduce((m, v) => Math.max(m, Math.abs(v)), 0) || 1;
+const maxAbs = (values: number[]) => values.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+const smoothedNorm = (values: number[]) => Math.max(CONFIDENCE_FLOOR, maxAbs(values));
 
 export interface ScoreContext {
   now: number;
@@ -154,6 +160,12 @@ export interface ScoreContext {
 
 function popularity(a: RankableArticle): number {
   return (a.likeCount || 0) + 2 * (a.commentCount || 0) + 2 * (a.shareCount || 0) + (a.readCount || 0);
+}
+
+function computeFreshness(createdAt: string | Date | null | undefined, now: number): number {
+  if (!createdAt) return 0;
+  const ageHours = Math.max(0, (now - new Date(createdAt).getTime()) / 3_600_000);
+  return Number.isFinite(ageHours) ? Math.pow(0.5, ageHours / FRESHNESS_HALF_LIFE_H) : 0;
 }
 
 export interface ScoreParts {
@@ -168,33 +180,40 @@ export interface ScoreParts {
 
 /** Score eines Artikels, in Einzelteile zerlegt (fuer Tests und zum Nachvollziehen). */
 export function scoreArticle(article: RankableArticle, profile: InterestProfile, ctx: ScoreContext): ScoreParts {
-  const catNorm = maxAbs(Object.values(profile.categories));
-  const tagNorm = maxAbs(Object.values(profile.tags));
-  const articleNorm = maxAbs(Object.values(profile.articles));
+  const catNorm = smoothedNorm(Object.values(profile.categories));
+  const tagNorm = smoothedNorm(Object.values(profile.tags));
+  const articleNorm = smoothedNorm(Object.values(profile.articles));
 
   const category = article.category ? (profile.categories[article.category] || 0) / catNorm : 0;
 
   const tagValues = (article.tags || []).map((t) => (profile.tags[tagKey(t)] || 0) / tagNorm);
   const tags = tagValues.length ? Math.max(...tagValues) * 0.7 + (tagValues.reduce((s, v) => s + v, 0) / tagValues.length) * 0.3 : 0;
 
-  // Aehnlich zu Artikeln, die interessiert (oder gelangweilt) haben
-  let similar = 0;
+  // Aehnlich zu Artikeln, die interessiert (oder gelangweilt) haben – gedaempft statt unbegrenzt summiert
+  const relValues: number[] = [];
   for (const rel of article.related || []) {
     const interest = profile.articles[rel.id];
-    if (interest) similar += (interest / articleNorm) * rel.score;
+    if (interest) relValues.push((interest / articleNorm) * rel.score);
   }
-  similar = Math.max(-1, Math.min(1, similar));
+  let similar = 0;
+  if (relValues.length > 0) {
+    const strongest = relValues.reduce((best, v) => (Math.abs(v) > Math.abs(best) ? v : best), 0);
+    const mean = relValues.reduce((s, v) => s + v, 0) / relValues.length;
+    similar = Math.max(-1, Math.min(1, strongest * 0.7 + mean * 0.3));
+  }
 
-  let fresh = 0;
-  if (article.createdAt) {
-    const ageHours = Math.max(0, (ctx.now - new Date(article.createdAt).getTime()) / 3_600_000);
-    if (Number.isFinite(ageHours)) fresh = Math.pow(0.5, ageHours / FRESHNESS_HALF_LIFE_H);
-  }
+  const fresh = computeFreshness(article.createdAt, ctx.now);
 
   const popular = ctx.maxPopularity > 0 ? Math.log1p(popularity(article)) / Math.log1p(ctx.maxPopularity) : 0;
 
   const opened = (profile.articles[article.id] || 0) >= SIGNAL_WEIGHTS.open;
-  const seen = profile.seen[article.id] ? (opened ? -OPENED_PENALTY : -SEEN_PENALTY) : 0;
+  let seen = 0;
+  const seenAt = profile.seen[article.id];
+  if (seenAt) {
+    const seenAgeMs = Math.max(0, ctx.now - seenAt);
+    const recencyFactor = Math.pow(0.5, seenAgeMs / SEEN_HALF_LIFE_MS);
+    seen = (opened ? -OPENED_PENALTY : -SEEN_PENALTY) * recencyFactor;
+  }
 
   const total =
     W_CATEGORY * category + W_TAGS * tags + W_SIMILAR * similar + W_FRESH * fresh + W_POPULAR * popular + seen;
@@ -227,13 +246,16 @@ export function rankForYou<T extends RankableArticle>(
     let pick = -1;
 
     if (learned && position % EXPLORE_EVERY === 0) {
-      // Erkundung: frischester Artikel aus der Kategorie mit dem geringsten Interesse
-      let lowest = Infinity;
+      // Erkundung: hochwertigster & frischester ungesehener Artikel aus wenig beachteter Kategorie
+      let bestExplore = -Infinity;
       scored.forEach((s, i) => {
+        if (profile.seen[s.a.id]) return;
         const interest = profile.categories[s.a.category || ''] || 0;
-        const key = interest - s.score * 0.01;
-        if (!profile.seen[s.a.id] && key < lowest) {
-          lowest = key;
+        const freshPart = computeFreshness(s.a.createdAt, now);
+        const popPart = ctx.maxPopularity > 0 ? Math.log1p(popularity(s.a)) / Math.log1p(ctx.maxPopularity) : 0;
+        const exploreUtility = freshPart * 0.7 + popPart * 0.4 - interest * 0.25;
+        if (exploreUtility > bestExplore) {
+          bestExplore = exploreUtility;
           pick = i;
         }
       });

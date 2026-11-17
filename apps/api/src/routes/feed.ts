@@ -72,7 +72,15 @@ async function loadPublishedFeed(): Promise<FeedArticle[]> {
     }
   }
 
-  const related = buildRelatedMap(publishedArticles);
+  const related = buildRelatedMap(
+    publishedArticles.map((a) => ({
+      id: a.id,
+      embedding: a.embedding,
+      category: a.category,
+      title: a.title,
+      tags: tagsMap.get(a.id) || []
+    }))
+  );
   const reads = await readCounts(articleIds);
 
   return publishedArticles.map(({ embedding: _embedding, ...a }) => ({
